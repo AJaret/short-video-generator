@@ -47,6 +47,13 @@ Degradados suaves, glow, sombras proyectadas, bordes perfectos, blanco puro (#FF
 - Humor seco 6/10. Sin saludos ni despedidas.
 - En los guiones: `[pausa]`, `[pausa larga]` y las indicaciones visuales `[Animación: ...]` (estas últimas NO se leen en voz alta).
 - Números y siglas escritos como se pronuncian ("veintitrés", "pe cinco jota ese").
+- **Puntuación para la voz** (decide cómo termina cada frase; con solo puntos, todos los cierres caen igual y suena a lectura):
+  - `¿…?` para hablarle al espectador ("Parece quieto, ¿verdad?"). El tono sube o se queda abierto.
+  - Comas para unir frases cortas seguidas ("Cinco veces, y nadie le pidió…"). El tono queda en continuación.
+  - `...` para el suspenso del misterio. El final queda en el aire.
+  - `¡…!` para el dato que golpea.
+  - El punto, solo para los cierres de verdad (la revelación, el remate).
+  - Ejemplo de referencia: `episodios/nº00-prueba/guion.md`.
 - Música: lo-fi ambient analógico, 70–85 BPM, vinilo + sintes de cinta. Baja cuando entra el dato clave.
 - Firma sonora: traqueteo de impresora riso en cada transición; zumbido grave que crece antes de la revelación.
 
@@ -121,12 +128,25 @@ ID de composición: el nombre de la carpeta con `nº` → `ep` y sin caracteres 
   - Modelos: `chatterbox-tts==0.1.7` (`ChatterboxMultilingualTTS`, `language_id="es"`, MIT; las salidas llevan la marca de agua inaudible Perth) y Whisper `small` para los tiempos.
   - El guion se parte en **bloques**: todo el texto entre dos `[pausa]`, `[pausa larga]` o cambios de párrafo se genera de una vez (si pasa de ~260 caracteres, se parte por frases). Los títulos `#` y `[Animación: …]` no se leen. Generar frase a frase sonaba robótico: cada frase llevaba su propia entonación de "frase suelta".
   - Silencios entre bloques: 0,45 s con `[pausa]`, 0,9 s con `[pausa larga]` y 0,5 s entre párrafos. Bajo toda la pista va un tono de sala a −66 dB (`tono_sala_db`), porque el salto de la voz al cero digital se nota y suena artificial.
-  - Orden en la GPU: Chatterbox genera todos los bloques → se libera → Whisper analiza cada bloque → se libera → los bloques ilegibles (menos del 60 % de palabras empatadas) se regeneran una vez con otra semilla, repitiendo el ciclo.
+  - **Mejor de 3 tomas:** Chatterbox genera 3 tomas de cada bloque (`tomas`, con semillas distintas) → se libera → Whisper analiza todas → se libera → se queda la mejor de cada bloque según `puntuar_toma`:
+    - palabras que Whisper entiende (×200): nitidez de la articulación.
+    - microcortes dentro de las palabras (×1,5): voz entrecortada.
+    - palabras repetidas al final (×10).
+    - −15 si un bloque que termina en punto **sube** el tono al final, porque suena a frase sin terminar.
+
+    Si la mejor toma sigue siendo ilegible (menos del 60 % de palabras), el ciclo se repite una vez para ese bloque. El costo es el tiempo: unos 4 minutos por cada 12 s de voz. Con `"voz": {"tomas": 1}` en `config.json` es tres veces más rápido, para borradores.
+  - Puerta de ruido (`compuerta_db = −18`): entre palabras, lo que suena muy por debajo de la voz (respiraciones, murmullos, chasquidos del modelo) baja 18 dB con rampas de 40 ms. No toca la voz: se mide que las palabras y sus colas pierden 0 dB.
   - Final de cada bloque: Whisper marca el fin de la última palabra antes de tiempo, y cortar ahí "corta" la voz. `fin_natural` sigue la energía desde ese punto hasta que la voz cae 30 dB y se mantiene así 120 ms; luego deja 60 ms de aire y aplica un fundido de salida de 80 ms. El tope es +0,45 s, para no conservar respiraciones.
   - Chatterbox a veces **repite el final** de frases cortas. Whisper detecta las palabras que sobran tras el final del guion y el corte nunca entra en ellas.
   - Whisper va **sin `initial_prompt`**: con el texto exacto como prompt, alucina otra cosa. Lo que oye se empata con las palabras del guion original (difflib), y las que no empatan (por ejemplo "quince" frente a "15") se reparten entre sus vecinas. Así los subtítulos muestran siempre el texto del guion.
   - Volumen: −16 LUFS, pico máximo −1 dB. WAV a 24 kHz (la frecuencia de Chatterbox).
-  - Ajustes por defecto: exageración 0,5, cfg 0,4 (más bajo = más pausado) y temperatura 0,7. Se pueden cambiar por episodio con un bloque `"voz": {...}` en `config.json` o con `--cfg 0.35`, etc. La semilla sale de `config.json`.
+  - Ajustes por defecto, elegidos de oído con el usuario el 2026-11-07:
+    - exageración 0,8: más emoción, porque 0,5 sonaba monótono.
+    - cfg 0,5.
+    - temperatura 0,8: con 0,95 articula peor ("gida" por "gira"), hay más microcortes y los cierres suben.
+    - `min_p` 0,05 y `top_p` 1,0.
+
+    Se pueden cambiar por episodio con un bloque `"voz": {...}` en `config.json` o con `--temperatura 0.85`, etc. La semilla sale de `config.json`.
   - Caché: `.hash_voz` guarda el hash del guion, los ajustes, la referencia y las versiones. Si no cambia, no se regenera (salvo con `--forzar`).
   - `tiempos.json`: `{palabras: [{texto, inicio, fin}], duracion, meta: {segmentos, palabras_por_minuto, empatadas_whisper}}`.
 - Interfaz de pruebas: `docker compose up -d voz` → http://localhost:7860. Sirve para probar frases sueltas y para generar el episodio completo.

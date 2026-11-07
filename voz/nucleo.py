@@ -27,7 +27,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 REFERENCIA = RAIZ / "assets" / "voz_canal.wav"
 IDIOMA = "es"
 # Súbelo cuando cambie la lógica de generación, para que se regeneren las voces guardadas.
-VERSION_CADENA = "3"
+VERSION_CADENA = "5"
 LUFS_OBJETIVO = -16.0
 
 
@@ -35,10 +35,14 @@ LUFS_OBJETIVO = -16.0
 class Ajustes:
     """Parámetros de la voz. Los valores por defecto buscan el tono de documental nocturno."""
 
-    exageracion: float = 0.5  # emoción: 0.25 sobria … 1.0 teatral
-    cfg: float = 0.4  # más bajo = ritmo más pausado
-    temperatura: float = 0.7
+    exageracion: float = 0.8  # emoción: 0.25 sobria … 1.0 teatral
+    cfg: float = 0.5  # más bajo = ritmo más pausado
+    temperatura: float = 0.8  # más alta = más variación, pero articula peor (>0.9: "gida", microcortes)
+    tomas: int = 3  # tomas por bloque; se queda la mejor (ver puntuar_toma)
+    min_p: float = 0.05  # descarta tokens de sonido improbables (más alto = menos artefactos)
+    top_p: float = 1.0
     semilla: int = 0
+    compuerta_db: float = -18.0  # atenuación de respiraciones y murmullos entre palabras (0 = sin puerta)
     pausa_frase: float = 0.25  # solo cuando un bloque muy largo se parte en dos
     pausa: float = 0.45  # [pausa]
     pausa_larga: float = 0.90  # [pausa larga]
@@ -219,6 +223,8 @@ class Voz:
                 exaggeration=ajustes.exageracion,
                 cfg_weight=ajustes.cfg,
                 temperature=ajustes.temperatura,
+                min_p=ajustes.min_p,
+                top_p=ajustes.top_p,
             )
         audio = wav.squeeze(0).detach().cpu().numpy().astype(np.float32)
         _, (inicio, _) = librosa.effects.trim(audio, top_db=50)
@@ -424,6 +430,93 @@ def recortar(audio: np.ndarray, sr: int, corte: float) -> np.ndarray:
     return trozo
 
 
+def atenuar_huecos(audio: np.ndarray, sr: int, tiempos: list[tuple[float, float]], compuerta_db: float) -> np.ndarray:
+    """Puerta de ruido: baja `compuerta_db` lo que no es voz (respiraciones, murmullos, chasquidos).
+
+    Se considera voz: cada palabra según Whisper (−50 ms / +150 ms, porque Whisper marca el final
+    antes de tiempo) y, por seguridad, cualquier zona con energía a menos de 22 dB del nivel de la
+    voz (por si Whisper ubicó mal una palabra). La ganancia cambia con rampas de 40 ms.
+    """
+    if compuerta_db >= 0 or len(audio) == 0:
+        return audio
+    marco = max(1, int(0.01 * sr))
+    n = int(np.ceil(len(audio) / marco))
+    abierta = np.zeros(n, dtype=bool)
+    for a, b in tiempos:
+        abierta[max(0, int((a - 0.05) / 0.01)) : min(n, int((b + 0.15) / 0.01) + 1)] = True
+    energia = np.array([_db(audio[i * marco : (i + 1) * marco]) for i in range(n)])
+    nivel = np.percentile(energia, 90)
+    abierta |= energia > nivel - 22
+    ganancia = np.where(abierta, 1.0, 10 ** (compuerta_db / 20))
+    # Suavizado: media móvil de 40 ms para que la puerta no "chasquee"
+    ventana = 4
+    ganancia = np.convolve(np.pad(ganancia, ventana, mode="edge"), np.ones(ventana) / ventana, mode="same")[ventana:-ventana]
+    por_muestra = np.repeat(ganancia, marco)[: len(audio)]
+    return (audio * por_muestra).astype(np.float32)
+
+
+def microcortes(audio: np.ndarray, sr: int, tiempos: list[tuple[float, float]]) -> int:
+    """Caídas bruscas de energía (>18 dB durante 20–60 ms) DENTRO de las palabras.
+
+    Son los "saltos" que hacen sonar la voz entrecortada (más frecuentes con temperatura alta).
+    """
+    marco = max(1, sr // 100)
+    cuenta = 0
+    for a, b in tiempos:
+        e = np.array([_db(audio[i : i + marco]) for i in range(int(a * sr), int(b * sr), marco)])
+        if len(e) < 5:
+            continue
+        bajo = e < np.percentile(e, 75) - 18
+        k = 1
+        while k < len(e) - 1:
+            if bajo[k] and not bajo[k - 1]:
+                j = k
+                while j < len(e) and bajo[j]:
+                    j += 1
+                if 2 <= j - k <= 6 and j < len(e):
+                    cuenta += 1
+                k = j
+            k += 1
+    return cuenta
+
+
+def cierre_semitonos(audio: np.ndarray, sr: int, fin: float) -> float:
+    """Cómo se mueve el tono en los últimos ~350 ms antes de `fin` (semitonos; <0 baja, >0 sube)."""
+    import librosa
+
+    trozo = audio[int(max(0.0, fin - 0.35) * sr) : int((fin + 0.05) * sr)]
+    if len(trozo) < sr // 10:
+        return float("nan")
+    f0, sonoro, _ = librosa.pyin(trozo, fmin=110, fmax=400, sr=sr, frame_length=1024, hop_length=120)
+    f0 = f0[sonoro]
+    if len(f0) < 4:
+        return float("nan")
+    tercio = max(1, len(f0) // 3)
+    return float(12 * np.log2(np.median(f0[-tercio:]) / np.median(f0[:tercio])))
+
+
+def puntuar_toma(audio: np.ndarray, sr: int, an: "Analisis", texto: str) -> float:
+    """Nota de una toma: más alta = mejor. Sirve para elegir entre varias tomas del mismo bloque.
+
+    + palabras del guion que Whisper entiende (nitidez / articulación): lo que más pesa
+    − microcortes dentro de las palabras (voz entrecortada). Peso bajo: las oclusivas (p, t, k)
+      también hacen silencios cortos, así que la cuenta tiene ruido
+    − palabras sobrantes al final (repeticiones)
+    − cierre que SUBE en un bloque que termina en punto o exclamación (suena a frase sin terminar)
+    """
+    nota = 200 * an.proporcion - 1.5 * microcortes(audio, sr, an.tiempos) - 10 * an.sobrantes
+    if texto.rstrip().endswith((".", "!", "…")) and an.tiempos:
+        cierre = cierre_semitonos(audio, sr, an.tiempos[-1][1])
+        if np.isfinite(cierre) and cierre > 1.5:
+            nota -= 15
+    return nota
+
+
+def limpiar_bloque(audio: np.ndarray, sr: int, an: "Analisis", ajustes: Ajustes) -> np.ndarray:
+    """Puerta de ruido entre palabras + corte del final natural con fundidos."""
+    return recortar(atenuar_huecos(audio, sr, an.tiempos, ajustes.compuerta_db), sr, an.corte)
+
+
 def tono_de_sala(n: int, sr: int, db: float, semilla: int) -> np.ndarray:
     """Ruido de fondo muy suave y determinista (rosa aproximado), para que los silencios no sean
     "vacío digital": el oído nota mucho el salto de la voz a cero absoluto."""
@@ -464,10 +557,10 @@ def producir_voz(
 ) -> dict:
     """Genera la voz completa y sus tiempos.
 
-    1. Chatterbox genera todas las frases → se libera.
-    2. Whisper analiza cada frase (dónde acaba, qué se repitió, qué tan legible es) → se libera.
-    3. Las frases ilegibles se regeneran con otra semilla (hasta `reintentos` rondas de 1 y 2).
-    4. Se recorta cada frase, se une con sus silencios y se normaliza el volumen.
+    1. Chatterbox genera `ajustes.tomas` tomas de cada bloque (semillas distintas) → se libera.
+    2. Whisper analiza cada toma y se elige la mejor por bloque (ver puntuar_toma) → se libera.
+    3. Si la mejor toma de un bloque sigue siendo ilegible, se repite el ciclo para ese bloque.
+    4. Se limpia cada bloque, se une con sus silencios y se normaliza el volumen.
     Nunca hay dos modelos en la GPU a la vez. Devuelve {"audio", "sr", "tiempos", "resumen"}.
     """
     import torch
@@ -476,42 +569,49 @@ def producir_voz(
     if not segmentos:
         raise ValueError("El guion no tiene texto para leer.")
 
+    tomas = max(1, ajustes.tomas)
     fragmentos: list[np.ndarray] = [np.zeros(0, dtype=np.float32)] * len(segmentos)
     analisis: list[Analisis | None] = [None] * len(segmentos)
+    puntos: list[float] = [-1e9] * len(segmentos)
     pendientes = list(range(len(segmentos)))
     regeneradas: list[int] = []
     vram_tts = vram_whisper = 0.0
     sr = 0
 
     for ronda in range(reintentos + 1):
-        # 1) Síntesis de las frases pendientes
+        # 1) Síntesis: varias tomas de cada bloque pendiente
         voz = voz or Voz(referencia)
         sr = voz.sr
         torch.cuda.reset_peak_memory_stats()
+        crudas: dict[tuple[int, int], np.ndarray] = {}
         for i in pendientes:
             nota = " (reintento)" if ronda else ""
-            avisar(f"  voz {i + 1}/{len(segmentos)}{nota}: {segmentos[i].texto[:60]}")
-            fragmentos[i] = voz.decir(segmentos[i].texto, ajustes, i + 1000 * ronda)
+            avisar(f"  voz {i + 1}/{len(segmentos)}{nota} · {tomas} toma(s): {segmentos[i].texto[:60]}")
+            for k in range(tomas):
+                crudas[(i, k)] = voz.decir(segmentos[i].texto, ajustes, i + 100 * k + 1000 * ronda)
         vram_tts = max(vram_tts, vram_usada_gb())
         voz.cerrar()
         voz = None
 
-        # 2) Análisis con Whisper (la GPU ya está libre)
-        avisar(f"  analizando {len(pendientes)} frase(s) con Whisper ({ajustes.modelo_whisper})…")
+        # 2) Whisper analiza todas las tomas y se queda con la mejor de cada bloque
+        avisar(f"  analizando {len(crudas)} toma(s) con Whisper ({ajustes.modelo_whisper})…")
         torch.cuda.reset_peak_memory_stats()
         oido = Oido(ajustes.modelo_whisper)
         try:
-            for i in pendientes:
-                analisis[i] = oido.analizar(fragmentos[i], sr, segmentos[i].texto)
+            for (i, k), audio in crudas.items():
+                an = oido.analizar(audio, sr, segmentos[i].texto)
+                p = puntuar_toma(audio, sr, an, segmentos[i].texto)
+                if p > puntos[i]:
+                    fragmentos[i], analisis[i], puntos[i] = audio, an, p
         finally:
             oido.cerrar()
         vram_whisper = max(vram_whisper, vram_usada_gb())
 
-        # 3) ¿Alguna frase ilegible?
+        # 3) ¿Algún bloque sigue ilegible incluso en su mejor toma?
         malas = [i for i in pendientes if analisis[i].proporcion < MIN_EMPATADAS]  # type: ignore[union-attr]
         if not malas or ronda == reintentos:
             break
-        avisar(f"  {len(malas)} frase(s) poco legibles, se regeneran: {[i + 1 for i in malas]}")
+        avisar(f"  {len(malas)} bloque(s) poco legibles, se regeneran: {[i + 1 for i in malas]}")
         regeneradas.extend(malas)
         pendientes = malas
 
@@ -519,7 +619,7 @@ def producir_voz(
     partes, palabras, tramos, t = [], [], [], 0.0
     for seg, audio, an in zip(segmentos, fragmentos, analisis):
         assert an is not None
-        trozo = recortar(audio, sr, an.corte)
+        trozo = limpiar_bloque(audio, sr, an, ajustes)
         duracion = len(trozo) / sr
         for ficha, (a, b) in zip(seg.texto.split(), an.tiempos):
             palabras.append({"texto": ficha, "inicio": round(t + a, 3), "fin": round(t + min(b, duracion), 3)})
@@ -546,8 +646,9 @@ def producir_voz(
                     "fin": round(b, 3),
                     "empatadas": round(an.proporcion, 2),
                     "sobrantes": an.sobrantes,
+                    "puntuacion": round(p, 1),
                 }
-                for s, (a, b), an in zip(segmentos, tramos, lista)
+                for s, (a, b), an, p in zip(segmentos, tramos, lista, puntos)
             ],
             "palabras_por_minuto": round(len(palabras) / (duracion / 60), 1),
             "empatadas_whisper": round(proporcion, 3),
@@ -561,6 +662,8 @@ def producir_voz(
         "palabras_por_minuto_hablando": round(len(palabras) / (habla / 60), 1),
         "empatadas_whisper": f"{proporcion:.0%}",
         "palabras_sobrantes_cortadas": sum(an.sobrantes for an in lista),
+        "tomas_por_bloque": tomas,
+        "puntuacion_media": round(float(np.mean(puntos)), 1),
         "frases_regeneradas": [i + 1 for i in regeneradas],
         "vram_tts_gb": round(vram_tts, 2),
         "vram_whisper_gb": round(vram_whisper, 2),

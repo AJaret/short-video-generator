@@ -78,9 +78,9 @@ with gr.Blocks(title="Estudio de voz") as app:
     with gr.Row():
         episodio = gr.Dropdown(_episodios(), label="Episodio")
     with gr.Row():
-        exageracion = gr.Slider(0.25, 1.0, value=0.5, step=0.05, label="Exageración (emoción)")
-        cfg = gr.Slider(0.1, 1.0, value=0.4, step=0.05, label="CFG (más bajo = más pausado)")
-        temperatura = gr.Slider(0.3, 1.2, value=0.7, step=0.05, label="Temperatura")
+        exageracion = gr.Slider(0.25, 1.0, value=Ajustes().exageracion, step=0.05, label="Exageración (emoción)")
+        cfg = gr.Slider(0.1, 1.0, value=Ajustes().cfg, step=0.05, label="CFG (más bajo = más pausado)")
+        temperatura = gr.Slider(0.3, 1.2, value=Ajustes().temperatura, step=0.05, label="Temperatura")
         semilla = gr.Number(value=0, precision=0, label="Semilla")
     with gr.Tab("Probar frase"):
         frase = gr.Textbox(label="Frase", value="Fíjate en este círculo. Parece quieto, pero gira cinco veces.")
