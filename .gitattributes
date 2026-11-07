@@ -1,0 +1,14 @@
+# Finales de línea LF en todo el repo: el código se ejecuta dentro de contenedores Linux
+# (scripts de shell, Dockerfile, Python), aunque se edite desde Windows.
+* text=auto eol=lf
+
+# Los scripts de PowerShell, si alguna vez los hay, con CRLF
+*.ps1 text eol=crlf
+
+# Binarios: sin conversión
+*.wav binary
+*.mp3 binary
+*.mp4 binary
+*.png binary
+*.jpg binary
+*.woff2 binary
