@@ -1,0 +1,5 @@
+# Estudio de voz del canal. Se instala dentro de la imagen Docker (voz/Dockerfile).
+# chatterbox-tts fija torch==2.6.0; en Linux la rueda de PyPI ya trae CUDA 12.
+chatterbox-tts==0.1.7
+openai-whisper==20250625
+soundfile

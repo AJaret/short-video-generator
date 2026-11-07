@@ -1,4 +1,4 @@
-# Servicios del canal. Uso habitual (desde la raíz del repo):
+# Servicios del canal. Uso habitual del servicio video (desde la raíz del repo):
 #   docker compose build video
 #   docker compose run --rm video npm install          # primera vez o al cambiar package.json
 #   docker compose up video                            # Remotion Studio en http://localhost:3000
@@ -20,7 +20,27 @@ services:
       - CHOKIDAR_USEPOLLING=true
     command: npx remotion studio --port=3000 --no-open
 
-  # voz: (Fase 2) PyTorch + CUDA con GPU, caché de modelos en volumen propio.
+  # Estudio de voz: Chatterbox (TTS) + Whisper (tiempos por palabra), con la GPU.
+  #   docker compose run --rm voz python voz/generar.py --guion episodios/<ep>/guion.md --salida episodios/<ep>/
+  #   docker compose up -d voz                         # interfaz de pruebas en http://localhost:7860
+  voz:
+    build: ./voz
+    working_dir: /repo
+    volumes:
+      - ./:/repo
+      # caché de modelos (Hugging Face + Whisper): se descargan una sola vez
+      - modelos_voz:/root/.cache
+    ports:
+      - "7860:7860"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: python voz/app.py
 
 volumes:
   video_node_modules:
+  modelos_voz:

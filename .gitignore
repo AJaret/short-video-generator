@@ -21,6 +21,3 @@ episodios/*/.hash_voz
 # Sistema
 .DS_Store
 Thumbs.db
-
-# El episodio de prueba usa tiempos falsos versionados (aún no hay voz)
-!episodios/nº00-prueba/tiempos.json

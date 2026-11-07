@@ -117,6 +117,17 @@ ID de composición: el nombre de la carpeta con `nº` → `ep` y sin caracteres 
 - Usa siempre `assets/voz_canal.wav` como referencia por defecto.
 - Exporta `voz.wav` y `tiempos.json` con inicio/fin de cada palabra del guion original (alineación forzada o Whisper con timestamps por palabra).
 - CLI: `python voz/generar.py --guion episodios/<ep>/guion.md --salida episodios/<ep>/`
+- Implementación actual (`voz/nucleo.py`):
+  - Modelos: `chatterbox-tts==0.1.7` (`ChatterboxMultilingualTTS`, `language_id="es"`, MIT; las salidas llevan la marca de agua inaudible Perth) y Whisper `small` para los tiempos.
+  - El guion se parte en frases: los títulos `#` y `[Animación: …]` no se leen. Cada frase se genera por separado y luego se une con silencios exactos: 0,3 s entre frases, 0,6 s con `[pausa]`, 1,2 s con `[pausa larga]` y 0,7 s entre párrafos.
+  - Orden en la GPU: Chatterbox genera todas las frases → se libera → Whisper analiza cada frase → se libera → las frases ilegibles (menos del 60 % de palabras empatadas) se regeneran una vez con otra semilla, repitiendo el ciclo.
+  - Chatterbox a veces **repite el final** de frases cortas o deja ruido detrás. Whisper detecta las palabras que sobran tras el final del guion, y la frase se corta 0,18 s después de su última palabra, con un fundido de 30 ms.
+  - Whisper va **sin `initial_prompt`**: con el texto exacto como prompt, alucina otra cosa. Lo que oye se empata con las palabras del guion original (difflib), y las que no empatan (por ejemplo "quince" frente a "15") se reparten entre sus vecinas. Así los subtítulos muestran siempre el texto del guion.
+  - Volumen: −16 LUFS, pico máximo −1 dB. WAV a 24 kHz (la frecuencia de Chatterbox).
+  - Ajustes por defecto: exageración 0,5, cfg 0,4 (más bajo = más pausado) y temperatura 0,7. Se pueden cambiar por episodio con un bloque `"voz": {...}` en `config.json` o con `--cfg 0.35`, etc. La semilla sale de `config.json`.
+  - Caché: `.hash_voz` guarda el hash del guion, los ajustes, la referencia y las versiones. Si no cambia, no se regenera (salvo con `--forzar`).
+  - `tiempos.json`: `{palabras: [{texto, inicio, fin}], duracion, meta: {segmentos, palabras_por_minuto, empatadas_whisper}}`.
+- Interfaz de pruebas: `docker compose up -d voz` → http://localhost:7860. Sirve para probar frases sueltas y para generar el episodio completo.
 
 ### Video: `video/` (Remotion + TypeScript)
 - Lee los archivos del episodio (`voz.wav`, `tiempos.json`, `config.json`, `Sketch.tsx`) desde `episodios/<ep>/`.
@@ -159,7 +170,11 @@ docker compose run --rm video npm install           # tras cambiar video/package
 docker compose up -d video                          # Remotion Studio en http://localhost:3000
 docker compose run --rm video npx remotion still ep00-prueba out/portada.png --frame=0
 docker compose run --rm video npx tsc --noEmit -p . # comprobar tipos
+docker compose build voz                            # tras cambiar voz/requirements.txt (tarda: ~5 GB)
+docker compose run --rm voz python voz/generar.py --guion episodios/nº00-prueba/guion.md --salida episodios/nº00-prueba/
+docker compose up -d voz                            # interfaz de pruebas en http://localhost:7860
 ```
+La primera ejecución de voz descarga los pesos de Chatterbox (~3 GB) y de Whisper `small` al volumen `modelos_voz`.
 Los stills se guardan en `video/out/`.
 
 ### Estructura de un episodio
@@ -172,7 +187,7 @@ episodios/
     config.json     # número, título, tintas, semilla, momentos de impacto, ¿panel?
     Sketch.tsx      # la animación generativa del episodio
 ```
-`episodios/nº00-prueba/` es el episodio de prueba de la plantilla. Tiene un `tiempos.json` falso que sí se versiona, porque todavía no hay voz.
+`episodios/nº00-prueba/` es el episodio de prueba de la plantilla y de la voz. Su `voz.wav` y su `tiempos.json` se generan igual que en cualquier episodio. Para probar un sketch sin GPU hay un generador de tiempos falsos: `node scripts/tiempos_falsos.js ../episodios/<ep>/guion.md ../episodios/<ep>/tiempos.json`, que se ejecuta dentro del servicio `video`.
 
 ---
 
