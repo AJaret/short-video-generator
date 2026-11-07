@@ -21,3 +21,6 @@ episodios/*/.hash_voz
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Fotogramas de verificación (producir.py --stills)
+episodios/*/stills/

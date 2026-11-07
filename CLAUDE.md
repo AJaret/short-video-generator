@@ -4,7 +4,7 @@ Este repositorio produce videos verticales (Reels / TikTok / Shorts) de 30–45 
 
 ## Equipo de trabajo
 - GPU: NVIDIA RTX 2060 (6 GB VRAM) · CPU: Intel i9-9900 · Sistema: Windows 11 (confírmalo antes de dar comandos).
-- Todo corre en **Docker** (Docker Desktop + WSL2). La GPU llega a los contenedores con `--gpus all` / `gpus: all` en compose; no se instalan drivers ni CUDA dentro de WSL. En Windows no hay Python ni Node instalados (salvo Python básico para `producir.py`, a partir de la Fase 3).
+- Todo corre en **Docker** (Docker Desktop + WSL2). La GPU llega a los contenedores con `--gpus all` / `gpus: all` en compose; no se instalan drivers ni CUDA dentro de WSL. En Windows solo hay Python 3.12, sin paquetes, para ejecutar `producir.py`. Node no está instalado en Windows.
 - Instala siempre PyTorch con soporte CUDA. Si un script de IA dice "cpu", es un error de instalación.
 - Con 6 GB de VRAM: no cargues dos modelos de IA a la vez en GPU. Voz y transcripción se ejecutan una después de otra, liberando memoria entre pasos.
 
@@ -107,7 +107,7 @@ canal-reels/
     nº03-lorenz/ ...
 ```
 - Las dependencias viven en imágenes y volúmenes de Docker, no en el disco de Windows: `node_modules` de `video/` está en el volumen `video_node_modules` (leerlo desde Windows sería muy lento) y la caché de modelos irá en su propio volumen. El repo se monta en `/repo` dentro de los contenedores.
-- `.gitignore`: `.venv/`, `node_modules/`, caché de modelos, `out/` y los audios/videos generados (`episodios/*/voz.wav`, `episodios/*/tiempos.json`, `*.mp4`).
+- `.gitignore`: `.venv/`, `node_modules/`, caché de modelos, `out/` y los audios/videos generados (`episodios/*/voz.wav`, `episodios/*/tiempos.json`, `episodios/*/.hash_voz`, `episodios/*/stills/`, `*.mp4`).
 - Las rutas siempre relativas a la raíz del repo, nunca absolutas.
 
 ### Orquestador: `producir.py`
@@ -115,7 +115,13 @@ canal-reels/
 python producir.py episodios/nº03-lorenz            # voz + tiempos + render
 python producir.py episodios/nº03-lorenz --solo-voz
 python producir.py episodios/nº03-lorenz --solo-video
+python producir.py nº03-lorenz --stills          # además: fotogramas de verificación en episodios/<ep>/stills/
+python producir.py nº03-lorenz --borrador        # 1 toma de voz por bloque (3× más rápido)
+python producir.py nº03-lorenz --forzar-voz      # regenerar la voz aunque el guion no cambie
 ```
+- Se ejecuta en Windows (PowerShell), con solo la librería estándar. Comprueba el episodio y el `config.json`, comprueba que Docker responda y, si la interfaz de voz está abierta, la detiene para liberar la GPU.
+- `--stills` elige solos los fotogramas a revisar: portada (0), subtítulo normal (la primera palabra tras la portada sin impacto ni panel), dato de impacto (0,4 s después de su ancla) y panel (1,5 s después de que sube). Cada vez que se produce un episodio hay que revisarlos.
+- Tiempos de referencia de `nº00` (12 s de voz): la voz con 3 tomas tarda ~4 min, y el render con los 4 fotogramas ~2,5 min.
 Pasos: 1) lee `guion.md` y `config.json` · 2) genera `voz.wav` y `tiempos.json` con `voz/generar.py` (`docker compose run --rm voz ...`), saltándose el paso si el guion no cambió (compara un hash) · 3) libera la GPU (el contenedor de voz termina) · 4) lanza `npx remotion render` en el servicio `video` con el ID de composición del episodio · 5) deja el MP4 en `episodios/<ep>/<ep>.mp4`.
 ID de composición: el nombre de la carpeta con `nº` → `ep` y sin caracteres fuera de `[a-zA-Z0-9-]` (`nº03-lorenz` → `ep03-lorenz`). La regla está en `video/src/episodios.ts` y `producir.py` debe usar la misma.
 
