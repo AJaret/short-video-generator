@@ -27,7 +27,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 REFERENCIA = RAIZ / "assets" / "voz_canal.wav"
 IDIOMA = "es"
 # Súbelo cuando cambie la lógica de generación, para que se regeneren las voces guardadas.
-VERSION_CADENA = "2"
+VERSION_CADENA = "3"
 LUFS_OBJETIVO = -16.0
 
 
@@ -39,16 +39,21 @@ class Ajustes:
     cfg: float = 0.4  # más bajo = ritmo más pausado
     temperatura: float = 0.7
     semilla: int = 0
-    pausa_frase: float = 0.30  # entre frases de un mismo bloque
-    pausa: float = 0.60  # [pausa]
-    pausa_larga: float = 1.20  # [pausa larga]
-    pausa_parrafo: float = 0.70  # entre párrafos
+    pausa_frase: float = 0.25  # solo cuando un bloque muy largo se parte en dos
+    pausa: float = 0.45  # [pausa]
+    pausa_larga: float = 0.90  # [pausa larga]
+    pausa_parrafo: float = 0.50  # entre párrafos
+    tono_sala_db: float = -66.0  # ruido de fondo en los silencios (0 = silencio digital)
     modelo_whisper: str = "small"
 
 
 @dataclass
 class Segmento:
-    """Una frase que se genera de una vez, y el silencio que va después."""
+    """Un bloque de texto que se genera de una vez (una o varias frases) y el silencio de después.
+
+    Generar varias frases juntas deja que el modelo ponga la entonación y las pausas entre ellas:
+    generarlas por separado suena a frases sueltas pegadas (robótico).
+    """
 
     texto: str
     silencio_despues: float
@@ -79,11 +84,23 @@ def _partir_largas(frase: str) -> list[str]:
     return partes
 
 
+def _agrupar(frases: list[str]) -> list[str]:
+    """Junta frases consecutivas en bloques de hasta _MAX_CARACTERES."""
+    bloques: list[str] = []
+    for frase in frases:
+        if bloques and len(bloques[-1]) + 1 + len(frase) <= _MAX_CARACTERES:
+            bloques[-1] = f"{bloques[-1]} {frase}"
+        else:
+            bloques.append(frase)
+    return bloques
+
+
 def leer_guion(texto: str, ajustes: Ajustes) -> list[Segmento]:
-    """Convierte el guion en frases con su silencio posterior.
+    """Convierte el guion en bloques con su silencio posterior.
 
     - Se ignoran los títulos (# …) y las indicaciones [Animación: …] (no se leen).
-    - [pausa] y [pausa larga] se convierten en silencios exactos.
+    - Un bloque es todo el texto entre dos marcas de pausa o cambios de párrafo.
+    - [pausa] y [pausa larga] se convierten en silencios de duración fija.
     """
     lineas = [l for l in texto.splitlines() if not l.lstrip().startswith("#")]
     limpio = _ANIMACION.sub(" ", "\n".join(lineas))
@@ -103,7 +120,7 @@ def leer_guion(texto: str, ajustes: Ajustes) -> list[Segmento]:
         for texto_trozo, marca in trozos:
             texto_trozo = _OTRA_MARCA.sub(" ", texto_trozo)
             frases = [f.strip() for f in _FIN_FRASE.split(texto_trozo) if f.strip()]
-            frases = [p for f in frases for p in _partir_largas(f)]
+            frases = _agrupar([p for f in frases for p in _partir_largas(f)])
             if not frases:
                 # Pausa sin texto delante: se suma al silencio anterior
                 if marca and segmentos:
@@ -186,7 +203,11 @@ class Voz:
             self._referencia = clave
 
     def decir(self, texto: str, ajustes: Ajustes, indice: int = 0) -> np.ndarray:
-        """Genera una frase y le recorta el silencio de los bordes."""
+        """Genera un bloque. Solo se recorta el silencio del INICIO (con 40 ms de aire).
+
+        La cola no se toca aquí: dónde acaba de verdad la voz se decide después, midiendo la
+        energía (ver fin_natural), para no comerse la caída de la última sílaba.
+        """
         import librosa
 
         self._preparar(ajustes.exageracion)
@@ -200,9 +221,9 @@ class Voz:
                 temperature=ajustes.temperatura,
             )
         audio = wav.squeeze(0).detach().cpu().numpy().astype(np.float32)
-        recortado, _ = librosa.effects.trim(audio, top_db=40)
-        margen = np.zeros(int(0.04 * self.sr), dtype=np.float32)
-        return np.concatenate([margen, recortado, margen])
+        _, (inicio, _) = librosa.effects.trim(audio, top_db=50)
+        inicio = max(0, inicio - int(0.04 * self.sr))
+        return audio[inicio:]
 
     def cerrar(self) -> None:
         del self.modelo
@@ -237,8 +258,45 @@ class Analisis:
     sobrantes: int  # palabras que Whisper oyó después del final del guion (repeticiones)
 
 
-MARGEN_CORTE = 0.18  # aire tras la última palabra
-MIN_EMPATADAS = 0.6  # por debajo, la frase se regenera
+MIN_EMPATADAS = 0.6  # por debajo, el bloque se regenera
+CAIDA_DB = 30.0  # la voz "terminó" cuando cae esto por debajo de su nivel
+SILENCIO_MIN = 0.12  # … durante al menos este tiempo
+EXTENSION_MAX = 0.45  # máximo que se alarga la cola tras el final que marca Whisper
+AIRE_FINAL = 0.06  # aire que se deja tras el final real
+FUNDIDO_SALIDA = 0.08
+FUNDIDO_ENTRADA = 0.01
+
+
+def _db(x: np.ndarray) -> float:
+    return 20 * float(np.log10(np.sqrt(np.mean(x**2)) + 1e-9)) if len(x) else -180.0
+
+
+def fin_natural(audio: np.ndarray, sr: int, desde: float, limite: float) -> float:
+    """Dónde se apaga de verdad la voz después de `desde` (final aproximado según Whisper).
+
+    Whisper suele marcar el fin de la última palabra antes de tiempo: si se corta ahí, se pierde
+    la caída de la voz. Aquí se sigue la energía en ventanas de 10 ms hasta que cae CAIDA_DB por
+    debajo del nivel de la voz y se queda así SILENCIO_MIN. Nunca pasa de `limite` (inicio de
+    una repetición) ni se alarga más de EXTENSION_MAX (respiraciones y ruidos del modelo).
+    """
+    limite = min(limite, desde + EXTENSION_MAX, len(audio) / sr)
+    i0, i1 = int(desde * sr), int(limite * sr)
+    if i1 <= i0:
+        return limite
+    nivel = _db(audio[max(0, i0 - int(0.5 * sr)) : i0])
+    umbral = nivel - CAIDA_DB
+    marco = max(1, int(0.01 * sr))
+    necesarios = int(SILENCIO_MIN / 0.01)
+    seguidos = 0
+    for k in range(i0, i1, marco):
+        if _db(audio[k : k + marco]) < umbral:
+            seguidos += 1
+            if seguidos >= necesarios:
+                inicio_silencio = k - (necesarios - 1) * marco
+                return min(inicio_silencio / sr + AIRE_FINAL, limite)
+        else:
+            seguidos = 0
+    return limite
 
 
 class Oido:
@@ -270,15 +328,16 @@ class Oido:
             for w in s.get("words", [])
             if normalizar(w["word"])
         ]
-        return _analizar(texto.split(), reconocidas, len(audio) / sr)
+        return _analizar(texto.split(), reconocidas, audio, sr)
 
     def cerrar(self) -> None:
         del self.modelo
         liberar_gpu()
 
 
-def _analizar(fichas: list[str], reconocidas: list[tuple[str, float, float]], duracion: float) -> Analisis:
+def _analizar(fichas: list[str], reconocidas: list[tuple[str, float, float]], audio: np.ndarray, sr: int) -> Analisis:
     """Empata lo oído con el guion, detecta repeticiones al final y decide dónde cortar."""
+    duracion = len(audio) / sr
     guion = [normalizar(f) for f in fichas]
     oido = [normalizar(w) for w, _, _ in reconocidas]
     emp = difflib.SequenceMatcher(a=guion, b=oido, autojunk=False)
@@ -292,9 +351,8 @@ def _analizar(fichas: list[str], reconocidas: list[tuple[str, float, float]], du
             break
     sobrantes = len(oido) - fin_util
     if fin_util > 0:
-        corte = reconocidas[fin_util - 1][2] + MARGEN_CORTE
-        if sobrantes:
-            corte = min(corte, reconocidas[fin_util][1] - 0.02)
+        limite = reconocidas[fin_util][1] - 0.02 if sobrantes else duracion
+        corte = fin_natural(audio, sr, reconocidas[fin_util - 1][2], limite)
     else:
         corte = duracion
     corte = min(max(corte, 0.2), duracion)
@@ -351,13 +409,33 @@ def _empatar(
 
 
 def recortar(audio: np.ndarray, sr: int, corte: float) -> np.ndarray:
-    """Corta la frase en `corte` con un fundido de 30 ms (sin clics)."""
+    """Corta el bloque en `corte`: fundido de entrada de 10 ms y de salida de 80 ms (sin clics).
+
+    El fundido de salida cae sobre el aire que deja fin_natural, no sobre la voz.
+    """
     fin = min(len(audio), int(corte * sr))
     trozo = audio[:fin].copy()
-    n = min(len(trozo), int(0.03 * sr))
-    if n > 0:
-        trozo[-n:] *= np.linspace(1.0, 0.0, n, dtype=np.float32)
+    entrada = min(int(FUNDIDO_ENTRADA * sr), len(trozo))
+    salida = min(int(FUNDIDO_SALIDA * sr), len(trozo))
+    if entrada > 0:
+        trozo[:entrada] *= np.linspace(0.0, 1.0, entrada, dtype=np.float32)
+    if salida > 0:
+        trozo[-salida:] *= np.linspace(1.0, 0.0, salida, dtype=np.float32) ** 2
     return trozo
+
+
+def tono_de_sala(n: int, sr: int, db: float, semilla: int) -> np.ndarray:
+    """Ruido de fondo muy suave y determinista (rosa aproximado), para que los silencios no sean
+    "vacío digital": el oído nota mucho el salto de la voz a cero absoluto."""
+    if db >= 0 or n <= 0:
+        return np.zeros(n, dtype=np.float32)
+    from scipy.signal import lfilter
+
+    blanco = np.random.default_rng(semilla).standard_normal(n)
+    # Filtro de un polo: quita el siseo agudo del ruido blanco
+    rosa = lfilter([0.03], [1.0, -0.97], blanco)
+    rosa /= np.sqrt(np.mean(rosa**2)) + 1e-9
+    return (rosa * (10 ** (db / 20))).astype(np.float32)
 
 
 # ───────────────────────────── Episodio completo ─────────────────────────────
@@ -450,6 +528,8 @@ def producir_voz(
         partes += [trozo, silencio]
         t += duracion + len(silencio) / sr
     audio = normalizar_volumen(np.concatenate(partes), sr)
+    # Tono de sala bajo toda la pista (después de normalizar, para que su nivel sea el pedido)
+    audio = audio + tono_de_sala(len(audio), sr, ajustes.tono_sala_db, ajustes.semilla)
 
     lista = [an for an in analisis if an is not None]
     duracion = len(audio) / sr
