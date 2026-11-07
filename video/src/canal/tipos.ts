@@ -1,0 +1,59 @@
+// Tipos compartidos entre la plantilla y los episodios.
+import type React from 'react';
+import type {Tintas} from './paleta';
+import type {Rect} from './diseno';
+
+/** Momento de impacto: texto grande al centro. Máximo 3 por video. */
+export type Impacto = {
+  texto: string;
+  /** Palabra o frase del guion donde empieza (se busca en tiempos.json). */
+  ancla?: string;
+  /** Alternativa a `ancla`: segundo exacto de inicio. */
+  desde?: number;
+  /** Duración en segundos (por defecto 1.6). */
+  duracion?: number;
+};
+
+/** config.json de un episodio. */
+export type ConfigEpisodio = {
+  numero: number;
+  /** Tema corto para "nº XX / tema". */
+  tema: string;
+  /** Título de portada (se muestra en mayúsculas). */
+  titulo: string;
+  semilla: number;
+  tintas?: Partial<Tintas>;
+  impactos?: Impacto[];
+  /** Panel de datos: solo en episodios con simulación o números. */
+  panel?: {desde: number; hasta?: number; titulo?: string};
+  /** Segundos extra tras la última palabra (por defecto 1.5). */
+  cola?: number;
+};
+
+/** Una palabra de tiempos.json. */
+export type Palabra = {texto: string; inicio: number; fin: number};
+
+/** tiempos.json generado por voz/generar.py. */
+export type Tiempos = {palabras: Palabra[]; duracion: number};
+
+/** Lo que el sketch devuelve para el panel de datos. */
+export type DatosPanel = {
+  contadores?: {etiqueta: string; valor: string}[];
+  formula?: string;
+  /** Mini gráfico: valores en 0..1. */
+  grafico?: number[];
+};
+
+/** Props que recibe el componente Sketch de cada episodio. */
+export type PropsSketch = {
+  config: ConfigEpisodio;
+  /** Área disponible para la animación (se compacta arriba cuando sube el panel). */
+  area: Rect;
+};
+
+/** Módulo Sketch.tsx de un episodio. */
+export type ModuloSketch = {
+  default: React.FC<PropsSketch>;
+  /** Opcional: datos del panel para el fotograma dado. */
+  panel?: (frame: number, fps: number) => DatosPanel;
+};

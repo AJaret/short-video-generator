@@ -1,0 +1,26 @@
+# Entornos y dependencias
+.venv/
+node_modules/
+__pycache__/
+
+# Caché de modelos
+.cache/
+modelos/
+huggingface/
+
+# Salidas
+out/
+video/out/
+*.mp4
+
+# Generados por el estudio de voz
+episodios/*/voz.wav
+episodios/*/tiempos.json
+episodios/*/.hash_voz
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# El episodio de prueba usa tiempos falsos versionados (aún no hay voz)
+!episodios/nº00-prueba/tiempos.json

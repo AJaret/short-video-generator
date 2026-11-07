@@ -1,0 +1,26 @@
+# Servicios del canal. Uso habitual (desde la raíz del repo):
+#   docker compose build video
+#   docker compose run --rm video npm install          # primera vez o al cambiar package.json
+#   docker compose up video                            # Remotion Studio en http://localhost:3000
+#   docker compose run --rm video npx remotion still ep00-prueba out/portada.png --frame=0
+
+services:
+  video:
+    build: ./video
+    working_dir: /repo/video
+    volumes:
+      - ./:/repo
+      # node_modules en volumen propio: leerlo desde el disco de Windows sería muy lento
+      - video_node_modules:/repo/video/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      # Los cambios hechos desde Windows no generan eventos inotify en el contenedor
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+    command: npx remotion studio --port=3000 --no-open
+
+  # voz: (Fase 2) PyTorch + CUDA con GPU, caché de modelos en volumen propio.
+
+volumes:
+  video_node_modules:

@@ -1,0 +1,22 @@
+{
+  "name": "canal-reels-video",
+  "private": true,
+  "description": "Plantilla de video del canal (Remotion + TypeScript)",
+  "scripts": {
+    "studio": "remotion studio",
+    "tipos": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource/archivo-black": "5.3.0",
+    "@fontsource/space-mono": "5.3.0",
+    "@remotion/cli": "4.0.541",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.541"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/webpack-env": "1.18.8",
+    "typescript": "5.9.3"
+  }
+}

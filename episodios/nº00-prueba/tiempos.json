@@ -1,0 +1,145 @@
+{
+ "palabras": [
+  {
+   "texto": "Fíjate",
+   "inicio": 0.5,
+   "fin": 0.93
+  },
+  {
+   "texto": "en",
+   "inicio": 0.99,
+   "fin": 1.24
+  },
+  {
+   "texto": "este",
+   "inicio": 1.3,
+   "fin": 1.64
+  },
+  {
+   "texto": "círculo.",
+   "inicio": 1.7,
+   "fin": 2.175
+  },
+  {
+   "texto": "Parece",
+   "inicio": 2.835,
+   "fin": 3.265
+  },
+  {
+   "texto": "quieto,",
+   "inicio": 3.325,
+   "fin": 3.755
+  },
+  {
+   "texto": "pero",
+   "inicio": 3.965,
+   "fin": 4.305
+  },
+  {
+   "texto": "gira",
+   "inicio": 4.365,
+   "fin": 4.705
+  },
+  {
+   "texto": "cinco",
+   "inicio": 4.765,
+   "fin": 5.15
+  },
+  {
+   "texto": "veces",
+   "inicio": 5.21,
+   "fin": 5.595
+  },
+  {
+   "texto": "cada",
+   "inicio": 5.655,
+   "fin": 5.995
+  },
+  {
+   "texto": "quince",
+   "inicio": 6.055,
+   "fin": 6.485
+  },
+  {
+   "texto": "segundos.",
+   "inicio": 6.545,
+   "fin": 7.065
+  },
+  {
+   "texto": "Cinco",
+   "inicio": 7.275,
+   "fin": 7.66
+  },
+  {
+   "texto": "veces.",
+   "inicio": 7.72,
+   "fin": 8.105
+  },
+  {
+   "texto": "Y",
+   "inicio": 8.765,
+   "fin": 8.97
+  },
+  {
+   "texto": "nadie",
+   "inicio": 9.03,
+   "fin": 9.415
+  },
+  {
+   "texto": "le",
+   "inicio": 9.475,
+   "fin": 9.725
+  },
+  {
+   "texto": "pidió",
+   "inicio": 9.785,
+   "fin": 10.17
+  },
+  {
+   "texto": "que",
+   "inicio": 10.23,
+   "fin": 10.525
+  },
+  {
+   "texto": "lo",
+   "inicio": 10.585,
+   "fin": 10.835
+  },
+  {
+   "texto": "hiciera.",
+   "inicio": 10.895,
+   "fin": 11.37
+  },
+  {
+   "texto": "Ni",
+   "inicio": 12.48,
+   "fin": 12.73
+  },
+  {
+   "texto": "siquiera",
+   "inicio": 12.79,
+   "fin": 13.31
+  },
+  {
+   "texto": "tiene",
+   "inicio": 13.37,
+   "fin": 13.755
+  },
+  {
+   "texto": "a",
+   "inicio": 13.815,
+   "fin": 14.02
+  },
+  {
+   "texto": "dónde",
+   "inicio": 14.08,
+   "fin": 14.465
+  },
+  {
+   "texto": "ir.",
+   "inicio": 14.525,
+   "fin": 14.775
+  }
+ ],
+ "duracion": 14.775
+}
