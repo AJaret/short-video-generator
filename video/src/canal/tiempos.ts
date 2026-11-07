@@ -1,5 +1,5 @@
 // Utilidades sobre tiempos.json: grupos de subtítulos, palabra activa y anclas de impacto.
-import type {Impacto, Palabra, Tiempos} from './tipos';
+import type {ConfigEpisodio, Impacto, Palabra, Tiempos} from './tipos';
 
 /** Minúsculas, sin acentos ni puntuación: para comparar palabras del guion. */
 export function normalizar(texto: string): string {
@@ -57,14 +57,37 @@ export function palabraActiva(grupo: Grupo, t: number): number {
   return activa;
 }
 
+/**
+ * Segundo en que la voz empieza a decir `ancla` (palabra o frase del guion, sin importar acentos,
+ * mayúsculas ni puntuación). `null` si no hay tiempos o no aparece.
+ * Sirve para sincronizar animación, panel e impactos con la narración.
+ */
+export function tiempoDeAncla(tiempos: Tiempos | null, ancla: string): number | null {
+  if (!tiempos) return null;
+  const buscada = normalizar(ancla).split(/\s+/).filter(Boolean);
+  const palabras = tiempos.palabras.map((p) => normalizar(p.texto));
+  for (let i = 0; i + buscada.length <= palabras.length; i++) {
+    if (buscada.every((a, j) => palabras[i + j] === a)) return tiempos.palabras[i].inicio;
+  }
+  return null;
+}
+
 /** Segundo de inicio de un impacto: `desde` o la primera aparición de su `ancla` en el guion. */
 export function inicioImpacto(impacto: Impacto, tiempos: Tiempos | null): number | null {
   if (typeof impacto.desde === 'number') return impacto.desde;
-  if (!impacto.ancla || !tiempos) return null;
-  const ancla = normalizar(impacto.ancla).split(/\s+/);
-  const palabras = tiempos.palabras.map((p) => normalizar(p.texto));
-  for (let i = 0; i + ancla.length <= palabras.length; i++) {
-    if (ancla.every((a, j) => palabras[i + j] === a)) return tiempos.palabras[i].inicio;
-  }
-  return null;
+  return impacto.ancla ? tiempoDeAncla(tiempos, impacto.ancla) : null;
+}
+
+/**
+ * Panel con `desde` y `hasta` en segundos. `desde` puede venir de `ancla`; `hasta` puede ser un
+ * número o una palabra/frase del guion (el panel baja cuando la voz la dice). Sin tiempos, sube a los 5 s.
+ */
+export function resolverPanel(
+  panel: ConfigEpisodio['panel'],
+  tiempos: Tiempos | null,
+): {desde: number; hasta?: number; titulo?: string} | undefined {
+  if (!panel) return undefined;
+  const desde = panel.desde ?? (panel.ancla ? tiempoDeAncla(tiempos, panel.ancla) : null) ?? 5;
+  const hasta = typeof panel.hasta === 'string' ? (tiempoDeAncla(tiempos, panel.hasta) ?? undefined) : panel.hasta;
+  return {desde, hasta, titulo: panel.titulo};
 }

@@ -24,8 +24,11 @@ export type ConfigEpisodio = {
   semilla: number;
   tintas?: Partial<Tintas>;
   impactos?: Impacto[];
-  /** Panel de datos: solo en episodios con simulación o números. */
-  panel?: {desde: number; hasta?: number; titulo?: string};
+  /**
+   * Panel de datos: solo en episodios con simulación o números. Sube en `desde` (s) o en `ancla`;
+   * baja en `hasta` (s, o una palabra/frase del guion).
+   */
+  panel?: {desde?: number; ancla?: string; hasta?: number | string; titulo?: string};
   /** Segundos extra tras la última palabra (por defecto 1.5). */
   cola?: number;
 };
@@ -49,11 +52,22 @@ export type PropsSketch = {
   config: ConfigEpisodio;
   /** Área disponible para la animación (se compacta arriba cuando sube el panel). */
   area: Rect;
+  /** Tiempos de la voz, para sincronizar la animación con la narración (ver tiempoDeAncla). */
+  tiempos: Tiempos | null;
+};
+
+/** Lo que recibe la función panel() de un sketch, además del fotograma. */
+export type ContextoSketch = {
+  fps: number;
+  /** Duración total de la composición en fotogramas. */
+  duracion: number;
+  tiempos: Tiempos | null;
+  config: ConfigEpisodio;
 };
 
 /** Módulo Sketch.tsx de un episodio. */
 export type ModuloSketch = {
   default: React.FC<PropsSketch>;
   /** Opcional: datos del panel para el fotograma dado. */
-  panel?: (frame: number, fps: number) => DatosPanel;
+  panel?: (frame: number, contexto: ContextoSketch) => DatosPanel;
 };

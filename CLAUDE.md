@@ -178,7 +178,13 @@ ID de composición: el nombre de la carpeta con `nº` → `ep` y sin caracteres 
 - Bordes imperfectos: `trazarRectIrregular` y `trazarLineaIrregular` (deterministas por semilla).
 
 ### config.json
-`numero`, `tema`, `titulo`, `semilla`, `tintas` (`{a, b}`; se valida que como mucho una sea de serie), `impactos` (máx. 3: `{texto, ancla | desde, duracion}`; `ancla` es una palabra o frase del guion que se busca en `tiempos.json`), `panel` (`{desde, hasta?, titulo?}`, solo si el episodio lleva datos) y `cola` (segundos tras la última palabra). El sketch puede exportar `panel(frame, fps)` con contadores, fórmula y mini gráfico.
+`numero`, `tema`, `titulo`, `semilla`, `tintas` (`{a, b}`; se valida que como mucho una sea de serie), `impactos` (máx. 3: `{texto, ancla | desde, duracion}`), `panel` (`{ancla | desde, hasta?, titulo?}`, solo si el episodio lleva datos; `hasta` puede ser un número de segundos o un ancla), `cola` (segundos tras la última palabra) y opcionalmente `voz` (ajustes de la voz).
+- **Anclas:** una palabra o frase del guion, sin importar acentos, mayúsculas ni puntuación. Se busca en `tiempos.json` el momento en que la voz la dice. Conviene anclar todo (impactos, panel, momentos del sketch) en lugar de usar segundos, porque así sobrevive a cualquier regeneración de la voz.
+- **Sincronizar el sketch con la narración:** el sketch recibe `tiempos` en sus props y usa `tiempoDeAncla(tiempos, "paso diez mil")` para saber en qué segundo pasa algo. Debe tener tiempos por defecto para cuando todavía no hay voz. Ejemplo: `episodios/nº01-hormiga-de-langton/Sketch.tsx`, cuya línea de tiempo pasa por anclas del guion.
+- El sketch puede exportar `panel(frame, {fps, duracion, tiempos, config})` con contadores, fórmula y mini gráfico.
+- **Durante la portada (0–2,6 s) no hay subtítulos normales**, aunque la voz ya hable: el primer fotograma es la miniatura.
+- **Loop:** el sketch dibuja en la portada el mismo estado que en su último fotograma, y el panel baja antes del final (`hasta`), para que el último fotograma coincida con el primero.
+- **Fuentes:** el subconjunto latino de Space Mono no tiene griego ni flechas (θ, →). Usa texto ("t", ":") en fórmulas y etiquetas.
 
 ### Reglas para sketches generativos (críticas)
 - Render determinista: todo depende de `useCurrentFrame()`. Nada de `requestAnimationFrame`, `Date.now()` ni `Math.random()`.

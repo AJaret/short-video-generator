@@ -7,13 +7,13 @@ import {cobertura, ORDEN, recortarPapel, useDibujo} from './capas';
 import {trazarLineaIrregular, trazarRectIrregular} from './dibujo';
 import {ALTO, ANCHO, HUECO_SUBTITULO, PANEL, SEGURA, UTIL, type Rect} from './diseno';
 import {fuente, MONO} from './fuentes';
-import type {ConfigEpisodio, DatosPanel} from './tipos';
+import type {DatosPanel} from './tipos';
 
 const FOTOGRAMAS_SUBIDA = 18;
 const MITAD_TIRA_SUBTITULO = 38;
 
 /** 0 = oculto, 1 = arriba. Determinista a partir del fotograma. */
-export function progresoPanel(frame: number, fps: number, panel: ConfigEpisodio['panel']): number {
+export function progresoPanel(frame: number, fps: number, panel: {desde: number; hasta?: number} | undefined): number {
   if (!panel) return 0;
   const sube = interpolate(frame, [panel.desde * fps, panel.desde * fps + FOTOGRAMAS_SUBIDA], [0, 1], {
     extrapolateLeft: 'clamp',

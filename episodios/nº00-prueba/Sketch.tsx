@@ -2,7 +2,7 @@
 // Dibuja en escala de grises sobre las capas de tinta; el color lo pone <RisoFilter>.
 import React from 'react';
 import {useCurrentFrame, useVideoConfig} from 'remotion';
-import {cobertura, mulberry32, ORDEN, useDibujo, type DatosPanel, type PropsSketch} from '@canal';
+import {cobertura, mulberry32, ORDEN, useDibujo, type ContextoSketch, type DatosPanel, type PropsSketch} from '@canal';
 
 const VUELTAS = 5;
 const PERIODO_S = 15; // la animación hace loop exacto cada 15 s
@@ -61,7 +61,7 @@ const Sketch: React.FC<PropsSketch> = ({config, area}) => {
 export default Sketch;
 
 /** Datos del panel para el fotograma dado. */
-export function panel(frame: number, fps: number): DatosPanel {
+export function panel(frame: number, {fps}: ContextoSketch): DatosPanel {
   const fase = ((frame / fps) % PERIODO_S) / PERIODO_S;
   const vueltas = fase * VUELTAS;
   return {

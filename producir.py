@@ -64,6 +64,18 @@ def normalizar(palabra: str) -> str:
     return re.sub(r"[^a-z0-9ñ\s]", "", p).strip()
 
 
+def tiempo_de_ancla(tiempos: dict | None, ancla: str) -> float | None:
+    """Segundo en que la voz empieza a decir `ancla` (igual que tiempoDeAncla en tiempos.ts)."""
+    if not tiempos:
+        return None
+    buscada = normalizar(ancla).split()
+    palabras = [normalizar(p["texto"]) for p in tiempos["palabras"]]
+    for i in range(len(palabras) - len(buscada) + 1):
+        if palabras[i : i + len(buscada)] == buscada:
+            return tiempos["palabras"][i]["inicio"]
+    return None
+
+
 def docker(*args: str, capturar: bool = False) -> subprocess.CompletedProcess:
     """Ejecuta `docker …` desde la raíz del repo. Sin capturar, la salida se ve en vivo."""
     return subprocess.run(
@@ -96,10 +108,13 @@ def resolver_episodio(entrada: str) -> Path:
     raise AssertionError
 
 
-def comprobar_episodio(ep: Path, solo_video: bool) -> dict:
-    faltan = [f for f in ("config.json", "Sketch.tsx") if not (ep / f).exists()]
-    if not solo_video and not (ep / "guion.md").exists():
-        faltan.append("guion.md")
+def comprobar_episodio(ep: Path, solo_video: bool, solo_voz: bool) -> dict:
+    necesarios = ["config.json"]
+    if not solo_video:
+        necesarios.append("guion.md")
+    if not solo_voz:
+        necesarios.append("Sketch.tsx")  # la voz se puede generar antes de escribir el sketch
+    faltan = [f for f in necesarios if not (ep / f).exists()]
     if faltan:
         fallar(f"A {ep.name} le faltan: {', '.join(faltan)}")
     try:
@@ -167,31 +182,34 @@ def momentos_de_verificacion(ep: Path, config: dict) -> dict[str, int]:
     impactos: list[tuple[float, float]] = []
     for imp in config.get("impactos", []):
         inicio = imp.get("desde")
-        if inicio is None and imp.get("ancla") and tiempos:
-            ancla = normalizar(imp["ancla"]).split()
-            palabras = [normalizar(p["texto"]) for p in tiempos["palabras"]]
-            for i in range(len(palabras) - len(ancla) + 1):
-                if palabras[i : i + len(ancla)] == ancla:
-                    inicio = tiempos["palabras"][i]["inicio"]
-                    break
+        if inicio is None and imp.get("ancla"):
+            inicio = tiempo_de_ancla(tiempos, imp["ancla"])
         if inicio is not None:
             impactos.append((inicio, inicio + imp.get("duracion", DURACION_IMPACTO)))
     if impactos:
         momentos["impacto"] = impactos[0][0] + 0.4
 
+    # Igual que resolverPanel() en video/src/canal/tiempos.ts
     panel = config.get("panel")
+    panel_desde = None
+    if panel:
+        panel_desde = panel.get("desde")
+        if panel_desde is None and panel.get("ancla"):
+            panel_desde = tiempo_de_ancla(tiempos, panel["ancla"])
+        if panel_desde is None:
+            panel_desde = 5.0
     if tiempos:
         def libre(t: float) -> bool:
             sin_impacto = all(not (a - 0.2 <= t <= b + 0.2) for a, b in impactos)
-            sin_panel = not panel or t < panel["desde"] - 0.2
+            sin_panel = panel_desde is None or t < panel_desde - 0.2
             return t > DURACION_PORTADA + 0.3 and sin_impacto and sin_panel
 
         for p in tiempos["palabras"]:
             if libre(p["inicio"] + 0.1):
                 momentos["subtitulo"] = p["inicio"] + 0.1
                 break
-    if panel:
-        momentos["panel"] = min(panel["desde"] + 1.5, duracion - 0.5)
+    if panel_desde is not None:
+        momentos["panel"] = min(panel_desde + 1.5, duracion - 0.5)
     return {k: min(int(round(v * FPS)), int(duracion * FPS) - 1) for k, v in momentos.items()}
 
 
@@ -230,7 +248,7 @@ def main() -> None:
     args = p.parse_args()
 
     ep = resolver_episodio(args.episodio)
-    config = comprobar_episodio(ep, args.solo_video)
+    config = comprobar_episodio(ep, args.solo_video, args.solo_voz)
     comprobar_docker()
     avisar(f"Episodio {ep.name} · composición {id_composicion(ep.name)} · «{config['titulo']}»")
     inicio = time.time()
