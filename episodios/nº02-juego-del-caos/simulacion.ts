@@ -75,7 +75,7 @@ export const INICIO_TRIANGULO: [number, number] = [0.5, 0.29];
 
 export const TRIANGULO_N = 160_000;
 export const CUADRADO_N = 24_000;
-export const TETRAEDRO_N = 14_000;
+export const TETRAEDRO_N = 60_000; // de frente debe verse lleno: con 14 000 quedaban huecos de muestreo
 
 /** El triángulo (dado de 6 caras: 1–2, 3–4, 5–6). */
 export const JUEGO_TRIANGULO = jugar(TRIANGULO, TRIANGULO_N, 1988, 6, libre, INICIO_TRIANGULO);

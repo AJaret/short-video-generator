@@ -4,9 +4,9 @@
 //
 //   triángulo (portada → "¿y con cuatro esquinas?")
 //     · lento: una tirada por tiempo (el punto salta a medio camino y deja su marca)
-//     · aceleración: una tirada por semicorchea en pantalla, mientras el contador pasa por 100, 1000, 10 000
-//       (solo se ve el rastro reciente: parece ruido)
-//     · revelación: en el golpe se imprimen todos los puntos de una vez → Sierpinski
+//     · aceleración: una tirada por semicorchea en pantalla, mientras el contador pasa por 100, 1000, 10 000;
+//       los puntos se acumulan finos y la forma va saliendo
+//     · revelación: en el golpe los puntos se imprimen gruesos → Sierpinski
 //     · zoom ×2 y ×2 hacia una esquina: es igual a sí mismo
 //     · esquema: una copia se encoge a la mitad hacia una esquina; luego las tres copias; el hueco
 //   cuadrado ("¿y con cuatro esquinas?") ruido → regla nueva → el copo se imprime en "vuelve el orden"
@@ -156,7 +156,9 @@ export function tiradasTriangulo(t: number, l: Linea): number {
       [l.tCien, 100],
       [l.tMil, 1000],
       [l.tDiezMil, PUNTOS_REVELACION],
-      [l.tZoom, PUNTOS_REVELACION],
+      // El dado no para: cada salto visible es una tirada nueva (nunca se repite el mismo punto)
+      [l.tRevela, 12_000],
+      [l.tZoom, 14_000],
       [l.tZoom + 2 * l.negra, PUNTOS_ZOOM],
     ]),
   );

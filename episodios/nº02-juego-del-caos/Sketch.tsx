@@ -21,7 +21,6 @@ import {
   MONO,
   ORDEN,
   proyectar,
-  puntos3D,
   pulsoDe,
   rotulo,
   salidaExpo,
@@ -110,11 +109,10 @@ function copiaHacia(m: Mapa, vx: number, vy: number, k: number): Mapa {
 let lienzo: {ctx: CanvasRenderingContext2D; img: ImageData} | null = null;
 
 /**
- * Imprime los puntos [desde, hasta) del juego como cuadraditos de TAM_PUNTO px en `destino`.
- * Se escriben directamente en un ImageData (160 000 puntos por fotograma sin problema).
+ * Impresión rápida: cuadraditos escritos directamente en un ImageData (cientos de miles de puntos
+ * por fotograma sin problema). `empezar` lo limpia, `cuadrito` marca uno y `volcar` lo pasa a la capa.
  */
-function pintarPuntos(destino: CanvasRenderingContext2D, j: Juego, desde: number, hasta: number, m: Mapa, recorte?: Rect, tam = TAM_PUNTO) {
-  if (hasta <= desde) return;
+function empezar(): Uint8ClampedArray {
   if (!lienzo) {
     const c = document.createElement('canvas');
     c.width = ANCHO;
@@ -122,25 +120,33 @@ function pintarPuntos(destino: CanvasRenderingContext2D, j: Juego, desde: number
     const ctx = c.getContext('2d') as CanvasRenderingContext2D;
     lienzo = {ctx, img: ctx.createImageData(ANCHO, ALTO)};
   }
-  const {ctx, img} = lienzo;
-  const d = img.data;
-  d.fill(0);
-  const x0 = Math.max(0, recorte?.x ?? 0);
-  const y0 = Math.max(0, recorte?.y ?? 0);
-  const x1 = Math.min(ANCHO - tam, recorte ? recorte.x + recorte.w : ANCHO);
-  const y1 = Math.min(ALTO - tam, recorte ? recorte.y + recorte.h : ALTO);
-  const mitad = tam / 2;
-  for (let i = desde; i < Math.min(hasta, j.n); i++) {
-    const X = Math.round(m.ox + j.x[i] * m.sx - mitad);
-    const Y = Math.round(m.oy + j.y[i] * m.sy - mitad);
-    if (X < x0 || Y < y0 || X >= x1 || Y >= y1) continue;
-    for (let dy = 0; dy < tam; dy++) {
-      let k = ((Y + dy) * ANCHO + X) * 4 + 3;
-      for (let dx = 0; dx < tam; dx++, k += 4) d[k] = 255;
-    }
+  lienzo.img.data.fill(0);
+  return lienzo.img.data;
+}
+
+function cuadrito(d: Uint8ClampedArray, cx: number, cy: number, tam: number, x0 = 0, y0 = 0, x1 = ANCHO, y1 = ALTO) {
+  const X = Math.round(cx - tam / 2);
+  const Y = Math.round(cy - tam / 2);
+  if (X < Math.max(0, x0) || Y < Math.max(0, y0) || X >= Math.min(ANCHO - tam, x1) || Y >= Math.min(ALTO - tam, y1)) return;
+  for (let dy = 0; dy < tam; dy++) {
+    let k = ((Y + dy) * ANCHO + X) * 4 + 3;
+    for (let dx = 0; dx < tam; dx++, k += 4) d[k] = 255;
   }
-  ctx.putImageData(img, 0, 0);
-  destino.drawImage(ctx.canvas, 0, 0);
+}
+
+function volcar(destino: CanvasRenderingContext2D) {
+  if (!lienzo) return;
+  lienzo.ctx.putImageData(lienzo.img, 0, 0);
+  destino.drawImage(lienzo.ctx.canvas, 0, 0);
+}
+
+/** Imprime los puntos [desde, hasta) del juego como cuadraditos de `tam` px en `destino`. */
+function pintarPuntos(destino: CanvasRenderingContext2D, j: Juego, desde: number, hasta: number, m: Mapa, recorte?: Rect, tam = TAM_PUNTO) {
+  if (hasta <= desde) return;
+  const d = empezar();
+  const [x0, y0, x1, y1] = recorte ? [recorte.x, recorte.y, recorte.x + recorte.w, recorte.y + recorte.h] : [0, 0, ANCHO, ALTO];
+  for (let i = desde; i < Math.min(hasta, j.n); i++) cuadrito(d, m.ox + j.x[i] * m.sx, m.oy + j.y[i] * m.sy, tam, x0, y0, x1, y1);
+  volcar(destino);
 }
 
 // ───────────────────────────── Piezas ─────────────────────────────
@@ -291,10 +297,12 @@ function escenaTriangulo(capas: Capas, t: number, l: Linea, r: Rect) {
   const visible = saltoVisible(t, l);
 
   if (t < l.tRevela) {
-    // Antes del golpe: marcas lentas + el punto que salta (+ rastro en la aceleración)
+    // Antes del golpe: marcas lentas + el punto que salta (+ puntos finos y rastro en la aceleración)
     contorno(capas, m, TRIANGULO, 10);
     esquinas(capas, m, TRIANGULO, ETIQUETAS_TRI, visible ? j.esquina[visible.indice] : null);
     marcas(capas, m, j, Math.min(n, l.lentos) - (t < l.tAcelera ? 1 : 0));
+    // Las tiradas de la aceleración se acumulan finas: la forma va saliendo mientras se cuenta
+    if (t >= l.tAcelera) pintarPuntos(capas.solido.b, j, l.lentos, n, m, r, 2);
     if (visible) {
       if (t >= l.tAcelera) {
         const semi = l.negra / 4;
@@ -313,7 +321,7 @@ function escenaTriangulo(capas: Capas, t: number, l: Linea, r: Rect) {
     return;
   }
 
-  // Desde la revelación: todos los puntos impresos
+  // Desde la revelación: todos los puntos, impresos gruesos (el golpe)
   pintarPuntos(capas.solido.b, j, 0, n, m, r);
   if (t < l.tSuerte && zoom > 1.01) {
     rotulo(capas, `zoom ×${zoom < 1.5 ? 1 : zoom < 3 ? 2 : 4}`, r.x + 10, r.y + 20, tramo(t, l.tZoom, 0.3), {tam: 30, tinta: 'a'});
@@ -362,7 +370,8 @@ function escenaCuadrado(capas: Capas, t: number, l: Linea, r: Rect) {
   if (!conRegla) pintarPuntos(capas.solido.b, j, 0, ruido, m, r);
   else if (t >= l.tOrden) pintarPuntos(capas.solido.b, j, 0, copo, m, r);
   else if (ultima !== undefined) {
-    // El copo se va haciendo sin imprimirse: solo el rastro, hasta el golpe de "vuelve el orden"
+    // El copo se acumula fino y se imprime grueso en el golpe de "vuelve el orden"
+    pintarPuntos(capas.solido.b, j, 0, copo, m, r, 2);
     const semi = l.negra / 4;
     const previos: number[] = [];
     for (let k = 12; k >= 1; k--) {
@@ -403,7 +412,8 @@ function escenaTetraedro(capas: Capas, t: number, l: Linea, r: Rect, pulso: Puls
   const [rx, ry] = giroTetraedro(t, l, pulso);
   // Al quedar de frente, la cámara se aleja y cierra el ángulo: casi ortográfica (la sombra exacta)
   const f = salidaExpo(tramo(t, l.tVisto, 0.5));
-  const fov = (35 - 29 * f) * RAD;
+  // 0,4°: prácticamente ortográfica (con perspectiva, las esquinas cercanas crecen y el cuadrado sale torcido)
+  const fov = (35 - 34.6 * f) * RAD;
   const distancia = (6 * Math.tan(17.5 * RAD)) / Math.tan(fov / 2);
   const camara: Camara = {distancia, azimut: 0, elevacion: 0, fov, centro: [r.x + r.w / 2, r.y + r.h / 2]};
   const tr = {rot: [rx, ry, 0] as Vec3, escala: 1.25};
@@ -436,7 +446,44 @@ function escenaTetraedro(capas: Capas, t: number, l: Linea, r: Rect, pulso: Puls
       k.fill();
     });
   }
-  puntos3D(capas, PUNTOS_TETRA.slice(0, n), camara, {tr, tam: 0.034, cerca: deFrente ? 'b' : 'a', lejos: 'b'});
+  pintarTetraedro(capas, n, tr, camara, deFrente);
+}
+
+const PX = new Float32Array(JUEGO_TETRAEDRO.n);
+const PY = new Float32Array(JUEGO_TETRAEDRO.n);
+const PZ = new Float32Array(JUEGO_TETRAEDRO.n);
+const PK = new Float32Array(JUEGO_TETRAEDRO.n);
+const TAM_TETRA = 0.03; // tamaño de cada punto en unidades del mundo
+
+/**
+ * Los puntos del tetraedro proyectados con la cámara 3D e impresos rápido: los cercanos en tinta A y
+ * los lejanos en B (de frente, todos en B). El tamaño depende de la profundidad.
+ */
+function pintarTetraedro(capas: Capas, n: number, tr: {rot: Vec3; escala: number}, camara: Camara, deFrente: boolean) {
+  let zMin = Infinity;
+  let zMax = -Infinity;
+  let m = 0;
+  for (let i = 0; i < n; i++) {
+    const p = proyectar(transformar(PUNTOS_TETRA[i], tr), camara);
+    if (!p) continue;
+    PX[m] = p[0];
+    PY[m] = p[1];
+    PZ[m] = p[2];
+    PK[m] = p[3];
+    zMin = Math.min(zMin, p[2]);
+    zMax = Math.max(zMax, p[2]);
+    m++;
+  }
+  const medio = (zMin + zMax) / 2;
+  for (const [ctx, cerca] of [[capas.solido.b, false], [capas.solido.a, true]] as const) {
+    if (cerca && deFrente) continue;
+    const d = empezar();
+    for (let i = 0; i < m; i++) {
+      if (!deFrente && (PZ[i] < medio) !== cerca) continue;
+      cuadrito(d, PX[i], PY[i], Math.max(3, Math.round(TAM_TETRA * PK[i])));
+    }
+    volcar(ctx);
+  }
 }
 
 /** Final y portada: el triángulo completo, el dado tirando una vez por tiempo. */
