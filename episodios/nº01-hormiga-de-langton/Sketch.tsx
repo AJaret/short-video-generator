@@ -19,13 +19,16 @@ import {
   type DatosPanel,
   type PropsSketch,
   type Rect,
+  cuantizar,
+  pulsoDe,
 } from '@canal';
 import {DURACION_PORTADA} from '@canal/diseno';
-import {claves, INICIO_AUTOPISTA, PASOS_FINAL, pasoEn} from './linea';
+import {claves, enTramoLento, INICIO_AUTOPISTA, PASOS_FINAL, pasoEn} from './linea';
 
 const MIN_CELDAS = 11; // casillas visibles en el primer plano
 const MARGEN_CELDAS = 4;
-const SUAVIZADO = 10; // fotogramas que promedia la cámara
+const CAMARA_EN = 0.25; // s que tarda la cámara en llegar a su nuevo encuadre en cada tiempo
+const DESLIZ = 0.35; // fracción del tiempo musical que tarda la hormiga en pasar de casilla
 
 // ───────────────────────────── Simulación (se calcula una vez) ─────────────────────────────
 
@@ -114,27 +117,36 @@ function camaraPara(pasos: number, r: Rect): Camara {
 
 // ───────────────────────────── Dibujo ─────────────────────────────
 
-const Sketch: React.FC<PropsSketch> = ({area, tiempos}) => {
+const Sketch: React.FC<PropsSketch> = ({area, tiempos, config}) => {
   const frame = useCurrentFrame();
   const {fps, durationInFrames} = useVideoConfig();
 
   useDibujo(ORDEN.sketch, (capas) => {
     const {a, b, k} = capas;
-    const puntos = claves(tiempos, durationInFrames / fps);
-    const pasoReal = pasoEn(frame / fps, puntos);
+    const pulso = pulsoDe(config);
+    const t = frame / fps;
+    const puntos = claves(tiempos, durationInFrames / fps, pulso);
+    const pasoReal = pasoEn(t, puntos);
     const pasos = Math.min(PASOS_FINAL, Math.floor(pasoReal));
-    const estado = estadoEn(pasos);
+    // Tramo lento: la casilla cambia de color en cuanto la hormiga sale (al empezar el tiempo)
+    const lento = enTramoLento(t, puntos) && pasos < PASOS_FINAL;
+    const estado = estadoEn(lento ? pasos + 1 : pasos);
     const r = region(area);
 
-    // Cámara suavizada: promedio de los últimos fotogramas (sin saltar a través de la portada)
-    let cx = 0, cy = 0, celda = 0, n = 0;
-    for (let i = 0; i < SUAVIZADO; i++) {
-      const f = frame - i;
-      if (f < 0 || (frame / fps >= DURACION_PORTADA && f / fps < DURACION_PORTADA)) break;
-      const c = camaraPara(pasoEn(f / fps, puntos), r);
-      cx += c.cx; cy += c.cy; celda += c.celda; n++;
+    // Cámara a saltos, en el pulso: al empezar cada tiempo va (en CAMARA_EN s, con frenada) al
+    // encuadre que necesitará al final de ese tiempo; entre tanto, quieta.
+    let cx: number, cy: number, celda: number;
+    if (t < DURACION_PORTADA) {
+      ({cx, cy, celda} = camaraPara(pasoReal, r));
+    } else {
+      const tb = Math.max(DURACION_PORTADA, cuantizar(t, pulso, 1, 'anterior'));
+      const desde = camaraPara(pasoEn(tb, puntos), r);
+      const hacia = camaraPara(pasoEn(tb + pulso.negra, puntos), r);
+      const e = 1 - (1 - Math.min(1, (t - tb) / CAMARA_EN)) ** 3;
+      cx = desde.cx + (hacia.cx - desde.cx) * e;
+      cy = desde.cy + (hacia.cy - desde.cy) * e;
+      celda = desde.celda + (hacia.celda - desde.celda) * e;
     }
-    cx /= n; cy /= n; celda /= n;
     const ox = r.x + r.w / 2 - cx * celda;
     const oy = r.y + r.h / 2 - cy * celda;
     const px = (x: number) => ox + x * celda;
@@ -191,10 +203,9 @@ const Sketch: React.FC<PropsSketch> = ({area, tiempos}) => {
     }
 
     // 4. La hormiga (tinta A), sobre una pastilla de papel para que se distinga del negro.
-    //    En los pasos lentos se desliza de una casilla a la siguiente.
-    const lento = pasosPorSegundo < 6 && pasos < PASOS_FINAL;
+    //    En los pasos lentos salta de casilla al empezar cada tiempo (frenando) y luego espera.
     const f = lento ? pasoReal - pasos : 0;
-    const suave = f * f * (3 - 2 * f);
+    const suave = 1 - (1 - Math.min(1, f / DESLIZ)) ** 3;
     const hx = SIM.x[pasos] + (lento ? (SIM.x[pasos + 1] - SIM.x[pasos]) * suave : 0) + 0.5;
     const hy = SIM.y[pasos] + (lento ? (SIM.y[pasos + 1] - SIM.y[pasos]) * suave : 0) + 0.5;
     const dir = SIM.dir[Math.min(PASOS_FINAL, pasos + (lento && suave > 0.5 ? 1 : 0))];
@@ -228,8 +239,8 @@ export default Sketch;
 const conMiles = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const DISTANCIA_MAX = 90; // distancia (Manhattan) al origen en el paso final ≈ 88
 
-export function panel(frame: number, {fps, duracion, tiempos}: ContextoSketch): DatosPanel {
-  const puntos = claves(tiempos, duracion / fps);
+export function panel(frame: number, {fps, duracion, tiempos, config}: ContextoSketch): DatosPanel {
+  const puntos = claves(tiempos, duracion / fps, pulsoDe(config));
   const pasos = Math.min(PASOS_FINAL, Math.floor(pasoEn(frame / fps, puntos)));
   const barras = 28;
   return {

@@ -136,17 +136,19 @@ export function normalizarRms(x: Float32Array, objetivoDb: number): Float32Array
 }
 
 /**
- * Limitador con anticipación: ninguna muestra pasa de `techoDb`. Ataque instantáneo (gracias a la
- * anticipación de 3 ms) y relajación de 80 ms: no se oye el bombeo en picos aislados.
+ * Limitador con anticipación, enlazado entre canales: ninguna muestra pasa de `techoDb` y todos los
+ * canales reciben la misma ganancia (la imagen estéreo no se mueve). Ataque instantáneo gracias a
+ * la anticipación de 3 ms; relajación de 80 ms.
  */
-export function limitador(x: Float32Array, sr: number, techoDb = -1): Float32Array {
+export function limitador(canales: Float32Array | Float32Array[], sr: number, techoDb = -1): void {
+  const lista = Array.isArray(canales) ? canales : [canales];
   const techo = db(techoDb);
   const anticipa = Math.round(0.003 * sr);
-  const n = x.length;
-  // Ganancia necesaria en cada muestra, propagada hacia atrás `anticipa` muestras
+  const n = lista[0].length;
   const necesaria = new Float32Array(n).fill(1);
   for (let i = 0; i < n; i++) {
-    const a = Math.abs(x[i]);
+    let a = 0;
+    for (const c of lista) a = Math.max(a, Math.abs(c[i]));
     if (a > techo) {
       const g = techo / a;
       for (let j = Math.max(0, i - anticipa); j <= i; j++) necesaria[j] = Math.min(necesaria[j], g);
@@ -157,9 +159,40 @@ export function limitador(x: Float32Array, sr: number, techoDb = -1): Float32Arr
   for (let i = 0; i < n; i++) {
     g = necesaria[i] < g ? necesaria[i] : 1 - (1 - g) * relaja;
     if (g > necesaria[i]) g = necesaria[i];
-    x[i] *= g;
+    for (const c of lista) c[i] *= g;
   }
-  return x;
+}
+
+// ───────────────────────────── Estéreo ─────────────────────────────
+
+export type Estereo = {l: Float32Array; r: Float32Array};
+
+export const estereo = (sr: number, segundos: number): Estereo => ({l: silencio(sr, segundos), r: silencio(sr, segundos)});
+
+/** Suma una fuente mono con paneo de potencia constante (−1 izquierda, 0 centro, 1 derecha). */
+export function sumarPaneado(destino: Estereo, fuente: Float32Array, sr: number, segundo: number, ganancia = 1, pan = 0): void {
+  const a = ((Math.max(-1, Math.min(1, pan)) + 1) * Math.PI) / 4;
+  sumarEn(destino.l, fuente, sr, segundo, ganancia * Math.cos(a));
+  sumarEn(destino.r, fuente, sr, segundo, ganancia * Math.sin(a));
+}
+
+/** Eco que rebota de un lado a otro, oscurecido en cada vuelta. Se suma al propio destino. */
+export function ecoPingPong(destino: Estereo, sr: number, retardo: number, realimentacion: number, mezcla: number): void {
+  const d = Math.round(retardo * sr);
+  const n = destino.l.length;
+  const el = new Float32Array(n), er = new Float32Array(n);
+  for (let i = d; i < n; i++) {
+    el[i] = (destino.r[i - d] + er[i - d] * realimentacion) * 0.5 + el[i - 1] * 0.5;
+    er[i] = (destino.l[i - d] + el[i - d] * realimentacion) * 0.5 + er[i - 1] * 0.5;
+  }
+  for (let i = 0; i < n; i++) {
+    destino.l[i] += el[i] * mezcla;
+    destino.r[i] += er[i] * mezcla;
+  }
+}
+
+export function rmsEstereo(e: Estereo): number {
+  return Math.sqrt((rms(e.l) ** 2 + rms(e.r) ** 2) / 2);
 }
 
 /** Remuestreo lineal (suficiente para subir de frecuencia efectos sintetizados). */
@@ -218,26 +251,31 @@ export function leerWav(bytes: Uint8Array): {sr: number; datos: Float32Array} {
   return {sr, datos};
 }
 
-/** Escribe un WAV PCM de 16 bits, mono. */
-export function escribirWav(datos: Float32Array, sr: number): Uint8Array {
-  const bytes = new Uint8Array(44 + datos.length * 2);
+/** Escribe un WAV PCM de 16 bits con uno o más canales (mono: un array; estéreo: [l, r]). */
+export function escribirWav(canales: Float32Array | Float32Array[], sr: number): Uint8Array {
+  const lista = Array.isArray(canales) ? canales : [canales];
+  const nc = lista.length;
+  const n = lista[0].length;
+  const bytes = new Uint8Array(44 + n * 2 * nc);
   const v = new DataView(bytes.buffer);
   const poner = (o: number, s: string) => [...s].forEach((c, i) => (bytes[o + i] = c.charCodeAt(0)));
   poner(0, 'RIFF');
-  v.setUint32(4, 36 + datos.length * 2, true);
+  v.setUint32(4, 36 + n * 2 * nc, true);
   poner(8, 'WAVE');
   poner(12, 'fmt ');
   v.setUint32(16, 16, true);
   v.setUint16(20, 1, true);
-  v.setUint16(22, 1, true);
+  v.setUint16(22, nc, true);
   v.setUint32(24, sr, true);
-  v.setUint32(28, sr * 2, true);
-  v.setUint16(32, 2, true);
+  v.setUint32(28, sr * 2 * nc, true);
+  v.setUint16(32, 2 * nc, true);
   v.setUint16(34, 16, true);
   poner(36, 'data');
-  v.setUint32(40, datos.length * 2, true);
-  for (let i = 0; i < datos.length; i++) {
-    v.setInt16(44 + i * 2, Math.round(Math.max(-1, Math.min(1, datos[i])) * 32767), true);
+  v.setUint32(40, n * 2 * nc, true);
+  for (let i = 0; i < n; i++) {
+    for (let c = 0; c < nc; c++) {
+      v.setInt16(44 + (i * nc + c) * 2, Math.round(Math.max(-1, Math.min(1, lista[c][i])) * 32767), true);
+    }
   }
   return bytes;
 }

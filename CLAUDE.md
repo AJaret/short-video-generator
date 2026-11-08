@@ -54,7 +54,7 @@ Degradados suaves, glow, sombras proyectadas, bordes perfectos, blanco puro (#FF
   - `¡…!` para el dato que golpea.
   - El punto, solo para los cierres de verdad (la revelación, el remate).
   - Ejemplo de referencia: `episodios/nº00-prueba/guion.md`.
-- Música: lo-fi ambient analógico, 70–85 BPM, vinilo + sintes de cinta. Baja cuando entra el dato clave.
+- Música: **"misterio con guiño"**, marimba en arpegios sobre sub-grave, La menor, 92 BPM, en estéreo. **Va al ritmo de la animación**, estilo motion graphics: sube hacia la revelación, calla un tiempo justo antes y golpea en ella. Baja cuando entra el dato clave. Sustituye al lo-fi del plan original: el usuario la eligió el 2026-11-07, tras comparar bocetos con dos reels de referencia (pulso rápido, muchas notas cortas, energía que acompaña a la imagen).
 - Firma sonora: traqueteo de impresora riso en cada transición; zumbido grave que crece antes de la revelación.
 
 ---
@@ -205,16 +205,40 @@ ID de composición: el nombre de la carpeta con `nº` → `ep` y sin caracteres 
 - `instrumentos.ts` contiene la firma sonora del canal:
   - `impresora` (traqueteo riso), `sello` (golpe), `papel` (deslizamiento) y `zumbido` (grave que crece).
   - `tic` (afinado) y `ticShepard` (subida "infinita").
-  - `musicaLofi`: 78 BPM en La menor, con Rhodes, colchón de cinta, bajo y batería con escobillas y swing, más el "wow & flutter" de cinta y crujido de vinilo.
-- `banda.ts` (reglas de mezcla):
-  - Música a −18 dB respecto a la voz (`audio.musicaDb`). Baja 3 dB más mientras habla la voz y 7 dB más durante los datos de impacto.
-  - Efectos: impresora al salir la portada, papel al subir y bajar el panel, y sello + impresora corta en cada impacto.
-  - Zumbido durante los 4 s previos a `audio.revelacion` (un ancla o segundos de `config.json`).
-  - Salida a **−14 LUFS** con limitador a −1 dBFS. En el MP4, Remotion reparte la pista mono en estéreo a −3 dB por canal: medida en estéreo da −14 LUFS.
-- **Efectos propios de un episodio:** `episodios/<ep>/sonido.ts` exporta `eventos({config, tiempos, duracion})` y devuelve una lista de tics con `{t, frecuencia, volumenDb, duracion?, brillo?, shepard?}`.
-  - Para que imagen y sonido coincidan, la línea de tiempo del sketch va en un módulo **puro** (`linea.ts`, sin React), compartido por `Sketch.tsx` y `sonido.ts`. Ejemplo: `nº01`, donde cada paso de la hormiga suena un semitono más alto y en la aceleración suena una escalera de Shepard.
+  - Instrumentos de la música: marimba, campana FM, sub-grave, bombo, aro, shaker, platillo y golpe grave.
+- `musica.ts` · `musicaMisterio`: se **compone para cada episodio** a partir de un plan, no es un bucle de fondo.
+  - Base: Am – Fmaj7 – Am – G, con la marimba en semicorcheas en un patrón 3+3+2 que "gira".
+  - La intensidad de cada tiempo decide qué capas suenan:
+    - menos de 0,3: marimba en corcheas.
+    - más de 0,3: sub-grave.
+    - más de 0,45: bombo y aro a medio tiempo.
+    - más de 0,55: shaker.
+    - más de 0,8: campanitas.
+  - Dentro del plan: **caídas** (silencio), **golpes** (platillo + grave) y un **acorde final**.
+  - Eco que rebota de lado a lado, en estéreo.
+- **Pulso (`video/src/canal/pulso.ts`):** el reloj que comparten animación, plantilla y sonido.
+  - `pulsoDe(config)` (`ritmo.bpm`, 92 por defecto), `cuantizar(t, pulso, division, modo)`, `golpe(t, pulso)` (envolvente que late en cada tiempo) y `faseEn`.
+  - A 92 BPM un compás dura 2,609 s, así que la salida de la portada (2,6 s) cae en el primer tiempo del compás 1.
+- **Lo que va al pulso en la plantilla:**
+  - El panel sube y baja, y los sellos de impacto entran, en el tiempo más cercano a su ancla (`resolverPanel(…, pulso)`, `momentoImpacto`).
+  - **Golpe riso** (`ritmo.golpeVisual`, activo por defecto): en cada tiempo el desajuste de registro de A y B da un salto de +0,9 px que cae en 0,12 s, y en cada compás el fotograma se escala un 1 %. No actúa durante la portada.
+- `banda.ts` (reglas de mezcla, en **estéreo**):
+  - Plan musical: intensidad 0,2 en la portada; sube de 0,3 a 0,85 hasta la revelación (`audio.revelacion`, llevada al tiempo más cercano); **un tiempo de silencio** justo antes; **golpe** en ella; intensidad 1 hasta `audio.remate` (ancla, por defecto 2 compases después); luego se reduce hasta el acorde final.
+  - Música a −18 dB respecto a la voz (`audio.musicaDb`). La base baja 3 dB más mientras habla la voz y 7 dB más durante los impactos; los golpes no bajan.
+  - Efectos, todos en el pulso: impresora al salir la portada, papel al subir y bajar el panel, sello + impresora corta en cada impacto, y zumbido durante los 4 s previos a la revelación.
+  - La voz y los efectos van al centro, con −3 dB por canal. Salida a **−14 LUFS** (medido en estéreo) con limitador enlazado a −1 dBFS.
+- **Efectos propios de un episodio:** `episodios/<ep>/sonido.ts` exporta `eventos({config, tiempos, duracion, pulso})` y devuelve una lista de tics con `{t, frecuencia, volumenDb, duracion?, brillo?, shepard?, pan?}`.
+  - Para que imagen y sonido coincidan, la línea de tiempo del sketch va en un módulo **puro** (`linea.ts`, sin React), compartido por `Sketch.tsx` y `sonido.ts`, y **en la rejilla de pulso**. Ejemplo: `nº01`:
+    - Un paso de la hormiga por tiempo: salta al empezar el tiempo, frenando, y luego espera. Cada paso suena un escalón más arriba en la pentatónica de La menor, así que los pasos forman parte de la música.
+    - La cámara salta en cada tiempo.
+    - En la aceleración suena una escalera de Shepard en corcheas, luego semicorcheas y luego fusas.
+    - La autopista aparece en el golpe de la revelación.
   - Lección aprendida: 30 tics por segundo a la misma altura se oyen como un zumbido. Para "cada paso más alto" hace falta que cada tic suba de verdad: Shepard, o un rango amplio.
-- Verificación: `pyloudnorm` en el servicio `voz` (volumen total y picos) y un espectrograma de la mezcla.
+- Verificación:
+  - `pyloudnorm` en el servicio `voz` para el volumen total y los picos.
+  - El tempo se mide en el canal lateral (L−R), donde no está la voz. Con la voz, el detector se confunde: en `nº01` daba 126 BPM en la mezcla y 92,3 BPM en el lateral.
+  - Los picos de cambio entre fotogramas del MP4 se comparan con la rejilla. En `nº01`, el 79 % cae a ≤ 2 fotogramas de un tiempo; los demás son cambios de subtítulo, que siguen a la voz.
+  - La correlación L/R de la mezcla sale ~1 porque la voz al centro domina. Es normal: la música sí es estéreo.
 
 ### Render
 - `npx remotion render` a 1080×1920, 30 fps, H.264, CRF 18, audio AAC.

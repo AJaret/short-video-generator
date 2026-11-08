@@ -10,6 +10,7 @@ import {
   PanelDatos,
   Portada,
   progresoPanel,
+  pulsoDe,
   resolverPanel,
   resolverTintas,
   RisoFilter,
@@ -26,14 +27,15 @@ export const ComposicionEpisodio: React.FC<PropsEpisodio> = ({carpeta, guias}) =
   const {config, sketch, tiempos} = ep;
   const tintas = useMemo(() => resolverTintas(config.tintas), [config.tintas]);
 
-  const panel = useMemo(() => resolverPanel(config.panel, tiempos), [config.panel, tiempos]);
+  const pulso = useMemo(() => pulsoDe(config), [config]);
+  const panel = useMemo(() => resolverPanel(config.panel, tiempos, pulso), [config.panel, tiempos, pulso]);
   const progreso = progresoPanel(frame, fps, panel);
   const area = areaSketch(progreso);
   const Sketch = sketch.default;
 
   return (
     <AbsoluteFill>
-      <RisoFilter tintas={tintas} semilla={config.semilla}>
+      <RisoFilter tintas={tintas} semilla={config.semilla} pulso={pulso}>
         <Sketch config={config} area={area} tiempos={tiempos} />
         {panel ? (
           <PanelDatos
@@ -42,7 +44,7 @@ export const ComposicionEpisodio: React.FC<PropsEpisodio> = ({carpeta, guias}) =
             datos={sketch.panel?.(frame, {fps, duracion: durationInFrames, tiempos, config})}
           />
         ) : null}
-        <DatoImpacto impactos={config.impactos ?? []} tiempos={tiempos} progresoPanel={progreso} />
+        <DatoImpacto impactos={config.impactos ?? []} tiempos={tiempos} progresoPanel={progreso} pulso={pulso} />
         {tiempos ? (
           // Durante la portada no hay subtítulos: el primer fotograma es la miniatura y el título manda
           <SubtituloNormal tiempos={tiempos} progresoPanel={progreso} ocultoEn={(t) => t < DURACION_PORTADA} />

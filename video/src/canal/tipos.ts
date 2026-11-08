@@ -31,6 +31,13 @@ export type ConfigEpisodio = {
   panel?: {desde?: number; ancla?: string; hasta?: number | string; titulo?: string};
   /** Segundos extra tras la última palabra (por defecto 1.5). */
   cola?: number;
+  /** Pulso musical (ver pulso.ts): todo lo que se mueve al ritmo usa este tempo. */
+  ritmo?: {
+    /** Tempo en BPM (por defecto 92). */
+    bpm?: number;
+    /** "Golpe riso" visual en cada tiempo (por defecto sí). */
+    golpeVisual?: boolean;
+  };
   /** Banda sonora (ver video/src/sonido/banda.ts). */
   audio?: {
     /** Música lo-fi de fondo (por defecto sí). */
@@ -39,6 +46,8 @@ export type ConfigEpisodio = {
     musicaDb?: number;
     /** Momento de la revelación (ancla del guion o segundos): el zumbido crece hasta ahí. */
     revelacion?: string | number;
+    /** Desde aquí la música se reduce al remate (ancla o segundos; por defecto 2 compases tras la revelación). */
+    remate?: string | number;
   };
 };
 

@@ -1,16 +1,14 @@
 // Instrumentos y efectos del canal, sintetizados por código (deterministas por semilla).
 //
-// Firma sonora (CLAUDE.md §2): impresora riso en las transiciones, zumbido grave que crece antes de
-// la revelación, música lo-fi ambient analógica de 70–85 BPM (vinilo + sintes de cinta).
+// Firma sonora (CLAUDE.md §2): impresora riso en las transiciones y zumbido grave que crece antes
+// de la revelación. La música (musica.ts) usa los instrumentos del final de este archivo.
 import {mulberry32} from '../canal/prng';
 import {
   biquad,
   envolvente,
   fundidos,
-  hz,
   multiplicar,
   normalizarPico,
-  normalizarRms,
   pasaAltos1,
   pasaBajos1,
   ruidoBlanco,
@@ -142,150 +140,93 @@ export function zumbido(sr: number, duracion = 4, semilla = 17): Float32Array {
   return normalizarPico(x, 0);
 }
 
-// ───────────────────────────── Música lo-fi ─────────────────────────────
+// ───────────────────────────── Instrumentos de la música ─────────────────────────────
 
-/** Acordes (semitonos respecto a la4) — progresión de cuatro compases en la menor. */
-const ACORDES = [
-  [-24, -12, -5, 0, 3, 7], // Am9 (la, mi, la, do, mi… con 9ª = si en la voz alta abajo)
-  [-28, -16, -9, -5, 0, 4], // Fmaj7 (fa, do, mi, la)
-  [-21, -9, -5, -2, 2, 7], // Cmaj7/do
-  [-26, -14, -7, -2, 2, 5], // G6 (sol, re, mi, si)
-];
+/** Marimba: parciales 1, ≈4 y ≈10 (los de una lámina de madera) con caídas cortas + golpe de maza. */
+export function marimba(sr: number, f: number, velocidad = 1): Float32Array {
+  const n = Math.round(sr * 1.2);
+  const x = new Float32Array(n);
+  const parciales: [number, number, number][] = [[1, 1, 0.55], [3.99, 0.3, 0.12], [9.9, 0.07, 0.035]];
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    let s = 0;
+    for (const [m, g, c] of parciales) s += g * Math.sin(2 * Math.PI * f * m * t) * Math.exp(-t / c);
+    x[i] = s * Math.min(1, i / (0.0015 * sr)) * velocidad;
+  }
+  const maza = ruidoBlanco(Math.round(sr * 0.01), Math.round(f * 7));
+  pasaBajos1(maza, sr, 3000);
+  multiplicar(maza, envolvente(maza.length, sr, 0.0003, 0.002));
+  sumarEn(x, maza, sr, 0, 0.15 * velocidad);
+  return x;
+}
 
-/** Piano eléctrico tipo Rhodes: parciales con caída y un leve trémolo. */
-function rhodes(sr: number, f: number, duracion: number, velocidad: number): Float32Array {
+/** Campanita FM: el índice de modulación cae rápido (ataque brillante, cola redonda). */
+export function campanaFM(sr: number, f: number, velocidad = 1, caida = 0.4): Float32Array {
+  const n = Math.round(sr * caida * 4);
+  const x = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    const indice = 2.8 * Math.exp(-t / 0.05);
+    x[i] = velocidad * Math.sin(2 * Math.PI * f * t + indice * Math.sin(2 * Math.PI * f * 2 * t)) * Math.exp(-t / caida) * Math.min(1, i / (0.001 * sr));
+  }
+  return x;
+}
+
+/** Sub-grave: seno con una pizca de saturación (se oye también en altavoces pequeños). */
+export function subBajo(sr: number, f: number, duracion: number): Float32Array {
   const n = Math.round(sr * duracion);
   const x = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     const t = i / sr;
-    const e = Math.min(1, t / 0.006) * Math.exp(-t / (0.9 + 0.6 * velocidad));
-    const campana = 0.25 * velocidad * Math.sin(2 * Math.PI * f * 4.01 * t) * Math.exp(-t / 0.08);
-    x[i] = e * (Math.sin(2 * Math.PI * f * t) + 0.22 * Math.sin(2 * Math.PI * 2 * f * t) + campana) * (1 + 0.08 * Math.sin(2 * Math.PI * 4.2 * t));
+    const e = Math.min(1, t / 0.01) * Math.min(1, (duracion - t) / 0.05);
+    x[i] = Math.tanh(1.6 * Math.sin(2 * Math.PI * f * t)) * e * 0.7;
   }
   return x;
 }
 
-/** Colchón de sintetizador de cinta: dientes de sierra desafinados y filtrados, ataque lento. */
-function colchon(sr: number, notas: number[], duracion: number): Float32Array {
-  const n = Math.round(sr * duracion);
-  const x = new Float32Array(n);
-  for (const nota of notas) {
-    for (const desafine of [-0.06, 0.07]) {
-      const f = hz(nota + desafine);
-      let fase = 0;
-      for (let i = 0; i < n; i++) {
-        fase += f / sr;
-        x[i] += 2 * (fase - Math.floor(fase + 0.5));
-      }
-    }
-  }
-  biquad(x, sr, 'pasabajos', 900, 0.7);
-  multiplicar(x, (i) => Math.min(1, i / (0.6 * sr)) * Math.min(1, (n - i) / (0.4 * sr)));
-  return x;
-}
-
-function bombo(sr: number): Float32Array {
-  const n = Math.round(sr * 0.28);
+export function bombo(sr: number): Float32Array {
+  const n = Math.round(sr * 0.35);
   const x = new Float32Array(n);
   let fase = 0;
   for (let i = 0; i < n; i++) {
     const t = i / sr;
-    fase += (2 * Math.PI * (45 + 70 * Math.exp(-t / 0.025))) / sr;
-    x[i] = Math.sin(fase) * Math.exp(-t / 0.09);
+    fase += (2 * Math.PI * (48 + 90 * Math.exp(-t / 0.03))) / sr;
+    x[i] = Math.tanh(1.5 * Math.sin(fase)) * Math.exp(-t / 0.12);
   }
   return x;
 }
 
-function escobilla(sr: number, semilla: number): Float32Array {
-  const x = ruidoBlanco(Math.round(sr * 0.22), semilla);
-  biquad(x, sr, 'pasabanda', 2800, 0.6);
-  multiplicar(x, envolvente(x.length, sr, 0.004, 0.06));
+/** Golpe de aro / bloque de madera. */
+export function aro(sr: number, f = 1100): Float32Array {
+  const n = Math.round(sr * 0.12);
+  const x = new Float32Array(n);
+  for (let i = 0; i < n; i++) x[i] = Math.sin(2 * Math.PI * f * (i / sr)) * Math.exp(-i / (0.025 * sr));
   return x;
 }
 
-function platillo(sr: number, semilla: number): Float32Array {
-  const x = ruidoBlanco(Math.round(sr * 0.05), semilla);
-  pasaAltos1(pasaAltos1(x, sr, 6000), sr, 6000);
-  multiplicar(x, envolvente(x.length, sr, 0.001, 0.012));
-  return x;
+export function shaker(sr: number, semilla: number): Float32Array {
+  const x = ruidoBlanco(Math.round(sr * 0.09), semilla);
+  biquad(x, sr, 'pasabanda', 6500, 1.2);
+  return multiplicar(x, (i) => Math.sin((Math.PI * i) / (sr * 0.09)) ** 2);
 }
 
-/**
- * Pista lo-fi ambient de `duracion` segundos: 78 BPM, la menor, Rhodes + colchón de cinta + bajo +
- * batería con escobillas y swing, todo con "wow & flutter" de cinta y crujido de vinilo.
- * Normalizada a −20 dB RMS (la mezcla decide el volumen final).
- */
-export function musicaLofi(sr: number, duracion: number, semilla = 78, bpm = 78): Float32Array {
-  const azar = mulberry32(semilla);
-  const negra = 60 / bpm;
-  const compas = negra * 4;
-  const largo = duracion + 1;
-  const piano = silencio(sr, largo);
-  const pads = silencio(sr, largo);
-  const bajo = silencio(sr, largo);
-  const bateria = silencio(sr, largo);
+/** Platillo de golpe (revelación): ruido brillante con cola larga. */
+export function platillo(sr: number, semilla: number, duracion = 1.6): Float32Array {
+  const x = ruidoBlanco(Math.round(sr * duracion), semilla);
+  pasaAltos1(pasaAltos1(x, sr, 4500), sr, 4500);
+  biquad(x, sr, 'pasabajos', 11000, 0.7);
+  return multiplicar(x, envolvente(x.length, sr, 0.002, duracion / 5));
+}
 
-  for (let c = 0; c * compas < largo; c++) {
-    const t0 = c * compas;
-    const acorde = ACORDES[c % ACORDES.length];
-    // Rhodes: acorde rasgueado en el 1 y en el "y" del 3
-    for (const [tiempo, vel] of [[0, 0.9], [2.5, 0.55]] as const) {
-      acorde.slice(1).forEach((nota, k) => {
-        const v = vel * (0.8 + azar() * 0.2);
-        sumarEn(piano, rhodes(sr, hz(nota), compas * 0.9, v), sr, t0 + tiempo * negra + k * 0.012 + azar() * 0.006, v / acorde.length);
-      });
-    }
-    // Colchón: el acorde completo, todo el compás
-    sumarEn(pads, colchon(sr, acorde.slice(2, 5), compas + 0.3), sr, t0, 0.05);
-    // Bajo: fundamental en el 1 y el 3
-    for (const tiempo of [0, 2]) {
-      const n = Math.round(sr * negra * 1.6);
-      const b = new Float32Array(n);
-      const f = hz(acorde[0]);
-      for (let i = 0; i < n; i++) b[i] = Math.sin((2 * Math.PI * f * i) / sr) * Math.min(1, i / (0.01 * sr)) * Math.exp(-i / (0.5 * sr));
-      sumarEn(bajo, b, sr, t0 + tiempo * negra, 0.5);
-    }
-    // Batería con swing (corcheas al 58 %)
-    sumarEn(bateria, bombo(sr), sr, t0, 0.9);
-    sumarEn(bateria, bombo(sr), sr, t0 + 2.5 * negra, 0.5);
-    for (const tiempo of [1, 3]) sumarEn(bateria, escobilla(sr, c * 10 + tiempo), sr, t0 + tiempo * negra, 0.35);
-    for (let k = 0; k < 8; k++) {
-      const swing = k % 2 === 1 ? 0.58 : 0.5;
-      const t = t0 + (Math.floor(k / 2) + (k % 2 ? swing : 0)) * negra;
-      sumarEn(bateria, platillo(sr, c * 100 + k), sr, t, k % 2 ? 0.12 : 0.18);
-    }
-  }
-
-  // Mezcla de la banda
-  const banda = silencio(sr, largo);
-  sumarEn(banda, piano, sr, 0, 0.55);
-  sumarEn(banda, pads, sr, 0, 1);
-  sumarEn(banda, bajo, sr, 0, 0.55);
-  sumarEn(banda, bateria, sr, 0, 0.45);
-
-  // Cinta: "wow" lento y "flutter" rápido modulando la velocidad de lectura
-  const cinta = new Float32Array(Math.round(sr * duracion));
-  for (let i = 0; i < cinta.length; i++) {
+/** Golpe grave cinematográfico (revelación): caída de tono larga y saturada. */
+export function golpeGrave(sr: number): Float32Array {
+  const n = Math.round(sr * 1.4);
+  const x = new Float32Array(n);
+  let fase = 0;
+  for (let i = 0; i < n; i++) {
     const t = i / sr;
-    const desvio = 0.0025 * Math.sin(2 * Math.PI * 0.55 * t) + 0.0006 * Math.sin(2 * Math.PI * 6.3 * t);
-    const p = i * (1 + desvio) + 200;
-    const k = Math.floor(p);
-    const f = p - k;
-    cinta[i] = (banda[k] ?? 0) * (1 - f) + (banda[k + 1] ?? 0) * f;
+    fase += (2 * Math.PI * (38 + 70 * Math.exp(-t / 0.06))) / sr;
+    x[i] = Math.tanh(2 * Math.sin(fase)) * Math.exp(-t / 0.45);
   }
-  // Calidez lo-fi: recorte suave de agudos
-  biquad(cinta, sr, 'pasabajos', 5200, 0.6);
-
-  // Vinilo: siseo muy bajo + crujidos aleatorios
-  const siseo = ruidoBlanco(cinta.length, semilla + 1);
-  biquad(siseo, sr, 'pasabanda', 4000, 0.5);
-  sumarEn(cinta, siseo, sr, 0, 0.012);
-  for (let t = 0; t < duracion; t += 0.02 + azar() * 0.25) {
-    const crujido = ruidoBlanco(Math.round(sr * 0.002), Math.floor(azar() * 1e9));
-    pasaAltos1(crujido, sr, 1500);
-    sumarEn(cinta, crujido, sr, t, 0.04 + azar() * 0.1);
-  }
-
-  fundidos(cinta, sr, 1.2, 1.5);
-  return normalizarRms(cinta, -20);
+  return x;
 }

@@ -5,6 +5,7 @@ export * from './dibujo';
 export * from './fuentes';
 export * from './paleta';
 export * from './prng';
+export * from './pulso';
 export * from './tiempos';
 export * from './tipos';
 export {RisoFilter} from './RisoFilter';

@@ -49,6 +49,6 @@ const {mezcla, sr, informe} = m.construirBanda({
   voz,
   eventos: m.eventos,
 });
-fs.writeFileSync(path.join(ep, 'mezcla.wav'), m.escribirWav(mezcla, sr));
+fs.writeFileSync(path.join(ep, 'mezcla.wav'), m.escribirWav([mezcla.l, mezcla.r], sr));
 console.log(JSON.stringify({...informe, efectos_propios: Boolean(m.eventos), tiempo_s: (Date.now() - inicio) / 1000}, null, 2));
 console.log(`Listo: episodios/${carpeta}/mezcla.wav`);

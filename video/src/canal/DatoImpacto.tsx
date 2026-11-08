@@ -6,7 +6,8 @@ import {cobertura, ORDEN, recortarPapel, todasLasCapas, useDibujo} from './capas
 import {ajustarTexto, mezclar, trazarRectIrregular} from './dibujo';
 import {DURACION_IMPACTO, UTIL} from './diseno';
 import {fuente, TITULAR} from './fuentes';
-import {inicioImpacto} from './tiempos';
+import {momentoImpacto} from './tiempos';
+import type {Pulso} from './pulso';
 import type {Impacto, Tiempos} from './tipos';
 import {centroAreaConPanel} from './PanelDatos';
 
@@ -14,10 +15,14 @@ const ENTRADA = 4; // fotogramas
 const SALIDA = 6; // fotogramas
 
 /** Tramos [inicio, fin] en segundos de los impactos que se pueden ubicar. */
-export function tramosImpacto(impactos: Impacto[], tiempos: Tiempos | null): {impacto: Impacto; inicio: number; fin: number}[] {
+export function tramosImpacto(
+  impactos: Impacto[],
+  tiempos: Tiempos | null,
+  pulso?: Pulso | null,
+): {impacto: Impacto; inicio: number; fin: number}[] {
   if (impactos.length > 3) throw new Error(`Máximo 3 datos de impacto por video (hay ${impactos.length}).`);
   return impactos.flatMap((impacto) => {
-    const inicio = inicioImpacto(impacto, tiempos);
+    const inicio = momentoImpacto(impacto, tiempos, pulso);
     if (inicio === null) return [];
     return [{impacto, inicio, fin: inicio + (impacto.duracion ?? DURACION_IMPACTO)}];
   });
@@ -27,12 +32,14 @@ export type PropsDatoImpacto = {
   impactos: Impacto[];
   tiempos: Tiempos | null;
   progresoPanel: number;
+  /** Con pulso, el sello entra en el tiempo de la música más cercano a su ancla. */
+  pulso?: Pulso | null;
 };
 
-export const DatoImpacto: React.FC<PropsDatoImpacto> = ({impactos, tiempos, progresoPanel}) => {
+export const DatoImpacto: React.FC<PropsDatoImpacto> = ({impactos, tiempos, progresoPanel, pulso}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
-  const tramos = tramosImpacto(impactos, tiempos);
+  const tramos = tramosImpacto(impactos, tiempos, pulso);
 
   useDibujo(ORDEN.impacto, (capas) => {
     const t = frame / fps;

@@ -1,4 +1,5 @@
 // Utilidades sobre tiempos.json: grupos de subtítulos, palabra activa y anclas de impacto.
+import {cuantizar, type Pulso} from './pulso';
 import type {ConfigEpisodio, Impacto, Palabra, Tiempos} from './tipos';
 
 /** Minúsculas, sin acentos ni puntuación: para comparar palabras del guion. */
@@ -79,15 +80,27 @@ export function inicioImpacto(impacto: Impacto, tiempos: Tiempos | null): number
 }
 
 /**
+ * Momento en que entra un impacto: su ancla (o `desde`), llevada al tiempo de la música más cercano
+ * si hay pulso (el sello cae en el pulso, a como mucho media negra de la palabra).
+ */
+export function momentoImpacto(impacto: Impacto, tiempos: Tiempos | null, pulso?: Pulso | null): number | null {
+  const t = inicioImpacto(impacto, tiempos);
+  return t === null || !pulso ? t : cuantizar(t, pulso);
+}
+
+/**
  * Panel con `desde` y `hasta` en segundos. `desde` puede venir de `ancla`; `hasta` puede ser un
  * número o una palabra/frase del guion (el panel baja cuando la voz la dice). Sin tiempos, sube a los 5 s.
+ * Con pulso, ambos caen en el tiempo de la música más cercano.
  */
 export function resolverPanel(
   panel: ConfigEpisodio['panel'],
   tiempos: Tiempos | null,
+  pulso?: Pulso | null,
 ): {desde: number; hasta?: number; titulo?: string} | undefined {
   if (!panel) return undefined;
-  const desde = panel.desde ?? (panel.ancla ? tiempoDeAncla(tiempos, panel.ancla) : null) ?? 5;
-  const hasta = typeof panel.hasta === 'string' ? (tiempoDeAncla(tiempos, panel.hasta) ?? undefined) : panel.hasta;
-  return {desde, hasta, titulo: panel.titulo};
+  const alPulso = (t: number) => (pulso ? cuantizar(t, pulso) : t);
+  const desde = alPulso(panel.desde ?? (panel.ancla ? tiempoDeAncla(tiempos, panel.ancla) : null) ?? 5);
+  const hastaBruto = typeof panel.hasta === 'string' ? (tiempoDeAncla(tiempos, panel.hasta) ?? undefined) : panel.hasta;
+  return {desde, hasta: hastaBruto === undefined ? undefined : alPulso(hastaBruto), titulo: panel.titulo};
 }

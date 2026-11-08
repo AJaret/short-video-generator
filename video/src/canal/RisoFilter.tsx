@@ -12,7 +12,9 @@ import {AbsoluteFill, continueRender, delayRender, useCurrentFrame, useVideoConf
 import {ContextoRiso, todasLasCapas, type Capas, type Registro} from './capas';
 import {cargarFuentes} from './fuentes';
 import {hexARgb, NEGRO, PAPEL, type Tintas} from './paleta';
+import {DURACION_PORTADA} from './diseno';
 import {mulberry32, ruido1d} from './prng';
+import {golpe, type Pulso} from './pulso';
 
 const VERTICES = `
 attribute vec2 aPos;
@@ -149,13 +151,14 @@ function iniciarGL(canvas: HTMLCanvasElement): EstadoGL {
 }
 
 /**
- * Desajuste de registro de una tinta en el fotograma: base fija por semilla (≈2–3 px)
- * más un temblor suave de ±0.8 px. Entre A y B quedan 2–6 px.
+ * Desajuste de registro de una tinta en el fotograma: base fija por semilla (≈1,6–2,4 px), un
+ * temblor suave de ±0.8 px y un `empuje` (px) que late con la música ("golpe riso", como el tambor
+ * de la impresora en cada vuelta). Entre A y B quedan 2–6 px.
  */
-function desajuste(semilla: number, tinta: number, frame: number, base: number): [number, number] {
+function desajuste(semilla: number, tinta: number, frame: number, base: number, empuje = 0): [number, number] {
   const azar = mulberry32(semilla * 31 + tinta * 7919);
   const angulo = azar() * Math.PI * 2 + tinta * Math.PI; // A y B tienden a ir en sentidos opuestos
-  const radio = base + azar() * 0.8;
+  const radio = base + azar() * 0.8 + empuje;
   const tx = (ruido1d(frame / 7, semilla + tinta * 101) - 0.5) * 1.6;
   const ty = (ruido1d(frame / 7, semilla + tinta * 211 + 5) - 0.5) * 1.6;
   return [Math.cos(angulo) * radio + tx, Math.sin(angulo) * radio + ty];
@@ -168,10 +171,15 @@ export type PropsRisoFilter = {
   punto?: number;
   /** Opacidad del grano de papel (0.03–0.05). */
   grano?: number;
+  /** Pulso musical: el registro late en cada tiempo y el fotograma da un leve empujón en cada compás. */
+  pulso?: Pulso | null;
   children?: React.ReactNode;
 };
 
-export const RisoFilter: React.FC<PropsRisoFilter> = ({tintas, semilla, punto = 3, grano = 0.04, children}) => {
+const EMPUJE_REGISTRO = 0.9; // px extra por tinta en cada tiempo
+const EMPUJE_ESCALA = 0.01; // escala extra en el primer tiempo de cada compás
+
+export const RisoFilter: React.FC<PropsRisoFilter> = ({tintas, semilla, punto = 3, grano = 0.04, pulso, children}) => {
   const frame = useCurrentFrame();
   const {width, height, fps} = useVideoConfig();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -196,6 +204,12 @@ export const RisoFilter: React.FC<PropsRisoFilter> = ({tintas, semilla, punto = 
   useEffect(() => {
     if (fuentesListas) continueRender(esperaFuentes);
   }, [fuentesListas, esperaFuentes]);
+
+  // Golpe riso: late en cada tiempo de la música (no durante la portada: la miniatura sale limpia)
+  const t = frame / fps;
+  const conGolpe = Boolean(pulso?.golpeVisual) && t >= DURACION_PORTADA;
+  const latido = conGolpe && pulso ? golpe(t, pulso, 1, 0.12) : 0;
+  const escala = conGolpe && pulso ? 1 + EMPUJE_ESCALA * golpe(t, pulso, 4, 0.15) : 1;
 
   // Se ejecuta en cada render, después de que los hijos registraron su dibujo
   useLayoutEffect(() => {
@@ -230,8 +244,9 @@ export const RisoFilter: React.FC<PropsRisoFilter> = ({tintas, semilla, punto = 
     gl.viewport(0, 0, width, height);
     gl.uniform2f(u.uRes, width, height);
     gl.uniform1f(u.uPunto, punto);
-    gl.uniform2f(u.uOffA, ...desajuste(semilla, 1, frame, 2.0));
-    gl.uniform2f(u.uOffB, ...desajuste(semilla, 2, frame, 2.0));
+    const empuje = EMPUJE_REGISTRO * latido;
+    gl.uniform2f(u.uOffA, ...desajuste(semilla, 1, frame, 1.6, empuje));
+    gl.uniform2f(u.uOffB, ...desajuste(semilla, 2, frame, 1.6, empuje));
     gl.uniform2f(u.uOffK, 0, 0); // el negro es la plancha de referencia
     gl.uniform3f(u.uColA, ...hexARgb(tintas.a));
     gl.uniform3f(u.uColB, ...hexARgb(tintas.b));
@@ -244,7 +259,12 @@ export const RisoFilter: React.FC<PropsRisoFilter> = ({tintas, semilla, punto = 
   return (
     <ContextoRiso.Provider value={registro}>
       <AbsoluteFill style={{backgroundColor: PAPEL}}>
-        <canvas ref={canvasRef} width={width} height={height} style={{width: '100%', height: '100%'}} />
+        <canvas
+          ref={canvasRef}
+          width={width}
+          height={height}
+          style={{width: '100%', height: '100%', transform: `scale(${escala})`}}
+        />
       </AbsoluteFill>
       {children}
     </ContextoRiso.Provider>
