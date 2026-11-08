@@ -13,18 +13,21 @@ Se ejecuta en Windows con Python básico (solo librería estándar) y coordina l
   1. Comprueba el episodio (guion.md, config.json, Sketch.tsx).
   2. Libera la GPU si la interfaz de voz está abierta.
   3. Voz: docker compose run --rm voz python voz/generar.py …   (se salta si el guion no cambió)
-  4. Sonido: mezcla.wav = voz + música lo-fi + efectos (video/scripts/sonido.mjs, unos segundos)
+  4. Sonido: mezcla.wav = voz + música misterio con guiño + efectos (video/scripts/sonido.mjs, unos segundos)
   5. Video: docker compose run --rm video npx remotion render <id> …
   6. Deja el MP4 en episodios/<ep>/<ep>.mp4.
-  7. Informe (herramientas/informe.py, servicio voz): hoja de contactos y sonoridad en
-     episodios/<ep>/stills/; con --stills, los fotogramas de verificación sacados del MP4.
+  7. Informe (herramientas/informe.py, servicio analisis: la imagen de voz sin GPU): hoja de
+     contactos, sonoridad y loop en episodios/<ep>/stills/; con --stills, los fotogramas de
+     verificación sacados del MP4.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
+import tempfile
 import shutil
 import subprocess
 import sys
@@ -37,9 +40,15 @@ EPISODIOS = RAIZ / "episodios"
 
 # Constantes compartidas con la plantilla de video (video/src/canal). Si cambian allí, cambian aquí.
 DURACION_PORTADA = 2.6  # Portada.tsx
-DURACION_IMPACTO = 1.6  # DatoImpacto.tsx
+DURACION_IMPACTO = 1.6  # diseno.ts
 COLA_POR_DEFECTO = 1.5  # Root.tsx
+DURACION_SIN_VOZ = 15.0  # Root.tsx
+BPM_POR_DEFECTO = 92  # pulso.ts
 FPS = 30
+# Entrada de los impactos (DatoImpacto.tsx, cinetica.ts y finImpacto() en tiempos.ts)
+ASIENTO_LETRA = 0.1  # lo que tarda cada letra de 'letras' en asentarse
+LECTURA_IMPACTO = 0.6  # tiempo mínimo con el texto completo antes de la salida
+SALIDA_IMPACTO = 6  # fotogramas del fundido de salida
 
 
 # ───────────────────────────── Utilidades ─────────────────────────────
@@ -75,11 +84,76 @@ def tiempo_de_ancla(tiempos: dict | None, ancla: str) -> float | None:
     if not tiempos:
         return None
     buscada = normalizar(ancla).split()
+    if not buscada:
+        return None
     palabras = [normalizar(p["texto"]) for p in tiempos["palabras"]]
     for i in range(len(palabras) - len(buscada) + 1):
         if palabras[i : i + len(buscada)] == buscada:
             return tiempos["palabras"][i]["inicio"]
     return None
+
+
+def leer_tiempos(ep: Path) -> dict | None:
+    ruta = ep / "tiempos.json"
+    return json.loads(ruta.read_text(encoding="utf-8")) if ruta.exists() else None
+
+
+def negra_de(config: dict) -> float:
+    """Segundos de una negra con el tempo del episodio (pulsoDe() en pulso.ts)."""
+    return 60 / ((config.get("ritmo") or {}).get("bpm") or BPM_POR_DEFECTO)
+
+
+def cuantizar(t: float, negra: float) -> float:
+    """Tiempo de la música más cercano (cuantizar() en pulso.ts). Math.round de JS, no el round()
+    de Python, que redondea los .5 al par."""
+    return math.floor(t / negra + 0.5) * negra
+
+
+def fotogramas_totales(tiempos: dict | None, config: dict) -> int:
+    """Duración de la composición en fotogramas, igual que calculateMetadata en Root.tsx."""
+    segundos = tiempos["duracion"] + config.get("cola", COLA_POR_DEFECTO) if tiempos else DURACION_SIN_VOZ
+    return math.ceil(segundos * FPS)
+
+
+def fin_impacto(imp: dict, inicio: float, negra: float) -> float:
+    """Fin real de un impacto (finImpacto() en tiempos.ts): con 'letras' se alarga hasta que la
+    última letra se asienta, se lee y sale."""
+    fin = inicio + imp.get("duracion", DURACION_IMPACTO)
+    if imp.get("entrada", "sello") != "letras":
+        return fin
+    letras = len(re.sub(r"\s", "", imp.get("texto", "")))
+    ultima = inicio + max(0, letras - 1) * negra / 4
+    return max(fin, ultima + ASIENTO_LETRA + LECTURA_IMPACTO + SALIDA_IMPACTO / FPS)
+
+
+def entrada_completa(imp: dict, negra: float) -> float:
+    """Segundos desde que entra un impacto hasta que su texto se ve entero (DatoImpacto.tsx)."""
+    entrada = imp.get("entrada", "sello")
+    if entrada == "barrido":
+        return negra + 0.15  # la barra cruza en una negra y la cola termina de destapar
+    if entrada == "letras":
+        letras = len(re.sub(r"\s", "", imp.get("texto", "")))
+        return max(0, letras - 1) * negra / 4 + 0.3  # última letra (semicorcheas) + su rebote
+    return 0.4  # sello: el sobretamaño se asienta en 4 fotogramas
+
+
+def anclas_perdidas(config: dict, tiempos: dict) -> list[str]:
+    """Anclas de config.json (texto) que la voz no dice: lo que dependa de ellas no aparecerá
+    (impacto, panel) o caerá en su valor por defecto (panel a los 5 s, música sin revelación…)."""
+    revisar: list[tuple[str, object]] = []
+    for i, imp in enumerate(config.get("impactos", [])):
+        if imp.get("desde") is None:
+            revisar.append((f"impactos[{i}].ancla", imp.get("ancla")))
+    panel = config.get("panel") or {}
+    if panel.get("desde") is None and "ancla" in panel:
+        revisar.append(("panel.ancla", panel["ancla"]))
+    revisar.append(("panel.hasta", panel.get("hasta")))
+    audio = config.get("audio") or {}
+    revisar += [("audio.revelacion", audio.get("revelacion")), ("audio.remate", audio.get("remate"))]
+    revisar += [(f"audio.golpes[{i}]", g) for i, g in enumerate(audio.get("golpes", []))]
+    # Solo los textos son anclas: los números son segundos y no hace falta buscarlos
+    return [f"{campo} «{valor}»" for campo, valor in revisar
+            if isinstance(valor, str) and tiempo_de_ancla(tiempos, valor) is None]
 
 
 def docker(*args: str, capturar: bool = False) -> subprocess.CompletedProcess:
@@ -178,15 +252,23 @@ def importar_voz_externa(ep: Path, origen: str) -> None:
         fallar(f"No existe el audio externo: {ruta}")
     if ruta.suffix.lower() not in FORMATOS_AUDIO:
         fallar(f"Formato no admitido ({ruta.suffix}). Usa uno de: {', '.join(sorted(FORMATOS_AUDIO))}")
-    for viejo in ep.glob("voz_externa.*"):
-        viejo.unlink()
     destino = ep / f"voz_externa{ruta.suffix.lower()}"
-    shutil.copy2(ruta, destino)
+    if not (destino.exists() and ruta.samefile(destino)):
+        with tempfile.NamedTemporaryFile(dir=ep, delete=False) as archivo:
+            temporal = Path(archivo.name)
+        try:
+            shutil.copy2(ruta, temporal)
+            temporal.replace(destino)
+        finally:
+            temporal.unlink(missing_ok=True)
+    for viejo in ep.glob("voz_externa.*"):
+        if viejo != destino and viejo.suffix.lower() in FORMATOS_AUDIO:
+            viejo.unlink()
     avisar(f"Voz externa importada: {ruta.name} → {destino.relative_to(RAIZ).as_posix()}")
 
 
 def generar_sonido(ep: Path) -> None:
-    """mezcla.wav = voz + música lo-fi + efectos (plantilla y episodio). Tarda unos segundos."""
+    """mezcla.wav = voz + música misterio con guiño + efectos (plantilla y episodio). Tarda unos segundos."""
     titulo("Sonido")
     if not ((ep / "voz.wav").exists() and (ep / "tiempos.json").exists()):
         avisar("⚠ Sin voz todavía: no hay banda sonora (se renderiza mudo o solo con lo que exista).")
@@ -203,13 +285,30 @@ def leer_tramo(texto: str) -> tuple[float, float]:
     return float(m.group(1)), float(m.group(2))
 
 
-def renderizar(ep: Path, tramo: tuple[float, float] | None = None) -> Path:
-    titulo("Video" + (f" · tramo {tramo[0]:g}–{tramo[1]:g} s" if tramo else ""))
+def fotogramas_de_tramo(tramo: tuple[float, float], total: int) -> tuple[int, int]:
+    """Tramo en segundos → fotogramas [primero, último] dentro de la composición (0 … total − 1).
+
+    Se valida antes de mezclar y empaquetar: Remotion rechaza un rango que pase del final, pero solo
+    después de esos pasos. round() y no int(): int(4.1 · 30) da 122 por el error de coma flotante.
+    """
+    primero, fin = round(tramo[0] * FPS), round(tramo[1] * FPS)
+    if primero >= total:
+        fallar(f"--tramo empieza en {tramo[0]:g} s, pero el episodio dura {total / FPS:.2f} s ({total} fotogramas).")
+    if fin > total:
+        avisar(f"⚠ --tramo {tramo[0]:g}-{tramo[1]:g} pasa del final: se recorta a {primero / FPS:g}–{total / FPS:.2f} s.")
+        fin = total
+    if fin <= primero:
+        fallar(f"--tramo {tramo[0]:g}-{tramo[1]:g} no llega a un fotograma (1/{FPS} s).")
+    return primero, fin - 1
+
+
+def renderizar(ep: Path, fotogramas: tuple[int, int] | None = None) -> Path:
+    titulo("Video" + (f" · tramo {fotogramas[0] / FPS:g}–{(fotogramas[1] + 1) / FPS:g} s" if fotogramas else ""))
     if not (ep / "tiempos.json").exists():
         avisar("⚠ No hay tiempos.json: se renderiza sin voz ni subtítulos (15 s). Usa sin --solo-video para generar la voz.")
-    salida = ep / (f"{ep.name}.tramo.mp4" if tramo else f"{ep.name}.mp4")
+    salida = ep / (f"{ep.name}.tramo.mp4" if fotogramas else f"{ep.name}.mp4")
     destino = "../" + ruta_contenedor(salida)  # el servicio video trabaja en /repo/video
-    extra = [f"--frames={int(tramo[0] * FPS)}-{int(tramo[1] * FPS) - 1}"] if tramo else []
+    extra = [f"--frames={fotogramas[0]}-{fotogramas[1]}"] if fotogramas else []
     if docker("compose", "run", "--rm", "video", "npx", "remotion", "render", id_composicion(ep.name), destino, *extra).returncode != 0:
         fallar("Falló el render (mira el error de arriba).")
     if not salida.exists():
@@ -219,21 +318,27 @@ def renderizar(ep: Path, tramo: tuple[float, float] | None = None) -> Path:
 
 def momentos_de_verificacion(ep: Path, config: dict) -> dict[str, int]:
     """Fotogramas para revisar a ojo: portada, subtítulo normal, dato de impacto y panel."""
-    tiempos = None
-    if (ep / "tiempos.json").exists():
-        tiempos = json.loads((ep / "tiempos.json").read_text(encoding="utf-8"))
+    tiempos = leer_tiempos(ep)
     momentos: dict[str, float] = {"portada": 0.0}
-    duracion = (tiempos["duracion"] + config.get("cola", COLA_POR_DEFECTO)) if tiempos else 15.0
+    total = fotogramas_totales(tiempos, config)
+    duracion = total / FPS
+    negra = negra_de(config)
 
+    # Igual que tramosImpacto() en DatoImpacto.tsx: el ancla se lleva al tiempo de la música más
+    # cercano (el sello cae en el pulso) y el fin es el real (finImpacto)
     impactos: list[tuple[float, float]] = []
     for imp in config.get("impactos", []):
         inicio = imp.get("desde")
         if inicio is None and imp.get("ancla"):
             inicio = tiempo_de_ancla(tiempos, imp["ancla"])
         if inicio is not None:
-            impactos.append((inicio, inicio + imp.get("duracion", DURACION_IMPACTO)))
-    if impactos:
-        momentos["impacto"] = impactos[0][0] + 0.4
+            inicio = cuantizar(inicio, negra)
+            impactos.append((inicio, fin_impacto(imp, inicio, negra)))
+            if "impacto" not in momentos:
+                # Cuando el texto ya se ve entero (antes salía con la barra o las letras a medias),
+                # sin pasar del comienzo del fundido de salida
+                visto = inicio + entrada_completa(imp, negra)
+                momentos["impacto"] = min(visto, impactos[-1][1] - SALIDA_IMPACTO / FPS - 1 / FPS)
 
     # Igual que resolverPanel() en video/src/canal/tiempos.ts
     panel = config.get("panel")
@@ -244,6 +349,7 @@ def momentos_de_verificacion(ep: Path, config: dict) -> dict[str, int]:
             panel_desde = tiempo_de_ancla(tiempos, panel["ancla"])
         if panel_desde is None:
             panel_desde = 5.0
+        panel_desde = cuantizar(panel_desde, negra)
     if tiempos:
         def libre(t: float) -> bool:
             sin_impacto = all(not (a - 0.2 <= t <= b + 0.2) for a, b in impactos)
@@ -256,28 +362,41 @@ def momentos_de_verificacion(ep: Path, config: dict) -> dict[str, int]:
                 break
     if panel_desde is not None:
         momentos["panel"] = min(panel_desde + 1.5, duracion - 0.5)
-    return {k: min(int(round(v * FPS)), int(duracion * FPS) - 1) for k, v in momentos.items()}
+    return {k: min(int(round(v * FPS)), total - 1) for k, v in momentos.items()}
 
 
-def informe(ep: Path, config: dict, mp4: Path, stills: bool, medir_pulso: bool, desde: float = 0.0) -> list[Path]:
-    """Hoja de contactos + sonoridad (+ stills sacados del MP4, + sincronía) con herramientas/informe.py."""
+def informe(ep: Path, config: dict, mp4: Path, stills: bool, medir_pulso: bool, desde: float | None = None) -> list[Path] | None:
+    """Hoja de contactos + sonoridad + loop (+ stills sacados del MP4, + sincronía) con herramientas/informe.py.
+
+    `desde`: segundo del episodio en que empieza el MP4 si es un tramo (None = episodio completo).
+    Corre en el servicio analisis: la imagen de voz sin reserva de GPU, porque no carga modelos.
+    Devuelve los stills escritos, o None si el informe falló.
+    """
     titulo("Informe")
     carpeta = ep / "stills"
     momentos = momentos_de_verificacion(ep, config) if stills else {}
     if momentos:
         avisar("  stills: " + ", ".join(f"{n} ({f / FPS:.2f} s)" for n, f in momentos.items()))
-    bpm = (config.get("ritmo") or {}).get("bpm", 92)
-    orden = ["compose", "run", "--rm", "voz", "python", "herramientas/informe.py", ruta_contenedor(mp4),
-             "--carpeta", ruta_contenedor(carpeta), "--bpm", str(bpm), "--desde", str(desde),
-             "--hoja", "hoja_tramo.png" if desde or mp4.name.endswith(".tramo.mp4") else "hoja.png"]
+    bpm = (config.get("ritmo") or {}).get("bpm") or BPM_POR_DEFECTO
+    es_tramo = desde is not None
+    orden = ["compose", "run", "--rm", "analisis", "python", "herramientas/informe.py", ruta_contenedor(mp4),
+             "--carpeta", ruta_contenedor(carpeta), "--bpm", str(bpm), "--desde", f"{desde or 0.0:.6f}",
+             *(NOMBRES_TRAMO if es_tramo else NOMBRES_COMPLETO)]
+    if es_tramo:
+        orden.append("--sin-loop")  # un tramo no tiene ni portada ni final con los que cerrar el loop
     for nombre, frame in momentos.items():
         orden += ["--still", f"{nombre}={frame / FPS:.3f}"]
     if medir_pulso:
         orden.append("--pulso")
     if docker(*orden).returncode != 0:
         avisar("⚠ Falló el informe (el MP4 está bien; mira el error de arriba).")
-        return []
+        return None
     return [carpeta / f"{n}.png" for n in momentos]
+
+
+# Archivos del informe en episodios/<ep>/stills/: el de un tramo nunca pisa el del episodio completo
+NOMBRES_COMPLETO = ["--hoja", "hoja.png", "--informe", "informe.txt"]
+NOMBRES_TRAMO = ["--hoja", "hoja_tramo.png", "--informe", "informe_tramo.txt"]
 
 
 def generar_stills(ep: Path, config: dict) -> list[Path]:
@@ -334,28 +453,50 @@ def main() -> None:
     if not args.solo_video:
         liberar_gpu()
         generar_voz(ep, args.forzar_voz, args.borrador)
+    tiempos = leer_tiempos(ep)
+    if tiempos:
+        perdidas = anclas_perdidas(config, tiempos)
+        if perdidas:
+            titulo("Anclas")
+            for a in perdidas:
+                avisar(f"⚠ ANCLA NO ENCONTRADA en tiempos.json: {a}. Lo que dependa de ella no saldrá donde esperas.")
+    # Antes de mezclar y empaquetar: un tramo fuera del episodio fallaría en Remotion, ya tarde
+    fotogramas = fotogramas_de_tramo(tramo, fotogramas_totales(tiempos, config)) if tramo else None
     mp4 = None
     stills: list[Path] = []
-    if not args.solo_voz:
+    informe_ok = True
+    if args.solo_voz:
+        # mezcla.wav lleva la voz: si se queda la vieja, Remotion Studio reproduce la voz anterior
+        # con los subtítulos y anclas de la nueva
         generar_sonido(ep)
-        mp4 = renderizar(ep, tramo)
+        if args.stills:
+            stills = generar_stills(ep, config)
+    else:
+        generar_sonido(ep)
+        mp4 = renderizar(ep, fotogramas)
         # Los stills salen del MP4 completo (segundos); en un tramo no tienen sentido
-        stills = informe(ep, config, mp4, args.stills and not tramo, args.pulso, tramo[0] if tramo else 0.0)
-    elif args.stills:
-        stills = generar_stills(ep, config)
+        desde = fotogramas[0] / FPS if fotogramas else None  # el de verdad, ya en fotogramas
+        resultado = informe(ep, config, mp4, args.stills and not tramo, args.pulso, desde)
+        informe_ok = resultado is not None
+        stills = resultado or []
 
     titulo("Listo")
-    if (ep / "tiempos.json").exists():
-        t = json.loads((ep / "tiempos.json").read_text(encoding="utf-8"))
-        avisar(f"  voz: {t['duracion']:.1f} s · {len(t['palabras'])} palabras")
+    if tiempos:
+        avisar(f"  voz: {tiempos['duracion']:.1f} s · {len(tiempos['palabras'])} palabras")
     if mp4:
         avisar(f"  video: {mp4.relative_to(RAIZ).as_posix()} ({mp4.stat().st_size / 1e6:.1f} MB)")
     for s in stills:
         avisar(f"  still: {s.relative_to(RAIZ).as_posix()}")
-    if mp4:
-        nombre = "informe_tramo.txt" if tramo else "informe.txt"
-        avisar(f"  informe: {(ep / 'stills' / nombre).relative_to(RAIZ).as_posix()} (+ hoja de contactos)")
+    if mp4 and informe_ok:
+        nombres = NOMBRES_TRAMO if tramo else NOMBRES_COMPLETO
+        carpeta = (ep / "stills").relative_to(RAIZ).as_posix()
+        avisar(f"  informe: {carpeta}/{nombres[3]} (+ hoja de contactos {carpeta}/{nombres[1]})")
     avisar(f"  tiempo total: {(time.time() - inicio) / 60:.1f} min")
+    if not informe_ok:
+        # Los archivos de stills/ son de una pasada anterior: no se anuncian. El MP4 sí es nuevo.
+        print("\n✗ El informe falló: el MP4 es nuevo, pero el informe, la hoja y los stills de stills/ son de "
+              "una pasada anterior (o no existen). Código de salida 2.", file=sys.stderr, flush=True)
+        sys.exit(2)
 
 
 if __name__ == "__main__":

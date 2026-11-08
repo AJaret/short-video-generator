@@ -1,4 +1,4 @@
-// Genera episodios/<ep>/mezcla.wav: voz + música lo-fi + efectos de la plantilla + efectos del
+// Genera episodios/<ep>/mezcla.wav: voz + música misterio con guiño + efectos de la plantilla + efectos del
 // episodio (episodios/<ep>/sonido.ts, si existe). Todo por código y determinista.
 //
 // Uso (dentro del servicio video, lo llama producir.py):
@@ -6,7 +6,6 @@
 import {build} from 'esbuild';
 import fs from 'node:fs';
 import path from 'node:path';
-import {pathToFileURL} from 'node:url';
 
 const carpeta = process.argv[2];
 if (!carpeta) {
@@ -26,22 +25,23 @@ const propio = path.join(ep, 'sonido.ts');
 const entrada = [
   `export {construirBanda} from ${JSON.stringify(path.resolve('src/sonido/banda.ts'))};`,
   `export {leerWav, escribirWav} from ${JSON.stringify(path.resolve('src/sonido/sintesis.ts'))};`,
+  `export {anclasNoEncontradas} from ${JSON.stringify(path.resolve('src/canal/tiempos.ts'))};`,
   fs.existsSync(propio) ? `export {eventos} from ${JSON.stringify(propio)};` : 'export const eventos = undefined;',
 ].join('\n');
-const compilado = path.resolve('out', 'sonido_compilado.mjs');
-await build({
+const compilado = await build({
   stdin: {contents: entrada, resolveDir: process.cwd(), sourcefile: 'entrada.ts', loader: 'ts'},
   bundle: true,
   platform: 'node',
   format: 'esm',
-  outfile: compilado,
+  write: false,
   alias: {'@canal': './src/canal', '@sonido': './src/sonido'},
   logLevel: 'warning',
 });
-const m = await import(`${pathToFileURL(compilado).href}?v=${Date.now()}`);
+const m = await import('data:text/javascript;base64,' + Buffer.from(compilado.outputFiles[0].contents).toString('base64'));
 
 const leerJson = (archivo) => JSON.parse(fs.readFileSync(path.join(ep, archivo), 'utf8'));
 const inicio = Date.now();
+m.anclasNoEncontradas.clear();
 const voz = m.leerWav(new Uint8Array(fs.readFileSync(path.join(ep, 'voz.wav'))));
 const {mezcla, sr, informe} = m.construirBanda({
   config: leerJson('config.json'),
@@ -50,5 +50,6 @@ const {mezcla, sr, informe} = m.construirBanda({
   eventos: m.eventos,
 });
 fs.writeFileSync(path.join(ep, 'mezcla.wav'), m.escribirWav([mezcla.l, mezcla.r], sr));
+for (const aviso of informe.avisos ?? []) console.warn(`⚠ ${aviso}`);
 console.log(JSON.stringify({...informe, efectos_propios: Boolean(m.eventos), tiempo_s: (Date.now() - inicio) / 1000}, null, 2));
 console.log(`Listo: episodios/${carpeta}/mezcla.wav`);

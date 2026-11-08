@@ -15,6 +15,9 @@ Config.setCodec('h264');
 Config.setCrf(18);
 Config.setVideoImageFormat('png');
 
+// Docker Desktop recién arrancado puede tardar más de 30 s en preparar Chrome y cargar el bundle.
+Config.setDelayRenderTimeoutInMilliseconds(120_000);
+
 // Sin GPU: el filtro riso es por CPU (tramado.ts). 'swiftshader' deja el canvas en memoria normal y
 // cada pestaña trabaja por su cuenta; con 'swangle' todo pasaba por un único proceso de GPU emulada.
 Config.setChromiumOpenGlRenderer('swiftshader');

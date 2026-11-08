@@ -11,7 +11,7 @@
 import {mulberry32} from '../canal/prng';
 import type {Pulso} from '../canal/pulso';
 import {aro, bombo, campanaFM, golpeGrave, marimba, platillo, shaker, subBajo} from './instrumentos';
-import {ecoPingPong, estereo, hz, rmsEstereo, sumarPaneado, type Estereo} from './sintesis';
+import {ecoPingPong, estereo, fundidos, hz, rmsEstereo, sumarPaneado, type Estereo} from './sintesis';
 
 export type PlanMusical = {
   duracion: number;
@@ -113,5 +113,7 @@ export function musicaMisterio(sr: number, plan: PlanMusical, semilla = 92): {ba
     sumarPaneado(acentos, platillo(sr, Math.round(t * 1000)), sr, t, 0.35 * g * 3, -0.3);
     sumarPaneado(acentos, platillo(sr, Math.round(t * 1000) + 1), sr, t + 0.012, 0.35 * g * 3, 0.3);
   }
+  // También termina a cero en episodios muy cortos o con un golpe cerca del último fotograma.
+  for (const c of [base.l, base.r, acentos.l, acentos.r]) fundidos(c, sr, 0, Math.min(0.4, duracion / 4));
   return {base, acentos};
 }

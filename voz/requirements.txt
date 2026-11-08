@@ -2,4 +2,15 @@
 # chatterbox-tts fija torch==2.6.0; en Linux la rueda de PyPI ya trae CUDA 12.
 chatterbox-tts==0.1.7
 openai-whisper==20250625
-soundfile
+
+# Lo que voz/ y herramientas/informe.py importan directamente. Antes llegaba "de rebote" como
+# dependencia de chatterbox o whisper, y una reconstrucción podía traer otra versión sin avisar.
+# Versiones exactas de la imagen actual (pip freeze del 2026-11-08).
+torch==2.6.0
+numpy==1.26.4
+scipy==1.17.1
+soundfile==0.14.0
+librosa==0.11.0
+pyloudnorm==0.2.0
+pillow==12.3.0
+gradio==6.8.0

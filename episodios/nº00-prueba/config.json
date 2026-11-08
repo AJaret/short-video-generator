@@ -7,6 +7,6 @@
   "impactos": [
     {"texto": "5 vueltas", "ancla": "cinco veces", "duracion": 1.6}
   ],
-  "panel": {"desde": 5.2, "titulo": "órbita"},
-  "cola": 1.5
+  "panel": {"desde": 5.2, "hasta": "A ninguna parte", "titulo": "órbita"},
+  "cola": 2.69
 }

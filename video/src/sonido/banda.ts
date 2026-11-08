@@ -10,9 +10,9 @@
 //     papel cuando el panel sube/baja, sello en cada impacto (todos en el pulso)
 //   · zumbido grave que crece durante los 4 s previos a la revelación
 //   · −14 LUFS medidos (BS.1770) con limitador enlazado a −1 dBFS
-import {DURACION_IMPACTO, DURACION_PORTADA} from '../canal/diseno';
+import {DURACION_PORTADA} from '../canal/diseno';
 import {cuantizar, pulsoDe, type Pulso} from '../canal/pulso';
-import {momentoImpacto, resolverPanel, tiempoDeAncla} from '../canal/tiempos';
+import {anclasNoEncontradas, finImpacto, momentoImpacto, resolverPanel, tiempoDeAncla} from '../canal/tiempos';
 import type {ConfigEpisodio, Tiempos} from '../canal/tipos';
 import {impresora, papel, sello, tic, ticShepard, zumbido} from './instrumentos';
 import {musicaMisterio, type PlanMusical} from './musica';
@@ -90,8 +90,11 @@ function planMusical(config: ConfigEpisodio, tiempos: Tiempos, duracion: number,
     .map((g) => cuantizar(g, pulso));
   const golpes = [...(revelacion !== null ? [revelacion] : []), ...extras];
   const remateBruto = anclaOSegundos(config.audio?.remate, tiempos);
-  const remate = remateBruto !== null ? cuantizar(remateBruto, pulso) : revelacion !== null ? revelacion + 2 * pulso.compas : duracion;
-  const final = Math.max(remate, cuantizar(duracion - pulso.compas * 0.75, pulso, 4, 'anterior'));
+  // Reserva aire para oír el acorde, incluso sin revelación o con un remate demasiado tardío.
+  const limiteFinal = Math.max(0, duracion - pulso.compas * 0.75);
+  const remate = Math.min(limiteFinal, Math.max(0, remateBruto !== null ? cuantizar(remateBruto, pulso)
+    : revelacion !== null ? revelacion + 2 * pulso.compas : duracion - 2 * pulso.compas));
+  const final = Math.max(0, cuantizar(Math.max(remate, limiteFinal), pulso, 4, 'anterior'));
   const salida = DURACION_PORTADA;
   return {
     duracion,
@@ -102,8 +105,8 @@ function planMusical(config: ConfigEpisodio, tiempos: Tiempos, duracion: number,
     intensidad: (t) => {
       if (t < salida - 0.01) return 0.2;
       if (revelacion !== null && t < revelacion) return 0.3 + 0.55 * Math.min(1, (t - salida) / Math.max(1, revelacion - salida));
-      if (revelacion === null) return 0.35 + 0.5 * Math.min(1, (t - salida) / Math.max(1, remate - salida));
-      if (t < remate) return t < revelacion + 2 * pulso.compas ? 1 : 0.65;
+      if (revelacion === null && t < remate) return 0.35 + 0.5 * Math.min(1, (t - salida) / Math.max(1, remate - salida));
+      if (t < remate) return revelacion !== null && t < revelacion + 2 * pulso.compas ? 1 : 0.65;
       return 0.25 * (1 - 0.6 * Math.min(1, (t - remate) / Math.max(1, final - remate)));
     },
   };
@@ -116,6 +119,10 @@ export function construirBanda({config, tiempos, voz, eventos}: EntradaBanda) {
   const mezcla = estereo(sr, duracion);
   const n = mezcla.l.length;
   const audio = config.audio ?? {};
+  // Valida también las referencias de un plan con música desactivada.
+  for (const valor of [audio.revelacion, audio.remate, ...(audio.golpes ?? [])]) {
+    if (typeof valor === 'string') tiempoDeAncla(tiempos, valor);
+  }
   const {nivelDb, habla} = analizarVoz(voz.datos, sr);
   /** Ganancia para efectos normalizados a pico 0 dBFS, relativa al nivel de la voz (el paneo al centro ya resta 3 dB). */
   const relativo = (dbRespectoVoz: number) => db(nivelDb + dbRespectoVoz);
@@ -128,7 +135,8 @@ export function construirBanda({config, tiempos, voz, eventos}: EntradaBanda) {
   const impactos = (config.impactos ?? [])
     .map((imp) => {
       const inicio = momentoImpacto(imp, tiempos, pulso);
-      return inicio === null ? null : {inicio, fin: inicio + (imp.duracion ?? DURACION_IMPACTO)};
+      // Fin real (con 'letras' puede pasar de `duracion`): la música sube cuando el texto se va
+      return inicio === null ? null : {inicio, fin: finImpacto(imp, inicio, pulso)};
     })
     .filter((x): x is {inicio: number; fin: number} => x !== null);
   const revelacionBruta = anclaOSegundos(audio.revelacion, tiempos);
@@ -205,6 +213,7 @@ export function construirBanda({config, tiempos, voz, eventos}: EntradaBanda) {
   }
   efectos.push(`${propios.length} eventos del episodio`);
   informe.efectos = efectos;
+  informe.avisos = [...anclasNoEncontradas].map((ancla) => `ANCLA NO ENCONTRADA: «${ancla}»`);
 
   // 6. Sonoridad final medida (BS.1770) y limitador enlazado: −14 LUFS sea cual sea la voz
   informe.lufs = Math.round(normalizarLufs([mezcla.l, mezcla.r], sr, LUFS_OBJETIVO, -1) * 10) / 10;

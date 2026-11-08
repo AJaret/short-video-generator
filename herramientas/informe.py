@@ -1,13 +1,15 @@
 """Informe de un MP4 del canal: stills, hoja de contactos, sonoridad y (opcional) sincronía con el pulso.
 
-Lo llama producir.py después de cada render; corre en el servicio `voz`, que tiene ffmpeg completo,
-numpy, PIL, pyloudnorm y librosa (el ffmpeg de Remotion viene recortado, sin filtros de análisis):
+Lo llama producir.py después de cada render; corre en el servicio `analisis` (la imagen de voz, con
+ffmpeg completo, numpy, PIL, pyloudnorm y librosa, pero sin reservar la GPU; el ffmpeg de Remotion
+viene recortado, sin filtros de análisis):
 
-    docker compose run --rm voz python herramientas/informe.py episodios/<ep>/<ep>.mp4 \\
+    docker compose run --rm analisis python herramientas/informe.py episodios/<ep>/<ep>.mp4 \\
         --carpeta episodios/<ep>/stills --still portada=0 --still panel=16.2 --hoja hoja.png --bpm 92 --pulso
 
 Escribe en --carpeta los stills (PNG a tamaño completo), la hoja de contactos (24 fotogramas
-repartidos con su segundo) e informe.txt con lo mismo que imprime.
+repartidos con su segundo) y el informe (--informe, informe.txt por defecto) con lo mismo que imprime.
+En un video completo comprueba también el loop: el último fotograma debe coincidir con el primero.
 """
 
 from __future__ import annotations
@@ -23,6 +25,12 @@ from PIL import Image, ImageDraw
 INICIO = 2.6  # salida de la portada: la sincronía se mide después
 FPS = 30
 
+# Loop: % de píxeles (a 270×480) que cambian más de UMBRAL_PIXEL entre el primer y el último fotograma.
+# Aunque el loop esté bien, el primer fotograma lleva encima el título de la portada y el último no:
+# en nº01 y nº02 (loops correctos) eso da un 7 % de píxeles distintos; en nº00, que no hace loop, un 28 %.
+UMBRAL_PIXEL = 48  # de 255, en el canal que más cambia: deja fuera el grano y el temblor del registro
+UMBRAL_LOOP = 0.15
+
 
 def fotograma(mp4: str, t: float, escala: tuple[int, int] | None = None) -> Image.Image:
     """Fotograma en el segundo t (búsqueda exacta: -ss antes de -i descodifica hasta ese punto)."""
@@ -35,19 +43,21 @@ def fotograma(mp4: str, t: float, escala: tuple[int, int] | None = None) -> Imag
     return Image.open(BytesIO(png)).convert("RGB")
 
 
-def duracion_de(mp4: str) -> float:
+def fotogramas_de(mp4: str) -> int:
     salida = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", mp4],
+        ["ffprobe", "-v", "error", "-show_entries", "stream=nb_frames", "-select_streams", "v:0", "-of", "default=nw=1:nk=1", mp4],
         capture_output=True, text=True, check=True,
     ).stdout
-    return float(salida.strip())
+    return int(salida.strip())
 
 
 def hoja(mp4: str, destino: Path, n: int = 24, columnas: int = 6, desde: float = 0.0) -> list[float]:
     """Hoja de contactos con n fotogramas repartidos por todo el video, cada uno con su segundo."""
-    dur = duracion_de(mp4)
+    total = fotogramas_de(mp4)
+    n = min(n, total)
+    columnas = min(columnas, n)
     W, H = 270, 480
-    momentos = [(i + 0.5) * dur / n for i in range(n)]
+    momentos = [int((i + 0.5) * total / n) / FPS for i in range(n)]
     filas = (n + columnas - 1) // columnas
     lienzo = Image.new("RGB", (columnas * W, filas * (H + 24)), (40, 40, 40))
     d = ImageDraw.Draw(lienzo)
@@ -64,7 +74,8 @@ def sonoridad(wav: str) -> list[str]:
     import soundfile as sf
 
     a, sr = sf.read(wav, dtype="float32")
-    lufs = pyln.Meter(sr).integrated_loudness(a)
+    lufs = (f"{pyln.Meter(sr).integrated_loudness(a):.1f} LUFS (objetivo −14)"
+            if len(a) >= 0.4 * sr else "LUFS: duración insuficiente")
     pico = 20 * np.log10(max(1e-9, float(np.abs(a).max())))
     # True peak (BS.1770, con sobremuestreo) con ebur128 de ffmpeg
     texto = subprocess.run(
@@ -72,7 +83,7 @@ def sonoridad(wav: str) -> list[str]:
         capture_output=True, text=True,
     ).stderr
     tp = next((l.split(":")[1].strip() for l in reversed(texto.splitlines()) if l.strip().startswith("Peak:")), "?")
-    return [f"audio: {len(a) / sr:.2f} s · {lufs:.1f} LUFS (objetivo −14) · pico {pico:.2f} dBFS · true peak {tp}"]
+    return [f"audio: {len(a) / sr:.2f} s · {lufs} · pico {pico:.2f} dBFS · true peak {tp}"]
 
 
 def desfase(ts: np.ndarray, rejilla: float) -> np.ndarray:
@@ -80,16 +91,24 @@ def desfase(ts: np.ndarray, rejilla: float) -> np.ndarray:
     return np.abs(d * rejilla)
 
 
-def pulso(mp4: str, wav: str, bpm: float) -> list[str]:
-    """¿Laten juntas la música y la imagen? Ataques de audio y picos de cambio visual frente a la rejilla."""
+def pulso(mp4: str, wav: str, bpm: float, desde: float = 0.0) -> list[str]:
+    """¿Laten juntas la música y la imagen? Ataques de audio y picos de cambio visual frente a la rejilla.
+
+    `desde`: segundo del episodio en que empieza el MP4 (tramos). La rejilla del pulso está anclada al
+    segundo 0 del episodio, así que los tiempos del MP4 se pasan a tiempos del episodio antes de
+    filtrar y medir; si no, un tramo que empieza a mitad de un tiempo saldría entero "fuera de la
+    rejilla", y la portada (INICIO) se descontaría de un tramo que no la tiene.
+    """
     import librosa
     import soundfile as sf
 
     negra = 60 / bpm
     a, sr = sf.read(wav, dtype="float32")
     y = a.mean(1) if a.ndim > 1 else a
+    if len(y) < sr * 0.4:
+        return ["pulso: duración insuficiente"]
     _, perc = librosa.effects.hpss(y)
-    ataques = librosa.onset.onset_detect(y=perc, sr=sr, units="time", backtrack=False)
+    ataques = librosa.onset.onset_detect(y=perc, sr=sr, units="time", backtrack=False) + desde
     ataques = ataques[ataques > INICIO]
     da = desfase(ataques, negra / 4)
     lineas = [f"ataques de audio en la rejilla de semicorcheas: {np.mean(da < 0.035):.0%} a < 35 ms (la voz también genera ataques)"]
@@ -101,7 +120,7 @@ def pulso(mp4: str, wav: str, bpm: float) -> list[str]:
     ).stdout
     fotos = np.frombuffer(crudo, np.uint8).reshape(-1, h, w).astype(np.float32)
     dif = np.abs(np.diff(fotos, axis=0)).mean(axis=(1, 2))
-    t_dif = (np.arange(len(dif)) + 1) / FPS
+    t_dif = (np.arange(len(dif)) + 1) / FPS + desde  # en segundos del episodio
     # Picos fuertes: cambios claramente mayores que su vecindario (golpes, cortes, sellos, saltos)
     picos = []
     for i in range(2, len(dif) - 2):
@@ -122,6 +141,33 @@ def pulso(mp4: str, wav: str, bpm: float) -> list[str]:
     return lineas
 
 
+def fotogramas_extremos(mp4: str, w: int = 270, h: int = 480) -> tuple[np.ndarray, np.ndarray]:
+    """Primer y último fotograma, reducidos (la reducción por área suaviza el punto de la trama)."""
+    def leer(antes: list[str], despues: list[str]) -> np.ndarray:
+        crudo = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-loglevel", "error", *antes, "-i", mp4, *despues,
+             "-vf", f"scale={w}:{h}:flags=area", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+            capture_output=True, check=True,
+        ).stdout
+        return np.frombuffer(crudo, np.uint8).reshape(-1, h, w, 3).astype(np.float32)
+
+    # El último: se descodifica solo el último medio segundo (-sseof) y se queda el que sale al final
+    return leer([], ["-frames:v", "1"])[0], leer(["-sseof", "-0.5"], [])[-1]
+
+
+def loop(mp4: str) -> list[str]:
+    """¿El último fotograma enlaza con el primero? (CLAUDE.md: el video debe poder repetirse en bucle)."""
+    a, b = fotogramas_extremos(mp4)
+    dif = np.abs(a - b).max(axis=2)
+    distintos = float(np.mean(dif > UMBRAL_PIXEL))
+    lineas = [f"loop: primer y último fotograma · diferencia media {dif.mean():.1f}/255 · {distintos:.0%} de píxeles"
+              f" distintos (el título de la portada ya pone ~7 %; aviso desde {UMBRAL_LOOP:.0%})"]
+    if distintos > UMBRAL_LOOP:
+        lineas.append("  ⚠ EL LOOP NO CIERRA: el último fotograma no coincide con el primero. El sketch debe dibujar"
+                      " en la portada el mismo estado que al final, y el panel bajar antes (`hasta`).")
+    return lineas
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("mp4")
@@ -131,6 +177,8 @@ def main() -> None:
     ap.add_argument("--desde", type=float, default=0.0, help="segundo del episodio en que empieza el MP4 (tramos)")
     ap.add_argument("--bpm", type=float, default=92)
     ap.add_argument("--pulso", action="store_true", help="medir también la sincronía imagen/música (~1 min)")
+    ap.add_argument("--informe", default="informe.txt", help="nombre del informe de texto, dentro de --carpeta")
+    ap.add_argument("--sin-loop", action="store_true", help="no comprobar el loop (un tramo no tiene portada ni final)")
     args = ap.parse_args()
 
     carpeta = Path(args.carpeta)
@@ -146,12 +194,16 @@ def main() -> None:
     wav = "/tmp/informe.wav"
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", args.mp4, "-vn", "-ar", "48000", wav], check=True)
     lineas += sonoridad(wav)
+    if not args.sin_loop:
+        lineas += loop(args.mp4)
     if args.pulso:
-        lineas += pulso(args.mp4, wav, args.bpm)
+        lineas += pulso(args.mp4, wav, args.bpm, args.desde)
 
     texto = "\n".join(lineas)
     print(texto)
-    (carpeta / ("informe.txt" if args.desde == 0 else "informe_tramo.txt")).write_text(texto + "\n", encoding="utf-8")
+    # El nombre lo decide quien llama (producir.py: informe_tramo.txt en tramos), no `desde`: un tramo
+    # que empieza en 0 pisaba informe.txt.
+    (carpeta / args.informe).write_text(texto + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

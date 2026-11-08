@@ -4,6 +4,10 @@
 #   docker compose up video                            # Remotion Studio en http://localhost:3000
 #   docker compose run --rm video npx remotion still ep00-prueba out/portada.png --frame=0
 
+# Nombre fijo del proyecto: las imágenes se llaman reels-generator-<servicio> aunque el repo se
+# clone en otra carpeta (el servicio analisis reutiliza la imagen de voz por ese nombre).
+name: reels-generator
+
 services:
   video:
     build: ./video
@@ -25,6 +29,7 @@ services:
   #   docker compose up -d voz                         # interfaz de pruebas en http://localhost:7860
   voz:
     build: ./voz
+    image: reels-generator-voz
     working_dir: /repo
     volumes:
       - ./:/repo
@@ -40,6 +45,19 @@ services:
               count: all
               capabilities: [gpu]
     command: python voz/app.py
+
+  # Análisis de los MP4 (herramientas/informe.py, lo llama producir.py): la MISMA imagen que voz
+  # (ffmpeg completo, numpy, PIL, pyloudnorm, librosa), pero sin reservar la GPU ni el puerto 7860,
+  # porque no carga ningún modelo. Así el informe no choca con la interfaz de voz abierta.
+  #   docker compose run --rm analisis python herramientas/informe.py episodios/<ep>/<ep>.mp4 --carpeta episodios/<ep>/stills
+  # Perfil propio: `docker compose up` no lo arranca; `docker compose run analisis …` sí.
+  analisis:
+    image: reels-generator-voz
+    build: ./voz
+    profiles: [herramientas]
+    working_dir: /repo
+    volumes:
+      - ./:/repo
 
 volumes:
   video_node_modules:

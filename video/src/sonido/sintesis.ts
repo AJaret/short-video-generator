@@ -135,23 +135,59 @@ export function normalizarRms(x: Float32Array, objetivoDb: number): Float32Array
   return x;
 }
 
+// Interpolación sinc con ventana Hann, 24 coeficientes por fase; no se cambia la frecuencia del WAV.
+const RADIO_PICO = 12;
+const FASES_PICO = [0.25, 0.5, 0.75].map((fase) => {
+  const pesos = Array.from({length: RADIO_PICO * 2}, (_, k) => {
+    const d = k - RADIO_PICO + 1 - fase;
+    return Math.sin(Math.PI * d) / (Math.PI * d) * (0.5 + 0.5 * Math.cos(Math.PI * d / RADIO_PICO));
+  });
+  const suma = pesos.reduce((a, b) => a + b, 0);
+  return pesos.map((p) => p / suma);
+});
+
+/** Pico por intervalo, incluidos los picos entre muestras (sobremuestreo 4×). */
+function picosInterpolados(lista: Float32Array[]): Float32Array {
+  const n = lista[0].length;
+  const picos = new Float32Array(n);
+  for (const c of lista) {
+    for (let i = 0; i < n; i++) {
+      let p = Math.max(picos[i], Math.abs(c[i]));
+      for (const pesos of FASES_PICO) {
+        let v = 0;
+        for (let k = 0; k < pesos.length; k++) v += (c[i + k - RADIO_PICO + 1] ?? 0) * pesos[k];
+        p = Math.max(p, Math.abs(v));
+      }
+      picos[i] = p;
+    }
+  }
+  return picos;
+}
+
+/** True peak estimado por interpolación 4×; se contrasta con ffmpeg en el informe del MP4. */
+export function picoVerdadero(canales: Float32Array[]): number {
+  return pico(picosInterpolados(canales));
+}
+
 /**
- * Limitador con anticipación, enlazado entre canales: ninguna muestra pasa de `techoDb` y todos los
- * canales reciben la misma ganancia (la imagen estéreo no se mueve). Ataque instantáneo gracias a
- * la anticipación de 3 ms; relajación de 80 ms.
+ * Limitador enlazado entre canales, con rampa de ataque de 3 ms y relajación de 80 ms.
+ * Detecta picos entre muestras a 4×. La comprobación final corrige los que pueda crear la propia
+ * envolvente con una ganancia común constante; el margen de 0,05 dB cubre el redondeo a PCM.
  */
 export function limitador(canales: Float32Array | Float32Array[], sr: number, techoDb = -1): void {
   const lista = Array.isArray(canales) ? canales : [canales];
-  const techo = db(techoDb);
-  const anticipa = Math.round(0.003 * sr);
+  const techo = db(techoDb - 0.05);
+  const anticipa = Math.max(1, Math.round(0.003 * sr));
   const n = lista[0].length;
   const necesaria = new Float32Array(n).fill(1);
+  const picos = picosInterpolados(lista);
   for (let i = 0; i < n; i++) {
-    let a = 0;
-    for (const c of lista) a = Math.max(a, Math.abs(c[i]));
+    const a = picos[i];
     if (a > techo) {
       const g = techo / a;
-      for (let j = Math.max(0, i - anticipa); j <= i; j++) necesaria[j] = Math.min(necesaria[j], g);
+      for (let j = Math.max(0, i - anticipa); j <= i; j++) {
+        necesaria[j] = Math.min(necesaria[j], g + (1 - g) * (i - j) / anticipa);
+      }
     }
   }
   const relaja = Math.exp(-1 / (0.08 * sr));
@@ -161,6 +197,8 @@ export function limitador(canales: Float32Array | Float32Array[], sr: number, te
     if (g > necesaria[i]) g = necesaria[i];
     for (const c of lista) c[i] *= g;
   }
+  const p = picoVerdadero(lista);
+  if (p > techo) for (const c of lista) for (let i = 0; i < n; i++) c[i] *= techo / p;
 }
 
 // ───────────────────────────── Sonoridad (BS.1770) ─────────────────────────────
@@ -231,7 +269,9 @@ export function lufs(canales: Float32Array[], sr: number): number {
  */
 export function normalizarLufs(canales: Float32Array[], sr: number, objetivo = -14, techoDb = -1): number {
   for (let pasada = 0; pasada < 2; pasada++) {
-    const g = db(objetivo - lufs(canales, sr));
+    const medida = lufs(canales, sr);
+    if (!Number.isFinite(medida)) return medida; // silencio: evita 0 × Infinity → NaN
+    const g = db(objetivo - medida);
     for (const c of canales) for (let i = 0; i < c.length; i++) c[i] *= g;
     limitador(canales, sr, techoDb);
   }

@@ -26,6 +26,13 @@ export type EntradaTramado = {
   colores: {a: string; b: string; k: string; papel: string};
   punto: number;
   grano: number;
+  /**
+   * Escala del dibujo alrededor del centro del lienzo (1 = sin cambio). Se aplica al LEER las capas:
+   * cada celda y cada píxel de salida toman su valor de la posición de origen c + (x − c)/escala, así
+   * que los puntos de trama siguen midiendo `punto` px y los colores siguen en la paleta (escalar el
+   * fotograma ya tramado lo remuestreaba). El grano es del papel y no se escala.
+   */
+  escala?: number;
   /** Fotograma final RGBA (se sobrescribe). */
   salida: Uint8ClampedArray;
 };
@@ -132,10 +139,16 @@ function plancha(indice: number, ancho: number, alto: number, punto: number): Pl
   return planchas[indice];
 }
 
-function preparar(indice: number, tramada: Uint8ClampedArray, solida: Uint8ClampedArray, [dx, dy]: [number, number], ancho: number, alto: number, punto: number): Plancha {
+function preparar(indice: number, tramada: Uint8ClampedArray, solida: Uint8ClampedArray, [dx, dy]: [number, number], ancho: number, alto: number, punto: number, escala: number): Plancha {
   const p = plancha(indice, ancho, alto, punto);
 
-  // Celdas de trama desplazadas por el registro: celda = ⌊(x + 0,5 − dx) / punto⌋
+  // Posición de origen en las capas de una posición de salida (sin desajuste), escalada alrededor
+  // del centro. Con escala 1 se devuelve tal cual: el fotograma sale idéntico al de antes.
+  const origenX = escala === 1 ? (v: number) => v : (v: number) => ancho / 2 + (v - ancho / 2) / escala;
+  const origenY = escala === 1 ? (v: number) => v : (v: number) => alto / 2 + (v - alto / 2) / escala;
+
+  // Celdas de trama desplazadas por el registro: celda = ⌊(x + 0,5 − dx) / punto⌋ (en la salida:
+  // la escala no cambia el tamaño del punto, solo qué parte de la capa lee cada celda)
   const cx0 = Math.floor((0.5 - dx) / punto);
   const cy0 = Math.floor((0.5 - dy) / punto);
   const anchoCeldas = Math.floor((ancho - 0.5 - dx) / punto) - cx0 + 1;
@@ -143,11 +156,11 @@ function preparar(indice: number, tramada: Uint8ClampedArray, solida: Uint8Clamp
   p.anchoCeldas = anchoCeldas;
   for (let x = 0; x < ancho; x++) {
     p.celdaX[x] = Math.floor((x + 0.5 - dx) / punto) - cx0;
-    p.pixX[x] = Math.min(ancho - 1, Math.max(0, Math.floor(x + 0.5 - dx)));
+    p.pixX[x] = Math.min(ancho - 1, Math.max(0, Math.floor(origenX(x + 0.5 - dx))));
   }
   for (let y = 0; y < alto; y++) {
     p.celdaY[y] = Math.floor((y + 0.5 - dy) / punto) - cy0;
-    p.pixY[y] = Math.min(alto - 1, Math.max(0, Math.floor(y + 0.5 - dy)));
+    p.pixY[y] = Math.min(alto - 1, Math.max(0, Math.floor(origenY(y + 0.5 - dy))));
   }
 
   // Niveles por celda: cobertura del píxel central de la celda, tramada con Bayer
@@ -155,10 +168,10 @@ function preparar(indice: number, tramada: Uint8ClampedArray, solida: Uint8Clamp
   const centro = Math.floor(punto / 2);
   for (let j = 0; j < altoCeldas; j++) {
     const cy = cy0 + j;
-    const sy = Math.min(alto - 1, Math.max(0, cy * punto + centro));
+    const sy = Math.min(alto - 1, Math.max(0, Math.floor(origenY(cy * punto + centro + 0.5))));
     for (let i = 0; i < anchoCeldas; i++) {
       const cx = cx0 + i;
-      const sx = Math.min(ancho - 1, Math.max(0, cx * punto + centro));
+      const sx = Math.min(ancho - 1, Math.max(0, Math.floor(origenX(cx * punto + centro + 0.5))));
       const v = cobertura(tramada, (sy * ancho + sx) * 4);
       const n = v <= 0 ? 0 : Math.max(0, Math.min(3, Math.floor(v * 3 + bayer4(cx, cy))));
       p.niveles[j * anchoCeldas + i] = n;
@@ -185,7 +198,8 @@ function nivel(p: Plancha, x: number, y: number, ancho: number): number {
 /** Tramado completo del fotograma. */
 export function tramar(e: EntradaTramado): void {
   const {ancho, alto} = e;
-  const listas = [0, 1, 2].map((i) => preparar(i, e.tramadas[i], e.solidas[i], e.desajustes[i], ancho, alto, e.punto));
+  const escala = e.escala ?? 1;
+  const listas = [0, 1, 2].map((i) => preparar(i, e.tramadas[i], e.solidas[i], e.desajustes[i], ancho, alto, e.punto, escala));
   const g = granoDe(ancho, alto);
   const lut = tablaColores(e.colores, e.grano);
   const salida = new Uint32Array(e.salida.buffer, e.salida.byteOffset, ancho * alto);

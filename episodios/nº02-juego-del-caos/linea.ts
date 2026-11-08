@@ -167,6 +167,8 @@ export function tiradasTriangulo(t: number, l: Linea): number {
 /**
  * Tirada "en pantalla" durante la aceleración: el punto visible salta en cada semicorchea (y suena),
  * aunque el contador vaya más rápido. Devuelve el índice de la tirada mostrada y el instante del salto.
+ * En el tiempo de silencio antes de la revelación (la música calla) el punto se queda quieto en el
+ * último salto que sonó, como en el cuadrado: los saltos son los de semicorcheasAceleracion().
  */
 export function saltoVisible(t: number, l: Linea): {indice: number; desde: number} | null {
   if (t < l.tTira) return null;
@@ -175,7 +177,8 @@ export function saltoVisible(t: number, l: Linea): {indice: number; desde: numbe
     return {indice: k, desde: l.tTira + k * l.negra};
   }
   const semi = l.negra / 4;
-  const k = Math.floor((t - l.tAcelera) / semi + 1e-9);
+  const ultimo = semicorcheasAceleracion(l).length - 1;
+  const k = Math.min(ultimo, Math.floor((t - l.tAcelera) / semi + 1e-9));
   const desde = l.tAcelera + k * semi;
   return {indice: Math.max(l.lentos, tiradasTriangulo(desde, l) - 1), desde};
 }
@@ -209,6 +212,16 @@ export function semicorcheasCuadrado(l: Linea): {ruido: number[]; copo: number[]
   const copo: number[] = [];
   for (let s = l.tNoRepetir; s < l.tOrden - l.negra - 1e-6; s += paso) copo.push(s);
   return {ruido, copo};
+}
+
+/**
+ * Índice (desde 0) de la tirada que salta en pantalla en la semicorchea `s` del cuadrado: del ruido o,
+ * con la regla, del copo. Una sola función para la imagen (Sketch.tsx) y el sonido (sonido.ts): el
+ * contador crece tan rápido que evaluarlo en s o en s + 1e-4 ya daba otra tirada (y otra esquina).
+ */
+export function indiceCuadrado(s: number, l: Linea, conRegla: boolean): number {
+  const n = tiradasCuadrado(s, l);
+  return Math.max(0, (conRegla ? n.copo : n.ruido) - 1);
 }
 
 /** Puntos del tetraedro construidos en `t`. */

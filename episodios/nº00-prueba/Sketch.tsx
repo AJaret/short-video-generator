@@ -5,14 +5,19 @@ import {useCurrentFrame, useVideoConfig} from 'remotion';
 import {cobertura, mulberry32, ORDEN, useDibujo, type ContextoSketch, type DatosPanel, type PropsSketch} from '@canal';
 
 const VUELTAS = 5;
-const PERIODO_S = 15; // la animación hace loop exacto cada 15 s
+
+/**
+ * Fase (0…1) del fotograma: va de 0 en el primero a 1 en el último, así que el último fotograma
+ * repite la portada (loop). Usa la duración real de la composición (voz + cola), no un periodo fijo.
+ */
+const faseDe = (frame: number, duracion: number) => frame / Math.max(1, duracion - 1);
 
 const Sketch: React.FC<PropsSketch> = ({config, area}) => {
   const frame = useCurrentFrame();
-  const {fps} = useVideoConfig();
+  const {durationInFrames} = useVideoConfig();
 
   useDibujo(ORDEN.sketch, ({a, b, k}) => {
-    const fase = ((frame / fps) % PERIODO_S) / PERIODO_S; // 0..1, mismo valor en el primer y último fotograma
+    const fase = faseDe(frame, durationInFrames); // 0 y 1 dan el mismo dibujo: VUELTAS vueltas completas
     const angulo = fase * Math.PI * 2 * VUELTAS;
 
     // Centro y tamaño dentro del área disponible (respeta la zona segura de arriba)
@@ -33,11 +38,13 @@ const Sketch: React.FC<PropsSketch> = ({config, area}) => {
     a.arc(ax, ay, radio, 0, Math.PI * 2);
     a.fill();
 
-    // Tinta B: anillo de puntos en contrafase; donde pisa a la esfera sale el solape
+    // Tinta B: anillo de puntos en contrafase; donde pisa a la esfera sale el solape.
+    // Gira a 0,4 de la esfera: 2 vueltas enteras en el video (con 0,5 serían 2,5 y el último
+    // fotograma quedaría con el anillo girado media vuelta respecto a la portada).
     const azar = mulberry32(config.semilla);
     const puntos = 36;
     for (let i = 0; i < puntos; i++) {
-      const th = (i / puntos) * Math.PI * 2 - angulo * 0.5;
+      const th = (i / puntos) * Math.PI * 2 - angulo * 0.4;
       const r = radio * (1.05 + 0.18 * Math.sin(5 * th + angulo));
       const tam = 10 + azar() * 26;
       b.fillStyle = cobertura(0.45 + azar() * 0.55);
@@ -61,8 +68,8 @@ const Sketch: React.FC<PropsSketch> = ({config, area}) => {
 export default Sketch;
 
 /** Datos del panel para el fotograma dado. */
-export function panel(frame: number, {fps}: ContextoSketch): DatosPanel {
-  const fase = ((frame / fps) % PERIODO_S) / PERIODO_S;
+export function panel(frame: number, {duracion}: ContextoSketch): DatosPanel {
+  const fase = faseDe(frame, duracion); // contexto.duracion ya está en fotogramas
   const vueltas = fase * VUELTAS;
   return {
     contadores: [

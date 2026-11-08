@@ -45,7 +45,7 @@ export type ConfigEpisodio = {
   };
   /** Banda sonora (ver video/src/sonido/banda.ts). */
   audio?: {
-    /** Música lo-fi de fondo (por defecto sí). */
+    /** Música misterio con guiño (por defecto sí). */
     musica?: boolean;
     /** Música respecto a la voz, en dB (por defecto −18). */
     musicaDb?: number;

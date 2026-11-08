@@ -1,5 +1,6 @@
 // Utilidades sobre tiempos.json: grupos de subtítulos, palabra activa y anclas de impacto.
-import {cuantizar, type Pulso} from './pulso';
+import {DURACION_IMPACTO, FPS} from './diseno';
+import {BPM_POR_DEFECTO, cuantizar, type Pulso} from './pulso';
 import type {ConfigEpisodio, Impacto, Palabra, Tiempos} from './tipos';
 
 /** Minúsculas, sin acentos ni puntuación: para comparar palabras del guion. */
@@ -13,6 +14,9 @@ export function normalizar(texto: string): string {
 }
 
 export type Grupo = {palabras: Palabra[]; inicio: number; fin: number};
+
+/** Diagnóstico de la producción actual; sonido.mjs lo vacía al empezar cada episodio. */
+export const anclasNoEncontradas = new Set<string>();
 
 const FIN_DE_FRASE = /[.,;:?!…]$/;
 
@@ -66,10 +70,15 @@ export function palabraActiva(grupo: Grupo, t: number): number {
 export function tiempoDeAncla(tiempos: Tiempos | null, ancla: string): number | null {
   if (!tiempos) return null;
   const buscada = normalizar(ancla).split(/\s+/).filter(Boolean);
+  if (!buscada.length) {
+    anclasNoEncontradas.add(ancla);
+    return null;
+  }
   const palabras = tiempos.palabras.map((p) => normalizar(p.texto));
   for (let i = 0; i + buscada.length <= palabras.length; i++) {
     if (buscada.every((a, j) => palabras[i + j] === a)) return tiempos.palabras[i].inicio;
   }
+  anclasNoEncontradas.add(ancla);
   return null;
 }
 
@@ -86,6 +95,28 @@ export function inicioImpacto(impacto: Impacto, tiempos: Tiempos | null): number
 export function momentoImpacto(impacto: Impacto, tiempos: Tiempos | null, pulso?: Pulso | null): number | null {
   const t = inicioImpacto(impacto, tiempos);
   return t === null || !pulso ? t : cuantizar(t, pulso);
+}
+
+/** Segundos que tarda cada letra de textoLetras() (cinetica.ts) en asentarse. */
+export const ASIENTO_LETRA = 0.1;
+/** Fotogramas del fundido de salida de un impacto (DatoImpacto.tsx). */
+export const SALIDA_IMPACTO = 6;
+/** Segundos mínimos con la palabra completa a la vista antes de que empiece la salida. */
+const LECTURA_IMPACTO = 0.6;
+
+/**
+ * Segundo en que termina de verdad un impacto que entra en `inicio`. Con entrada 'letras' el texto se
+ * imprime a una letra por semicorchea, así que un texto largo no cabe en `duracion`: el fin se
+ * alarga hasta que la última letra se asienta, se lee (~0,6 s) y sale. Lo usan la imagen
+ * (tramosImpacto) y la música (ducking de banda.ts), para que los dos acaben a la vez.
+ */
+export function finImpacto(impacto: Impacto, inicio: number, pulso?: Pulso | null, fps = FPS): number {
+  const fin = inicio + (impacto.duracion ?? DURACION_IMPACTO);
+  if ((impacto.entrada ?? 'sello') !== 'letras') return fin;
+  const negra = pulso?.negra ?? 60 / BPM_POR_DEFECTO; // mismo ritmo de reserva que DatoImpacto
+  const letras = impacto.texto.replace(/\s/g, '').length;
+  const ultima = inicio + Math.max(0, letras - 1) * negra * 0.25;
+  return Math.max(fin, ultima + ASIENTO_LETRA + LECTURA_IMPACTO + SALIDA_IMPACTO / fps);
 }
 
 /**

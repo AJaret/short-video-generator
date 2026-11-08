@@ -5,6 +5,8 @@
 - "Probar frase": genera solo una frase con los ajustes elegidos (rápido, para afinar el tono).
 - "Generar episodio": produce voz.wav + tiempos.json del episodio, igual que generar.py.
   Para respetar la VRAM, la voz se descarga de la GPU antes de cargar Whisper.
+  Si el episodio tiene voz externa (voz_externa.*, p. ej. ElevenLabs), no se usa Chatterbox: como en
+  generar.py, ese audio se alinea con el guion. Para volver a Chatterbox, borra voz_externa.*.
 """
 
 from __future__ import annotations
@@ -18,7 +20,20 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from nucleo import RAIZ, REFERENCIA, Ajustes, Voz, ajustes_de_episodio, guardar, huella, producir_voz  # noqa: E402
+from nucleo import (  # noqa: E402
+    RAIZ,
+    REFERENCIA,
+    Ajustes,
+    Voz,
+    ajustes_de_episodio,
+    buscar_voz_externa,
+    guardar,
+    huella,
+    huella_externa,
+    importar_voz,
+    liberar_gpu,
+    producir_voz,
+)
 
 EPISODIOS = RAIZ / "episodios"
 _voz: Voz | None = None
@@ -29,6 +44,19 @@ def _cargar_voz() -> Voz:
     if _voz is None:
         _voz = Voz(REFERENCIA)
     return _voz
+
+
+def _soltar_voz() -> None:
+    """Descarga Chatterbox de la GPU y olvida el objeto.
+
+    producir_voz() cierra la voz que recibe (Voz.cerrar borra el modelo), aunque falle a medias: si
+    _voz siguiera apuntando a ese objeto, la siguiente frase fallaría con un modelo que ya no existe.
+    """
+    global _voz
+    if _voz is not None and hasattr(_voz, "modelo"):
+        _voz.cerrar()
+    _voz = None
+    liberar_gpu()
 
 
 def _episodios() -> list[str]:
@@ -55,7 +83,6 @@ def probar_frase(frase, exageracion, cfg, temperatura, semilla):
 
 
 def generar_episodio(nombre, guion, exageracion, cfg, temperatura, semilla, progreso=gr.Progress()):
-    global _voz
     if not nombre:
         raise gr.Error("Elige un episodio.")
     carpeta = EPISODIOS / nombre
@@ -65,10 +92,26 @@ def generar_episodio(nombre, guion, exageracion, cfg, temperatura, semilla, prog
             setattr(ajustes, k, v)
     # Guardamos el guion editado en la interfaz: es la fuente de verdad del episodio
     (carpeta / "guion.md").write_text(guion, encoding="utf-8")
-    progreso(0, desc="Generando voz…")
-    resultado = producir_voz(guion, ajustes, REFERENCIA, voz=_cargar_voz(), avisar=lambda m: progreso(None, desc=m))
-    _voz = None  # producir_voz ya la liberó de la GPU
-    guardar(resultado, carpeta, huella(guion, ajustes, REFERENCIA))
+    avisar = lambda m: progreso(None, desc=m)  # noqa: E731
+    externa = buscar_voz_externa(carpeta)
+    if externa:
+        # Mismo camino que generar.py: la voz externa manda y Chatterbox no se usa. Generar aquí con
+        # Chatterbox pisaría la voz de ElevenLabs, y un `producir.py --solo-video` la renderizaría.
+        gr.Info(f"{nombre} usa voz externa ({externa.name}): se alinea con el guion, sin Chatterbox.")
+        _soltar_voz()  # Whisper no debe compartir la GPU con Chatterbox (6 GB)
+        progreso(0, desc=f"Alineando {externa.name}…")
+        try:
+            resultado = importar_voz(guion, externa, ajustes, avisar=avisar)
+        finally:
+            liberar_gpu()
+        guardar(resultado, carpeta, huella_externa(guion, externa, ajustes))
+    else:
+        progreso(0, desc="Generando voz…")
+        try:
+            resultado = producir_voz(guion, ajustes, REFERENCIA, voz=_cargar_voz(), avisar=avisar)
+        finally:
+            _soltar_voz()  # producir_voz ya la liberó de la GPU (o falló a medias): siempre se olvida
+        guardar(resultado, carpeta, huella(guion, ajustes, REFERENCIA))
     audio = (np.clip(resultado["audio"], -1, 1) * 32767).astype(np.int16)
     return (resultado["sr"], audio), json.dumps(resultado["resumen"], ensure_ascii=False, indent=2)
 

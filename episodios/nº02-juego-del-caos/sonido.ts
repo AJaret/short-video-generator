@@ -14,12 +14,12 @@ import type {ContextoSonido, EventoSonoro} from '@sonido/banda';
 import {hz} from '@sonido/sintesis';
 import {corteDe} from '@canal/transiciones';
 import {
+  indiceCuadrado,
   linea,
   PUNTOS_PORTADA,
   saltoVisible,
   semicorcheasAceleracion,
   semicorcheasCuadrado,
-  tiradasCuadrado,
   transiciones,
 } from './linea';
 import {JUEGO_COPO, JUEGO_CUADRADO, JUEGO_TRIANGULO} from './simulacion';
@@ -63,18 +63,20 @@ export function eventos({tiempos, duracion, pulso}: ContextoSonido): EventoSonor
 
   // 5. Cuadrado
   const {ruido, copo} = semicorcheasCuadrado(l);
+  // Misma tirada que resalta el sketch en esa semicorchea (indiceCuadrado, en linea.ts)
   ruido.forEach((s, i) => {
-    const n = Math.max(1, tiradasCuadrado(s + 1e-4, l).ruido);
-    const e = JUEGO_CUADRADO.esquina[n - 1];
+    const e = JUEGO_CUADRADO.esquina[indiceCuadrado(s, l, false)];
     lista.push({t: s, frecuencia: hz(NOTAS_CUAD[e] + 12), volumenDb: -13 + (5 * i) / Math.max(1, ruido.length - 1), duracion: 0.07, brillo: 0.35, pan: PAN_CUAD[e] * 0.7});
   });
   lista.push({t: l.tRegla, frecuencia: 0, volumenDb: -6, efecto: 'papel'});
   copo.forEach((s, i) => {
-    const n = Math.max(1, tiradasCuadrado(s + 1e-4, l).copo);
-    const e = JUEGO_COPO.esquina[n - 1];
+    const e = JUEGO_COPO.esquina[indiceCuadrado(s, l, true)];
     lista.push({t: s, frecuencia: hz(NOTAS_CUAD[e] + 12), volumenDb: -14 + (8 * i) / Math.max(1, copo.length - 1), duracion: 0.07, brillo: 0.45, pan: PAN_CUAD[e] * 0.7});
   });
 
+  // El papel se abre en cuatro copias y vuelve a asentarse justo antes del giro.
+  lista.push({t: l.tTetra, frecuencia: 0, volumenDb: -12, efecto: 'papel'});
+  lista.push({t: l.tGira - l.negra, frecuencia: hz(-12), volumenDb: -9, duracion: 0.16});
   // 6. Tetraedro
   for (let s = l.tConstruye; s < l.tTetra + 2 * l.negra - 1e-6; s += l.negra / 2) {
     lista.push({t: s, frecuencia: hz(24 + ((Math.round((s - l.tConstruye) / (l.negra / 2)) * 7) % 12)), volumenDb: -16, duracion: 0.06, brillo: 0.3});

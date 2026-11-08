@@ -2,7 +2,7 @@
 //
 // Cada componente (sketch, subtítulos, panel…) no pinta en el DOM: registra una función de dibujo
 // con useDibujo(). En cada fotograma <RisoFilter> limpia las capas, llama a todas las funciones en
-// orden y pasa el resultado por el shader riso.
+// orden y pasa el resultado por el filtro riso por CPU.
 //
 // Convención de las capas (una por tinta: a, b, k):
 //   cobertura de tinta = alfa × (1 − luminancia)

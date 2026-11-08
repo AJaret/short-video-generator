@@ -4,7 +4,7 @@ Este repositorio produce videos verticales (Reels / TikTok / Shorts) de 30–45 
 
 ## Equipo de trabajo
 - GPU: NVIDIA RTX 2060 (6 GB VRAM) · CPU: Intel i9-9900 · Sistema: Windows 11 (confírmalo antes de dar comandos).
-- Todo corre en **Docker** (Docker Desktop + WSL2). La GPU llega a los contenedores con `--gpus all` / `gpus: all` en compose; no se instalan drivers ni CUDA dentro de WSL. En Windows solo hay Python 3.12, sin paquetes, para ejecutar `producir.py`. Node no está instalado en Windows.
+- Todo corre en **Docker** (Docker Desktop + WSL2). La GPU llega al servicio `voz` con `deploy.resources.reservations.devices` en compose; no se instalan drivers ni CUDA dentro de WSL. En Windows solo hay Python 3.12, sin paquetes, para ejecutar `producir.py`. Node no está instalado en Windows.
 - Instala siempre PyTorch con soporte CUDA. Si un script de IA dice "cpu", es un error de instalación.
 - Con 6 GB de VRAM: no cargues dos modelos de IA a la vez en GPU. Voz y transcripción se ejecutan una después de otra, liberando memoria entre pasos.
 
@@ -78,177 +78,20 @@ El primer fotograma es también la miniatura: "nº XX / tema" en Space Mono, tí
 
 ---
 
-## 4 · Stack técnico
+## Producción y reglas técnicas
 
-### Cadena de producción
-```
-guion.md ─▶ voz/ (Python, GPU) ─▶ voz.wav + tiempos.json
-                                          │
-Sketch.tsx (canvas 2D) ─▶ video/ (Remotion, plantilla del canal) ─▶ MP4 1080×1920 ─▶ informe (hoja + sonoridad)
+Todo corre en Docker; `producir.py` es el único coordinador en Windows, con Python estándar. El flujo es guion → voz/tiempos → mezcla → render → informe y fotogramas. La voz externa es fuente versionada; no se regenera con Chatterbox mientras exista `voz_externa.*`.
 
-Todo lo coordina producir.py desde la raíz del repo.
-```
-
-### Estructura del repositorio (monorepo)
-```
-canal-reels/
-  CLAUDE.md
-  docker-compose.yml   # servicios: video (Remotion) y voz (PyTorch + CUDA, Fase 2)
-  producir.py          # orquestador: un comando produce el episodio completo
-  voz/                 # Python: estudio de voz (TTS local + tiempos por palabra)
-    app.py             #   interfaz web local para pruebas
-    generar.py         #   CLI usada por producir.py
-    requirements.txt
-  video/               # Remotion + TypeScript: plantilla del canal y render
-  assets/
-    voz_canal.wav      # audio de referencia de la voz del canal (identidad, no cambiar)
-    musica/
-    sfx/               # impresora riso, zumbido grave
-  episodios/
-    nº03-lorenz/ ...
-```
-- Las dependencias viven en imágenes y volúmenes de Docker, no en el disco de Windows: `node_modules` de `video/` está en el volumen `video_node_modules` (leerlo desde Windows sería muy lento) y la caché de modelos irá en su propio volumen. El repo se monta en `/repo` dentro de los contenedores.
-- `.gitignore`: `.venv/`, `node_modules/`, caché de modelos, `out/` y los audios/videos generados (`episodios/*/voz.wav`, `episodios/*/tiempos.json`, `episodios/*/.hash_voz`, `episodios/*/stills/`, `*.mp4`).
-- Las rutas siempre relativas a la raíz del repo, nunca absolutas.
-
-### Orquestador: `producir.py`
-```
-python producir.py episodios/nº03-lorenz            # voz + tiempos + render
-python producir.py episodios/nº03-lorenz --solo-voz
-python producir.py episodios/nº03-lorenz --solo-video
-python producir.py nº03-lorenz --stills          # además: fotogramas de verificación en episodios/<ep>/stills/
-python producir.py nº03-lorenz --borrador        # 1 toma de voz por bloque (3× más rápido)
-python producir.py nº03-lorenz --forzar-voz      # regenerar la voz aunque el guion no cambie
-python producir.py nº03-lorenz --solo-video --tramo 40-60   # solo ese tramo (s) → <ep>.tramo.mp4, ~1 min
-python producir.py nº03-lorenz --solo-video --pulso         # el informe mide también la sincronía (~1 min más)
-```
-- Se ejecuta en Windows (PowerShell), con solo la librería estándar. Comprueba el episodio y el `config.json`, comprueba que Docker responda y, si la interfaz de voz está abierta, la detiene para liberar la GPU.
-- `--stills` elige solos los fotogramas a revisar: portada (0), subtítulo normal (la primera palabra tras la portada sin impacto ni panel), dato de impacto (0,4 s después de su ancla) y panel (1,5 s después de que sube). Se sacan del MP4 con ffmpeg, en segundos. Cada vez que se produce un episodio hay que revisarlos.
-- **Informe automático** tras cada render (`herramientas/informe.py`, en el servicio `voz`, que tiene ffmpeg completo; el de Remotion viene recortado):
-  - `episodios/<ep>/stills/hoja.png`: hoja de contactos con 24 fotogramas repartidos, cada uno con su segundo. Es lo primero que se revisa.
-  - `informe.txt`: LUFS, pico y *true peak*.
-  - Con `--pulso`: % de picos visuales fuertes en la rejilla y los que quedan fuera.
-  - Con `--tramo`: `hoja_tramo.png` e `informe_tramo.txt`, con los segundos del episodio.
-- **Para iterar**, renderiza solo el tramo que cambió con `--tramo`, y el episodio completo al final.
-- Tiempos de referencia:
-  - `nº00` (12 s de voz): la voz con 3 tomas tarda ~4 min.
-  - `nº02` (66,9 s): el render completo, con stills, hoja y sincronía, tarda **2,7 min**; un tramo de 20 s, ~1 min. Antes del filtro por CPU eran 9,5 min.
-Pasos: 1) lee `guion.md` y `config.json` · 2) genera `voz.wav` y `tiempos.json` con `voz/generar.py` (`docker compose run --rm voz ...`), saltándose el paso si el guion no cambió (compara un hash) · 3) libera la GPU (el contenedor de voz termina) · 4) lanza `npx remotion render` en el servicio `video` con el ID de composición del episodio · 5) deja el MP4 en `episodios/<ep>/<ep>.mp4`.
-ID de composición: el nombre de la carpeta con `nº` → `ep` y sin caracteres fuera de `[a-zA-Z0-9-]` (`nº03-lorenz` → `ep03-lorenz`). La regla está en `video/src/episodios.ts` y `producir.py` debe usar la misma.
-
-### Voz: `voz/` (Python)
-- TTS local con clonación de voz y licencia comercial (modelo elegido tras investigar; candidato principal: Chatterbox Multilingual, MIT).
-- Usa siempre `assets/voz_canal.wav` como referencia por defecto.
-- Exporta `voz.wav` y `tiempos.json` con inicio/fin de cada palabra del guion original (alineación forzada o Whisper con timestamps por palabra).
-- CLI: `python voz/generar.py --guion episodios/<ep>/guion.md --salida episodios/<ep>/`
-- Implementación actual (`voz/nucleo.py`):
-  - Modelos: `chatterbox-tts==0.1.7` (`ChatterboxMultilingualTTS`, `language_id="es"`, MIT; las salidas llevan la marca de agua inaudible Perth) y Whisper `small` para los tiempos.
-  - El guion se parte en **bloques**: todo el texto entre dos `[pausa]`, `[pausa larga]` o cambios de párrafo se genera de una vez (si pasa de ~260 caracteres, se parte por frases). Los títulos `#` y `[Animación: …]` no se leen. Generar frase a frase sonaba robótico: cada frase llevaba su propia entonación de "frase suelta".
-  - Silencios entre bloques: 0,45 s con `[pausa]`, 0,9 s con `[pausa larga]` y 0,5 s entre párrafos. Bajo toda la pista va un tono de sala a −66 dB (`tono_sala_db`), porque el salto de la voz al cero digital se nota y suena artificial.
-  - **Mejor de 3 tomas:** Chatterbox genera 3 tomas de cada bloque (`tomas`, con semillas distintas) → se libera → Whisper analiza todas → se libera → se queda la mejor de cada bloque según `puntuar_toma`:
-    - palabras que Whisper entiende (×200): nitidez de la articulación.
-    - microcortes dentro de las palabras (×1,5): voz entrecortada.
-    - palabras repetidas al final (×10).
-    - −15 si un bloque que termina en punto **sube** el tono al final, porque suena a frase sin terminar.
-
-    Si la mejor toma sigue siendo ilegible (menos del 60 % de palabras), el ciclo se repite una vez para ese bloque. El costo es el tiempo: unos 4 minutos por cada 12 s de voz. Con `"voz": {"tomas": 1}` en `config.json` es tres veces más rápido, para borradores.
-  - Puerta de ruido (`compuerta_db = −18`): entre palabras, lo que suena muy por debajo de la voz (respiraciones, murmullos, chasquidos del modelo) baja 18 dB con rampas de 40 ms. No toca la voz: se mide que las palabras y sus colas pierden 0 dB.
-  - Final de cada bloque: Whisper marca el fin de la última palabra antes de tiempo, y cortar ahí "corta" la voz. `fin_natural` sigue la energía desde ese punto hasta que la voz cae 30 dB y se mantiene así 120 ms; luego deja 60 ms de aire y aplica un fundido de salida de 80 ms. El tope es +0,45 s, para no conservar respiraciones.
-  - Chatterbox a veces **repite el final** de frases cortas. Whisper detecta las palabras que sobran tras el final del guion y el corte nunca entra en ellas.
-  - Whisper va **sin `initial_prompt`**: con el texto exacto como prompt, alucina otra cosa. Lo que oye se empata con las palabras del guion original (difflib), y las que no empatan (por ejemplo "quince" frente a "15") se reparten entre sus vecinas. Así los subtítulos muestran siempre el texto del guion.
-  - Volumen: −16 LUFS, pico máximo −1 dB. WAV a 24 kHz (la frecuencia de Chatterbox).
-  - Ajustes por defecto, elegidos de oído con el usuario el 2026-11-07:
-    - exageración 0,8: más emoción, porque 0,5 sonaba monótono.
-    - cfg 0,5.
-    - temperatura 0,8: con 0,95 articula peor ("gida" por "gira"), hay más microcortes y los cierres suben.
-    - `min_p` 0,05 y `top_p` 1,0.
-
-    Se pueden cambiar por episodio con un bloque `"voz": {...}` en `config.json` o con `--temperatura 0.85`, etc. La semilla sale de `config.json`.
-  - Caché: `.hash_voz` guarda el hash del guion, los ajustes, la referencia y las versiones. Si no cambia, no se regenera (salvo con `--forzar`).
-  - `tiempos.json`: `{palabras: [{texto, inicio, fin}], duracion, meta: {segmentos, palabras_por_minuto, empatadas_whisper}}`.
-- Interfaz de pruebas: `docker compose up -d voz` → http://localhost:7860. Sirve para probar frases sueltas y para generar el episodio completo.
-- **Voz externa (ElevenLabs, locución real…):** desde `nº01` el usuario prefiere ElevenLabs, porque la voz de Chatterbox no le convenció.
-  - Importación: `python producir.py <ep> --voz-externa toma.mp3` copia el audio a `episodios/<ep>/voz_externa.mp3`. Ese archivo **se versiona**, porque es la fuente y no se puede regenerar.
-  - Mientras ese archivo exista, `generar.py` no usa Chatterbox: Whisper alinea el audio con el guion, convierte el resultado a `voz.wav` (−16 LUFS) y saca `tiempos.json`. Tarda ~30 s.
-  - El resumen avisa de lo que Whisper oyó y **no está en el guion** (por ejemplo, una etiqueta de emoción leída en voz alta).
-  - Para volver a Chatterbox, basta con borrar `voz_externa.*`.
-  - El texto que se pega en ElevenLabs debe tener **las mismas palabras que `guion.md`**; las etiquetas `[curious]` y los `<break>` dan igual. Si cambian palabras, hay que actualizar el guion. Formato que funcionó en `nº01`: Eleven v3 con etiquetas en inglés (`[curious]`, `[mischievously]`, `[excited]`, `[serious]`) y puntos suspensivos para las pausas; el usuario evitó `[whispers]`/`[softly]` porque el cambio de volumen sonaba brusco.
-  - Licencia: el plan gratuito de ElevenLabs normalmente no permite uso comercial. Antes de publicar, el usuario debe confirmar que su plan lo permite.
-
-### Video: `video/` (Remotion + TypeScript)
-- Lee los archivos del episodio (`voz.wav`, `tiempos.json`, `config.json`, `Sketch.tsx`) desde `episodios/<ep>/`.
-- Licencia de Remotion: gratis para individuos y empresas de hasta 3 personas (uso comercial incluido).
-- Componentes de plantilla, reutilizables en todos los episodios:
-  - `<RisoFilter>`: post-proceso de todo el fotograma por CPU (`tramado.ts`: separación en tintas, dither Bayer, desajuste de registro, multiply, grano).
-  - `<Portada>`, `<SubtituloNormal>`, `<DatoImpacto>`, `<PanelDatos>`, `<Numeracion>`.
-  - `<GuiaZonasSeguras>`: superpone las zonas seguras solo en la vista previa, nunca en el render.
-- Cada episodio solo aporta su sketch generativo y su configuración.
-- Los episodios se descubren solos (`require.context` sobre `episodios/*/`) e importan la plantilla desde `@canal`.
-
-### Sistema de capas (cómo se dibuja todo)
-- Nada se pinta en el DOM. Cada componente (sketch incluido) registra una función con `useDibujo(ORDEN.x, (capas, info) => {...})`, y `<RisoFilter>` las ejecuta en orden en cada fotograma.
-- Seis canvas 2D, uno por tinta y por tipo:
-  - `capas.a`, `capas.b`, `capas.k` (**tramadas**): formas, volumen y tonos. Pasan por el dither Bayer 4×4 de 3 px.
-  - `capas.solido.a/b/k` (**sólidas**): texto y líneas finas. Sin trama (umbral al 50 %) y con el mismo desajuste de registro que su tinta. El punto de 3 px rompe la letra pequeña: el texto va siempre aquí.
-- Cobertura de tinta = alfa × (1 − luminancia): negro opaco = 100 %, gris = tono tramado, transparente = sin tinta. Usa `cobertura(v)` como color de relleno.
-- Para dejar papel (tiras de subtítulos, panel, fondos de etiquetas) usa `recortarPapel(capas, trazado)`: borra lo que ya está dibujado debajo, en las seis capas.
-- La plancha negra es la referencia de registro (no se desplaza). A y B se mueven 2–3 px en sentidos opuestos, con un temblor suave de ±0.8 px.
-- Bordes imperfectos: `trazarRectIrregular`, `trazarLineaIrregular`, `trazarCirculoIrregular` y `trazarPoligonoIrregular` (también estrellas), deterministas por semilla.
-
-### Kit de motion graphics (`video/src/canal/`)
-Inspirado en los reels de referencia (cortes al ritmo, fondos de un solo color, formas geométricas, nubes de partículas), traducido a riso. Son funciones de dibujo puras que el sketch combina, y su tiempo sale siempre del pulso. Se ven todas en la composición **`muestrario`** (`video/src/muestrario/`), que sirve de catálogo y de ejemplo de uso.
-- `curvas.ts`: `tramo(t, inicio, duracion)` y curvas (`salidaCubica`, `entradaSalidaCubica`, `salidaExpo`, `salidaRebote`). Arranques secos y frenadas suaves.
-- `fondos.ts`:
-  - `fondoTinta(capas, 'b')` pone una plancha de tinta a sangre. Por defecto va en la capa sólida, para que el texto recortado salga nítido; con `{trama: true, cobertura: 0.34}` queda de medio tono punteado.
-  - `enNegativo(capas, ctx => …)` deja papel con cualquier relleno, trazo o `fillText`: formas y titulares en papel sobre la tinta.
-  - Un relleno de tinta A sobre la plancha B sale del multiply como `#002284`.
-- `transiciones.ts` + `<Transiciones lista pulso>` (`ORDEN.transicion`, por encima del sketch y por debajo de la plantilla):
-  - Tipos: `barrido` (mancha de borde ondulado con orla punteada, en cualquier `angulo`), `iris` (agujero que se cierra hacia un `centro` y se abre), `trama` (oleada de puntos que crecen y se encogen) y `corte`.
-  - Todas tapan, cortan y destapan. Duran 2 negras por defecto: si empiezan un tiempo antes del compás (`t: compas - negra`), el corte cae justo en el compás.
-  - `corteDe(tr, pulso)` da el momento del cambio de escena y `escenaEn(t, lista, pulso)` el índice de la escena vigente.
-  - Sonido sugerido: papel al empezar un barrido e impresora en cada corte.
-- `graficos.ts`:
-  - `estallido` (rayos que salen en un golpe), `trazarEstrella`.
-  - `ondas`: nace un anillo en cada tiempo.
-  - `marcasRegistro`: cruces de registro impresas en las tres planchas; el desajuste las separa en tres colores y saltan con el golpe riso. Van en las esquinas, dentro de las zonas seguras, porque son decoración.
-  - `nubeParticulas(ctx, n, p, destino, {desde})`: puntos que vuelan de dispersos (o de otra figura) a `enCirculo`, `enRejilla` o `enEspiral` (girasol).
-- `cinetica.ts`:
-  - `textoLetras`: letra a letra, una por semicorchea; `momentosLetras` da los mismos instantes al sonido.
-  - `textoBarrido`: una barra de tinta tapa el hueco y, al retirarse, deja el texto.
-  - `rotulo`: etiqueta Space Mono en tira de papel que entra con rebote.
-- `<DatoImpacto>`: `impacto.entrada` puede ser `'sello'` (por defecto), `'letras'` o `'barrido'`.
-- Reglas: el texto y las líneas finas van en capas sólidas; los volúmenes, tonos y orlas, en las tramadas. Nada de degradados: los medios tonos son la trama a 1/3 y 2/3.
-- `tres.ts` · **3D en riso**: un motor propio y ligero, sin Three.js ni WebGL. Proyecta a 2D y pinta con el algoritmo del pintor, así que es determinista y rápido en el render por CPU. El volumen sale de la trama: la luz de cada cara se convierte en cobertura de tinta.
-  - Mallas: `cubo`, `esfera`, `toro`, `cilindro`, `cono` y `superficie(f)` (y = f(x, z), se ve por los dos lados). `transformar` aplica escala, giro y posición.
-  - `Camara` en órbita: `distancia`, `azimut`, `elevacion` y `fov` (pequeño = casi ortográfica; desde arriba parece 2D). La luz va fija respecto a la cámara.
-  - `dibujar3D(capas, objetos, camara, {luz, ambiente, niebla})`. Cada objeto lleva `material: {tinta, sombra?, aristas?, alambre?, tonos?}`:
-    - `sombra` imprime la parte oscura también con la otra tinta.
-    - Las aristas van en la capa sólida.
-    - `niebla` resta tinta con la distancia.
-    - Cada cara tapa lo de detrás en todas las tintas.
-    - `armado(i, n)` hace que las caras lleguen volando una a una, por ejemplo en semicorcheas.
-  - `curva3D`: polilínea con grosor según la profundidad; lo cercano en una tinta y lo lejano en otra, con un halo de papel en los cruces. `puntos3D` + `puntosEsfera`, y `nudoToroidal` como ejemplo.
-  - `giroAlPulso(t, pulso, {paso, division, desde})`: un giro que salta en cada tiempo y frena. Es el movimiento motion graphics de un objeto 3D.
-  - Luz casi de frente = todo claro. Para superficies, una luz rasante (`luz: [-0.85, 0.45, -0.3]`, `ambiente: 0.1`) hace que el relieve se lea por su sombra.
-  - Uso: en las partes de un episodio que lo pidan (atractores, bandadas en 3D, superficies). No hace falta en todo el video.
-  - Para nubes de decenas de miles de puntos (como el tetraedro de `nº02`), proyecta con `proyectar` y escribe los puntos directamente en un `ImageData`: es mucho más rápido que un `arc` por punto.
-
-### config.json
-`numero`, `tema`, `titulo`, `semilla`, `tintas` (`{a, b}`; se valida que como mucho una sea de serie), `impactos` (máx. 3: `{texto, ancla | desde, duracion}`), `panel` (`{ancla | desde, hasta?, titulo?}`, solo si el episodio lleva datos; `hasta` puede ser un número de segundos o un ancla), `cola` (segundos tras la última palabra) y opcionalmente `voz` (ajustes de la voz).
-- **Anclas:** una palabra o frase del guion, sin importar acentos, mayúsculas ni puntuación. Se busca en `tiempos.json` el momento en que la voz la dice. Conviene anclar todo (impactos, panel, momentos del sketch) en lugar de usar segundos, porque así sobrevive a cualquier regeneración de la voz.
-- **Sincronizar el sketch con la narración:** el sketch recibe `tiempos` en sus props y usa `tiempoDeAncla(tiempos, "paso diez mil")` para saber en qué segundo pasa algo. Debe tener tiempos por defecto para cuando todavía no hay voz. Ejemplo: `episodios/nº01-hormiga-de-langton/Sketch.tsx`, cuya línea de tiempo pasa por anclas del guion.
-- El sketch puede exportar `panel(frame, {fps, duracion, tiempos, config})` con contadores, fórmula y mini gráfico.
-- **Durante la portada (0–2,6 s) no hay subtítulos normales**, aunque la voz ya hable: el primer fotograma es la miniatura.
-- **Loop:** el sketch dibuja en la portada el mismo estado que en su último fotograma, y el panel baja antes del final (`hasta`), para que el último fotograma coincida con el primero.
-- **Fuentes:** el subconjunto latino de Space Mono no tiene griego ni flechas (θ, →). Usa texto ("t", ":") en fórmulas y etiquetas.
-- **Rigor:** las afirmaciones del guion se comprueban, con una simulación propia o con fuentes, antes de grabar la voz. Lo que es una metáfora visual se rotula como "esquema". En `nº01`: la autopista empieza en el paso 9 977 (simulado); que la hormiga nunca queda encerrada está demostrado (Bunimovich y Troubetzkoy, 1992); que puede calcular cualquier cosa también (Gajardo, Moreira y Goles, 2002); y que siempre acabe en autopista sigue sin demostrarse.
-  - Las comprobaciones se versionan con el episodio, en `verificar.py` o `verificar.mjs`, para poder repetirlas.
-  - En `nº02` (simulado con 200 000 puntos, `verificar.py`):
-    - En el triángulo, ningún punto cae en el hueco central desde el primer salto; es exacto, porque un salto hacia una esquina cae siempre en la copia a la mitad de esa esquina.
-    - En el cuadrado sin regla los puntos lo llenan todo; con «no repetir esquina» sale un fractal.
-    - El tetraedro de Sierpinski tiene dimensión 2, y visto a lo largo del eje que une dos aristas opuestas es un cuadrado lleno.
-    - Ojo al contar puntos «dentro del hueco»: el borde es parte del fractal, y en float32 hace falta un margen.
-    - **Empieza el juego sobre el fractal**, en una esquina, o descarta los primeros ~40 saltos. Si empieza fuera, el salto k cae en un hueco de nivel k+2, y se ven puntos sueltos en el centro de los triángulos (lo detectó el usuario). Empezando en una esquina, de 160 000 puntos ninguno cae en ningún hueco.
+- Las dependencias y modelos viven en volúmenes Docker; no instalar Node, CUDA ni paquetes de IA en Windows. Solo `voz` necesita GPU; `analisis` reutiliza su imagen sin reservarla.
+- Rutas relativas a la raíz del repo en código y configuración. No versionar MP4, `voz.wav`, `mezcla.wav`, `tiempos.json`, cachés ni stills.
+- Dibujar con `useDibujo`: volúmenes en `capas.a/b/k` tramadas; textos y líneas finas en `capas.solido.a/b/k`; papel con `recortarPapel`. El color lo pone `RisoFilter` por CPU. Escalar antes de tramar, sin CSS sobre el resultado.
+- Usar anclas del guion con `tiempoDeAncla`, no segundos fijos salvo valores de reserva. `linea.ts` es puro y se comparte entre sketch y sonido. Los eventos rítmicos van al pulso de `pulsoDe(config)`.
+- `config.json`: `numero`, `tema`, `titulo`, `semilla`, `tintas`, `impactos` (máx. 3), `panel` opcional, `cola`, `ritmo`, `audio` y `voz` opcional. Se permite sustituir como máximo una tinta por una de serie. Las entradas de impacto son `sello`, `letras` y `barrido`; `letras` alarga su duración y se rechazan solapes.
+- El panel debe bajar antes del final (`hasta`, segundos o ancla) y el sketch repetir su estado de portada en el último fotograma para cerrar el loop. No hay subtítulos normales durante la portada (0–2,6 s).
+- Space Mono latino no incluye griego ni flechas; usar `t` y `:` en fórmulas y etiquetas.
+- Comprobar las afirmaciones con simulación propia o fuentes antes de grabar voz, y versionar `verificar.py`/`verificar.mjs` con el episodio. Rotular las metáforas visuales como «esquema».
+- El informe mide LUFS, pico y true peak del MP4, genera hoja de contactos y comprueba el loop con una heurística. `--pulso` compara ataques con el BPM configurado; no estima el tempo. Revisar siempre visualmente los stills y la hoja tras producir.
+- Un informe fallido devuelve código 2: el MP4 puede ser nuevo y los archivos de `stills/` anteriores. Los tramos usan `hoja_tramo.png` e `informe_tramo.txt`.
 
 ### Reglas para sketches generativos (críticas)
 - Render determinista: todo depende de `useCurrentFrame()`. Nada de `requestAnimationFrame`, `Date.now()` ni `Math.random()`.
@@ -256,66 +99,26 @@ Inspirado en los reels de referencia (cortes al ritmo, fondos de un solo color, 
 - Simulaciones con estado (boids, autómatas, partículas): se precalculan por fotograma o se recalculan de forma determinista desde el fotograma 0. El fotograma N debe ser idéntico en la vista previa y en el render.
 - Los sketches dibujan en escala de grises o con máscaras por tinta. El color final lo pone `<RisoFilter>`.
 
-### Sonido: `video/src/sonido/` (todo por código, determinista)
-- `producir.py` genera `episodios/<ep>/mezcla.wav` antes del render con `node scripts/sonido.mjs <ep>`, que tarda ~2 s. La mezcla junta voz, música, efectos de la plantilla y efectos del episodio, y Remotion **solo reproduce esa pista** (si no existe, solo la voz). `mezcla.wav` no se versiona.
-- `sintesis.ts`: osciladores, filtros (un polo y biquad con barrido), envolventes, limitador con anticipación y lectura y escritura de WAV.
-- `instrumentos.ts` contiene la firma sonora del canal:
-  - `impresora` (traqueteo riso), `sello` (golpe), `papel` (deslizamiento) y `zumbido` (grave que crece).
-  - `tic` (afinado) y `ticShepard` (subida "infinita").
-  - Instrumentos de la música: marimba, campana FM, sub-grave, bombo, aro, shaker, platillo y golpe grave.
-- `musica.ts` · `musicaMisterio`: se **compone para cada episodio** a partir de un plan, no es un bucle de fondo.
-  - Base: Am – Fmaj7 – Am – G, con la marimba en semicorcheas en un patrón 3+3+2 que "gira".
-  - La intensidad de cada tiempo decide qué capas suenan:
-    - menos de 0,3: marimba en corcheas.
-    - más de 0,3: sub-grave.
-    - más de 0,45: bombo y aro a medio tiempo.
-    - más de 0,55: shaker.
-    - más de 0,8: campanitas.
-  - Dentro del plan: **caídas** (silencio), **golpes** (platillo + grave) y un **acorde final**.
-  - Eco que rebota de lado a lado, en estéreo.
-- **Pulso (`video/src/canal/pulso.ts`):** el reloj que comparten animación, plantilla y sonido.
-  - `pulsoDe(config)` (`ritmo.bpm`, 92 por defecto), `cuantizar(t, pulso, division, modo)`, `golpe(t, pulso)` (envolvente que late en cada tiempo) y `faseEn`.
-  - A 92 BPM un compás dura 2,609 s, así que la salida de la portada (2,6 s) cae en el primer tiempo del compás 1.
-- **Lo que va al pulso en la plantilla:**
-  - El panel sube y baja, y los sellos de impacto entran, en el tiempo más cercano a su ancla (`resolverPanel(…, pulso)`, `momentoImpacto`).
-  - **Golpe riso** (`ritmo.golpeVisual`, activo por defecto): en cada tiempo el desajuste de registro de A y B da un salto de +0,9 px que cae en 0,12 s, y en cada compás el fotograma se escala un 1 %. No actúa durante la portada.
-- `banda.ts` (reglas de mezcla, en **estéreo**):
-  - Plan musical:
-    - Intensidad 0,2 en la portada; sube de 0,3 a 0,85 hasta la revelación (`audio.revelacion`, llevada al tiempo más cercano).
-    - **Un tiempo de silencio** justo antes de la revelación y **golpe** en ella.
-    - Dos compases a tope; luego intensidad media (0,65) mientras se explica, hasta `audio.remate` (ancla, por defecto 2 compases después). Después se reduce hasta el acorde final.
-    - `audio.golpes` (anclas) añade más golpes, cada uno con su tiempo de silencio antes.
-  - Música a −18 dB respecto a la voz (`audio.musicaDb`). La base baja 3 dB más mientras habla la voz y 7 dB más durante los impactos; los golpes no bajan.
-  - Efectos, todos en el pulso: impresora al salir la portada, papel al subir y bajar el panel, sello + impresora corta en cada impacto, y zumbido durante los 4 s previos a la revelación.
-  - La voz y los efectos van al centro, con −3 dB por canal. Salida a **−14 LUFS**: la mezcla mide su propia sonoridad con `lufs()` (BS.1770, coincide con pyloudnorm) y se ajusta sola con `normalizarLufs()` y un limitador enlazado a −1 dBFS. No hay ganancias fijas que calibrar: antes, una ganancia fija dejó `nº01` a −12,8 al cambiar la voz.
-- **Efectos propios de un episodio:** `episodios/<ep>/sonido.ts` exporta `eventos({config, tiempos, duracion, pulso})` y devuelve una lista de tics con `{t, frecuencia, volumenDb, duracion?, brillo?, shepard?, pan?}`. Con `efecto: 'impresora' | 'papel'` se pide un efecto de la plantilla, por ejemplo la impresora en cada corte de escena.
-  - Para que imagen y sonido coincidan, la línea de tiempo del sketch va en un módulo **puro** (`linea.ts`, sin React), compartido por `Sketch.tsx` y `sonido.ts`, y **en la rejilla de pulso**. Ejemplo: `nº01`:
-    - Un paso de la hormiga por tiempo: salta al empezar el tiempo, frenando, y luego espera. Cada paso suena un escalón más arriba en la pentatónica de La menor, así que los pasos forman parte de la música.
-    - La cámara salta en cada tiempo.
-    - En la aceleración suena una escalera de Shepard en corcheas, luego semicorcheas y luego fusas.
-    - La autopista aparece en el golpe de la revelación.
-    - **Escenas con cortes secos en el pulso**, cada una anclada a una frase del guion: principal → 4 tableros con dibujos de partida distintos → cuadro que la hormiga siempre rompe → cinta (esquema de una máquina que cuenta en binario) → final, que vuelve a la portada.
-    - La simulación está en otro módulo puro (`simulacion.ts`), que también usa el sonido; por ejemplo, para que suene un tic en cada salida del cuadro.
-    - Los dibujos de partida se eligieron simulando 400 semillas con el mismo generador (`episodios/nº01-hormiga-de-langton/verificar.mjs`): 396 acaban en autopista antes de 40 000 pasos. En pantalla solo se muestra lo comprobado.
-    - En el panel, una lista de comprobación se completa a medida que la voz lo dice.
-  - Lección aprendida: 30 tics por segundo a la misma altura se oyen como un zumbido. Para "cada paso más alto" hace falta que cada tic suba de verdad: Shepard, o un rango amplio.
-- Verificación (la hace `herramientas/informe.py` tras cada render):
-  - `pyloudnorm` para el volumen total y ebur128 de ffmpeg para el *true peak*.
-  - El tempo se mide en el canal lateral (L−R), donde no está la voz. Con la voz, el detector se confunde: en `nº01` daba 126 BPM en la mezcla y 92,3 BPM en el lateral.
-  - Los picos de cambio entre fotogramas del MP4 se comparan con la rejilla. En `nº01`, el 79 % cae a ≤ 2 fotogramas de un tiempo; los demás son cambios de subtítulo, que siguen a la voz.
-  - La correlación L/R de la mezcla sale ~1 porque la voz al centro domina. Es normal: la música sí es estéreo.
 
-### Render
-- `npx remotion render` a 1080×1920, 30 fps, H.264, CRF 18, audio AAC.
-- **Sin GPU ni WebGL:** el filtro riso va por CPU (`video/src/canal/tramado.ts`) y Chrome se lanza con `swiftshader` (`video/remotion.config.ts`), que deja los canvas en memoria normal.
-  - Antes el filtro era un shader WebGL con `swangle`. La GPU emulada vive en **un solo proceso compartido** por todas las pestañas, así que el render no pasaba de ~3,5 fotogramas/s con ningún número de hilos (medido: 4, 8, 12 y 16 daban lo mismo, y PNG/JPEG o media escala tampoco influían).
-  - Por CPU, cada pestaña filtra por su cuenta: 90 fotogramas pasan de 25 s a 7,4 s.
-  - Comparado píxel a píxel con el shader: diferencia media de ~2/255, que es el grano. Solo cambia de verdad el 0,02–0,19 % de los píxeles, en bordes por redondeo.
-  - No vuelvas a WebGL sin medir. El cuello de botella no está en el dibujo: dentro de la página, todo un fotograma tarda ~3 ms.
-- Los canvas de las capas se crean con `willReadFrequently: true`, porque el filtro lee sus píxeles en cada fotograma.
-- Fuentes empaquetadas desde npm (`@fontsource`): el render no depende de internet.
+## Documentación según la tarea
 
-### Comandos (desde la raíz del repo, en PowerShell)
+- [Producción](docs/produccion.md): estructura del repo y episodios, opciones de `producir.py`, config, capas y anclas.
+- [Voz](docs/voz.md): TTS, caché, alineación, interfaz y tomas de ElevenLabs.
+- [Kit](docs/kit.md): herramientas de motion graphics y motor 3D; leer antes de crear un sketch.
+- [Sonido](docs/sonido.md): instrumentos, composición, mezcla, limitador y sincronía.
+- [Render](docs/render.md): CPU, rendimiento e interpretación de los informes.
+- [nº01](episodios/nº01-hormiga-de-langton/NOTAS.md) y [nº02](episodios/nº02-juego-del-caos/NOTAS.md): rigor y decisiones de cada episodio.
+
+## Comandos habituales (PowerShell, raíz del repo)
+
+```powershell
+python producir.py nº02-juego-del-caos --solo-video --stills --pulso
+python producir.py nº02-juego-del-caos --solo-video --tramo 40-60
+python producir.py nº02-juego-del-caos --voz-externa toma.mp3
+python producir.py nº00-prueba --solo-voz
+```
+
+### Docker y comprobaciones
 ```
 docker compose build video                          # tras cambiar video/Dockerfile
 docker compose run --rm video npm install           # tras cambiar video/package.json
@@ -329,26 +132,13 @@ docker compose run --rm video node scripts/sonido_muestrario.mjs   # banda del m
 docker compose run --rm video npx remotion render muestrario out/muestrario.mp4 --props='{"guias":false}'
 ```
 La primera ejecución de voz descarga los pesos de Chatterbox (~3 GB) y de Whisper `small` al volumen `modelos_voz`.
-Los stills se guardan en `video/out/`.
+Los stills del comando Remotion de ejemplo se guardan en `video/out/`; los de `producir.py --stills`, en `episodios/<ep>/stills/`.
 
-### Estructura de un episodio
-```
-episodios/
-  nº03-lorenz/
-    guion.md        # texto con [pausa] y [Animación: ...]
-    voz.wav         # generado
-    tiempos.json    # generado
-    config.json     # número, título, tintas, semilla, momentos de impacto, ¿panel?
-    Sketch.tsx      # la animación generativa del episodio
-    linea.ts        # (opcional) línea de tiempo pura, compartida con sonido.ts
-    simulacion.ts   # (opcional) simulación pura y determinista
-    sonido.ts       # (opcional) efectos propios en el pulso
-    verificar.py    # comprobación de las afirmaciones del guion (o verificar.mjs)
-    voz_externa.mp3 # toma de ElevenLabs (se versiona)
-```
-`episodios/nº00-prueba/` es el episodio de prueba de la plantilla y de la voz. Su `voz.wav` y su `tiempos.json` se generan igual que en cualquier episodio. Para probar un sketch sin GPU hay un generador de tiempos falsos: `node scripts/tiempos_falsos.js ../episodios/<ep>/guion.md ../episodios/<ep>/tiempos.json`, que se ejecuta dentro del servicio `video`.
 
----
+```powershell
+docker compose run --rm video node scripts/verificar_auditoria.mjs
+python -m unittest discover -s herramientas -p "test_*.py"
+```
 
 ## Cómo trabajar en este repo
 - Antes de un cambio grande, propón un plan breve y espera aprobación.

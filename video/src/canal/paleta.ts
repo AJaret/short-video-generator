@@ -42,7 +42,7 @@ export function resolverTintas(pedidas?: Partial<Tintas>): Tintas {
   return {a, b};
 }
 
-/** '#RRGGBB' → [r, g, b] en 0..1 (para los uniforms del shader). */
+/** '#RRGGBB' → [r, g, b] en 0..1 (componentes de color normalizados). */
 export function hexARgb(hex: string): [number, number, number] {
   const n = parseInt(hex.replace('#', ''), 16);
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];

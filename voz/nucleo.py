@@ -777,6 +777,7 @@ def guardar(resultado: dict, salida: Path, huella_actual: str | None = None) -> 
     salida.mkdir(parents=True, exist_ok=True)
     soundfile.write(salida / "voz.wav", resultado["audio"], resultado["sr"], subtype="PCM_16")
     (salida / "tiempos.json").write_text(json.dumps(resultado["tiempos"], ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    (salida / "mezcla.wav").unlink(missing_ok=True)
     if huella_actual:
         (salida / ".hash_voz").write_text(huella_actual + "\n", encoding="utf-8")
 

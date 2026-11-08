@@ -5,6 +5,7 @@
 //     - toma la cobertura de cada tinta (alfa × (1 − luminancia)),
 //     - la trama con Bayer 4×4 a 4 niveles, con punto de 3 px,
 //     - desplaza cada tinta (desajuste de registro con temblor leve y determinista),
+//     - escala el dibujo con el golpe de compás (al leer las capas: el punto sigue midiendo 3 px),
 //     - combina las tintas en multiply sobre el papel,
 //     - añade grano de papel al 4 %.
 //
@@ -81,7 +82,11 @@ export const RisoFilter: React.FC<PropsRisoFilter> = ({tintas, semilla, punto = 
   const t = frame / fps;
   const conGolpe = Boolean(pulso?.golpeVisual) && t >= DURACION_PORTADA;
   const latido = conGolpe && pulso ? golpe(t, pulso, 1, 0.12) : 0;
-  const escala = conGolpe && pulso ? 1 + EMPUJE_ESCALA * golpe(t, pulso, 4, 0.15) : 1;
+  // La escala se aplica dentro de tramar() (al leer las capas), no con CSS sobre el canvas ya tramado:
+  // Chrome lo remuestreaba, suavizaba la trama y sacaba colores fuera de la paleta. Cuando el golpe
+  // ya se apagó (< 1 %, menos de 0,1 px en el borde) se deja en 1 exacto.
+  const golpeCompas = conGolpe && pulso ? golpe(t, pulso, 4, 0.15) : 0;
+  const escala = golpeCompas >= 0.01 ? 1 + EMPUJE_ESCALA * golpeCompas : 1;
 
   // Se ejecuta en cada render, después de que los hijos registraron su dibujo
   useLayoutEffect(() => {
@@ -117,6 +122,7 @@ export const RisoFilter: React.FC<PropsRisoFilter> = ({tintas, semilla, punto = 
       colores: {a: tintas.a, b: tintas.b, k: NEGRO, papel: PAPEL},
       punto,
       grano,
+      escala,
       salida: salidaRef.current.data,
     });
     destino.putImageData(salidaRef.current, 0, 0);
@@ -129,7 +135,7 @@ export const RisoFilter: React.FC<PropsRisoFilter> = ({tintas, semilla, punto = 
           ref={canvasRef}
           width={width}
           height={height}
-          style={{width: '100%', height: '100%', transform: `scale(${escala})`}}
+          style={{width: '100%', height: '100%'}}
         />
       </AbsoluteFill>
       {children}

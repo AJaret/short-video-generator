@@ -45,6 +45,7 @@ import {
 import {DURACION_PORTADA} from '@canal/diseno';
 import {
   escenaEn,
+  indiceCuadrado,
   linea,
   PUNTOS_PORTADA,
   saltoVisible,
@@ -376,11 +377,12 @@ function escenaCuadrado(capas: Capas, t: number, l: Linea, r: Rect) {
     const previos: number[] = [];
     for (let k = 12; k >= 1; k--) {
       const s = ultima - k * semi;
-      if (s >= l.tNoRepetir) previos.push(Math.max(0, tiradasCuadrado(s, l).copo - 1));
+      if (s >= l.tNoRepetir) previos.push(indiceCuadrado(s, l, true));
     }
     rastro(capas, m, j, previos);
   }
-  const indice = ultima !== undefined ? Math.max(0, (conRegla ? tiradasCuadrado(ultima, l).copo : tiradasCuadrado(ultima, l).ruido) - 1) : -1;
+  // La misma tirada (y esquina) que suena en esa semicorchea (sonido.ts usa indiceCuadrado también)
+  const indice = ultima !== undefined ? indiceCuadrado(ultima, l, conRegla) : -1;
   esquinas(capas, m, CUADRADO, ETIQUETAS_CUAD, enLlenado && indice >= 0 ? j.esquina[indice] : null);
   if (enLlenado && indice >= 0) {
     salto(capas, m, j, indice, CUADRADO, ultima!, t, [0.5, 0.5], false);
@@ -446,7 +448,13 @@ function escenaTetraedro(capas: Capas, t: number, l: Linea, r: Rect, pulso: Puls
       k.fill();
     });
   }
-  pintarTetraedro(capas, n, tr, camara, deFrente);
+  // Vista desmontada: cada punto pertenece a la copia de la última esquina que eligió.
+  const apertura = salidaExpo(tramo(t, l.tTetra, l.negra * 0.65));
+  const cierre = salidaExpo(tramo(t, l.tGira - l.negra, l.negra * 0.8));
+  const separacion = 0.22 * apertura * (1 - cierre);
+  const encuadre = {...tr, escala: tr.escala / (1 + 2.5 * separacion)};
+  pintarTetraedro(capas, n, encuadre, camara, deFrente, separacion);
+  if (separacion > 0.03) rotulo(capas, 'esquema: 4 copias', r.x + 10, r.y + 20, apertura, {tam: 30, tinta: 'a'});
 }
 
 const PX = new Float32Array(JUEGO_TETRAEDRO.n);
@@ -459,12 +467,17 @@ const TAM_TETRA = 0.03; // tamaño de cada punto en unidades del mundo
  * Los puntos del tetraedro proyectados con la cámara 3D e impresos rápido: los cercanos en tinta A y
  * los lejanos en B (de frente, todos en B). El tamaño depende de la profundidad.
  */
-function pintarTetraedro(capas: Capas, n: number, tr: {rot: Vec3; escala: number}, camara: Camara, deFrente: boolean) {
+function pintarTetraedro(capas: Capas, n: number, tr: {rot: Vec3; escala: number}, camara: Camara, deFrente: boolean, separacion: number) {
   let zMin = Infinity;
   let zMax = -Infinity;
   let m = 0;
   for (let i = 0; i < n; i++) {
-    const p = proyectar(transformar(PUNTOS_TETRA[i], tr), camara);
+    const punto = PUNTOS_TETRA[i];
+    const v = TETRAEDRO[JUEGO_TETRAEDRO.esquina[i]];
+    const separado: Vec3 = separacion > 0
+      ? [punto[0] + separacion * v[0], punto[1] + separacion * v[1], punto[2] + separacion * v[2]]
+      : punto;
+    const p = proyectar(transformar(separado, tr), camara);
     if (!p) continue;
     PX[m] = p[0];
     PY[m] = p[1];

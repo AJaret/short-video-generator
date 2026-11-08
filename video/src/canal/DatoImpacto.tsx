@@ -7,29 +7,46 @@ import React from 'react';
 import {useCurrentFrame, useVideoConfig} from 'remotion';
 import {cobertura, ORDEN, recortarPapel, todasLasCapas, useDibujo} from './capas';
 import {ajustarTexto, mezclar, trazarRectIrregular} from './dibujo';
-import {DURACION_IMPACTO, UTIL} from './diseno';
+import {UTIL} from './diseno';
 import {fuente, TITULAR} from './fuentes';
-import {momentoImpacto} from './tiempos';
+import {finImpacto, momentoImpacto, SALIDA_IMPACTO} from './tiempos';
 import {textoBarrido, textoLetras} from './cinetica';
 import type {Pulso} from './pulso';
 import type {Impacto, Tiempos} from './tipos';
 import {centroAreaConPanel} from './PanelDatos';
 
 const ENTRADA = 4; // fotogramas
-const SALIDA = 6; // fotogramas
+const SALIDA = SALIDA_IMPACTO; // fotogramas (finImpacto() cuenta con ellos)
 
-/** Tramos [inicio, fin] en segundos de los impactos que se pueden ubicar. */
+/**
+ * Tramos [inicio, fin] en segundos de los impactos que se pueden ubicar. El fin es el real
+ * (finImpacto: con 'letras' puede pasar de `duracion`), el mismo que usa la música para bajar.
+ * Dos tramos solapados son un error de config: solo se vería el primero y el segundo saldría
+ * tarde y sin entrada, mientras su sello suena a su hora.
+ */
 export function tramosImpacto(
   impactos: Impacto[],
   tiempos: Tiempos | null,
   pulso?: Pulso | null,
 ): {impacto: Impacto; inicio: number; fin: number}[] {
   if (impactos.length > 3) throw new Error(`Máximo 3 datos de impacto por video (hay ${impactos.length}).`);
-  return impactos.flatMap((impacto) => {
+  const tramos = impactos.flatMap((impacto) => {
     const inicio = momentoImpacto(impacto, tiempos, pulso);
     if (inicio === null) return [];
-    return [{impacto, inicio, fin: inicio + (impacto.duracion ?? DURACION_IMPACTO)}];
+    return [{impacto, inicio, fin: finImpacto(impacto, inicio, pulso)}];
   });
+  const ordenados = [...tramos].sort((x, y) => x.inicio - y.inicio);
+  for (let i = 1; i < ordenados.length; i++) {
+    const [antes, despues] = [ordenados[i - 1], ordenados[i]];
+    if (despues.inicio < antes.fin - 1e-6) {
+      throw new Error(
+        `Los impactos "${antes.impacto.texto}" (${antes.inicio.toFixed(2)}–${antes.fin.toFixed(2)} s) y ` +
+          `"${despues.impacto.texto}" (${despues.inicio.toFixed(2)}–${despues.fin.toFixed(2)} s) se solapan: ` +
+          'acorta la duración del primero o ancla el segundo más tarde.',
+      );
+    }
+  }
+  return tramos;
 }
 
 export type PropsDatoImpacto = {

@@ -11,9 +11,10 @@ import type {NombreTinta} from './fondos';
 import {ANCHO} from './diseno';
 import {fuente, MONO} from './fuentes';
 import type {Pulso} from './pulso';
+import {ASIENTO_LETRA} from './tiempos';
 
-/** Segundos que tarda cada letra en asentarse. */
-const ASIENTO = 0.1;
+/** Segundos que tarda cada letra en asentarse (en tiempos.ts: finImpacto() también lo cuenta). */
+const ASIENTO = ASIENTO_LETRA;
 
 /** Instantes en que aparece cada letra visible (los espacios no cuentan). */
 export function momentosLetras(texto: string, inicio: number, pulso: Pulso, division = 0.25): number[] {
