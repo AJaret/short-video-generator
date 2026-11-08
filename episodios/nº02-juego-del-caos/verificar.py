@@ -45,6 +45,31 @@ print("   puntos en el hueco central desde el salto 1:", int(en_hueco(lam, 1).su
 print("   puntos en huecos de nivel <= 6 desde el salto 6:", int(en_hueco(lam[5:], 6).sum()))
 print("   distancia máxima al atractor tras 10 saltos <= 2^-10 =", 2**-10)
 
+# Huecos pequeños: empezando DENTRO del triángulo pero fuera del fractal, los primeros saltos caen en
+# huecos cada vez más pequeños (el salto k, en uno de nivel k+2). Empezando en una esquina (que es
+# parte del fractal) ningún punto cae en ningún hueco: es el inicio que usa el episodio.
+def hueco_nivel(lam, niveles=8):
+    lam = lam.copy()
+    nivel = np.zeros(len(lam), int)
+    for n in range(1, niveles + 1):
+        h = (lam < 0.5 - 1e-9).all(1) & (nivel == 0)
+        nivel[h] = n
+        k = lam.argmax(1)
+        lam = lam * 2
+        lam[np.arange(len(lam)), k] -= 1
+    return nivel
+
+
+for nombre, p0 in [("centro (0.4, 0.3)", np.array([0.4, 0.3])), ("esquina de arriba", V[2].copy())]:
+    q = np.empty((40, 2))
+    p = p0.copy()
+    r2 = np.random.default_rng(7)
+    for i in range(40):
+        p = (p + V[r2.integers(3)]) / 2
+        q[i] = p
+    niv = hueco_nivel(bary(q))
+    print(f"   inicio en {nombre}: saltos en algún hueco (nivel <= 8): {int((niv > 0).sum())} de 40  {list(niv[:8])}")
+
 # ── 2. Cuadrado, salto a la mitad: se llena sin forma ──
 C = np.array([[0, 0], [1, 0], [1, 1], [0, 1]], float)
 

@@ -248,6 +248,7 @@ Inspirado en los reels de referencia (cortes al ritmo, fondos de un solo color, 
     - En el cuadrado sin regla los puntos lo llenan todo; con «no repetir esquina» sale un fractal.
     - El tetraedro de Sierpinski tiene dimensión 2, y visto a lo largo del eje que une dos aristas opuestas es un cuadrado lleno.
     - Ojo al contar puntos «dentro del hueco»: el borde es parte del fractal, y en float32 hace falta un margen.
+    - **Empieza el juego sobre el fractal**, en una esquina, o descarta los primeros ~40 saltos. Si empieza fuera, el salto k cae en un hueco de nivel k+2, y se ven puntos sueltos en el centro de los triángulos (lo detectó el usuario). Empezando en una esquina, de 160 000 puntos ninguno cae en ningún hueco.
 
 ### Reglas para sketches generativos (críticas)
 - Render determinista: todo depende de `useCurrentFrame()`. Nada de `requestAnimationFrame`, `Date.now()` ni `Math.random()`.

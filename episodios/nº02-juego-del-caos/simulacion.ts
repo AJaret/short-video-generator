@@ -43,14 +43,20 @@ export const TETRAEDRO: [number, number, number][] = [
   [-1, -1, 1],
 ];
 
-function jugar(esquinas: number[][], n: number, semilla: number, dado: number, regla: (k: number, previa: number) => boolean, inicio: number[]): Juego {
+/**
+ * Juega `n` tiradas. Con `calentamiento`, antes da esos saltos sin guardarlos: cada salto reduce a la
+ * mitad la distancia al fractal, así que tras 40 el punto ya está sobre él (a 2⁻⁴⁰) y ningún punto
+ * guardado cae en un hueco. Si se empieza fuera del fractal y sin calentar, los primeros saltos caen
+ * en huecos cada vez más pequeños y se ven como puntos sueltos en el centro de los triángulos.
+ */
+function jugar(esquinas: number[][], n: number, semilla: number, dado: number, regla: (k: number, previa: number) => boolean, inicio: number[], calentamiento = 0): Juego {
   const azar = mulberry32(semilla);
   const dims = esquinas[0].length;
   const j: Juego = {x: new Float32Array(n), y: new Float32Array(n), z: dims === 3 ? new Float32Array(n) : null, esquina: new Uint8Array(n), cara: new Uint8Array(n), n};
   const p = [...inicio];
   let previa = -1;
   const porCara = dado / esquinas.length;
-  for (let i = 0; i < n; i++) {
+  for (let i = -calentamiento; i < n; i++) {
     let cara = 0;
     let k = 0;
     do {
@@ -58,20 +64,27 @@ function jugar(esquinas: number[][], n: number, semilla: number, dado: number, r
       k = Math.floor((cara - 1) / porCara);
     } while (!regla(k, previa));
     for (let d = 0; d < dims; d++) p[d] = (p[d] + esquinas[k][d]) / 2;
+    previa = k;
+    if (i < 0) continue;
     j.x[i] = p[0];
     j.y[i] = p[1];
     if (j.z) j.z[i] = p[2];
     j.esquina[i] = k;
     j.cara[i] = cara;
-    previa = k;
   }
   return j;
 }
 
 const libre = () => true;
 
-/** Punto de partida dentro del triángulo (lejos de la forma final, para que se vea el primer salto). */
-export const INICIO_TRIANGULO: [number, number] = [0.5, 0.29];
+/**
+ * Punto de partida: la esquina de arriba. Una esquina ya es parte del triángulo de Sierpinski, y un
+ * salto a medio camino de otra esquina lleva un punto del fractal a otro punto del fractal: así
+ * TODOS los puntos caen exactamente sobre él y quedan vacíos los huecos de todos los tamaños.
+ * (Antes empezaba en el centro: el primer salto ya evitaba el hueco grande, pero los primeros
+ * caían en huecos pequeños y se veían puntos sueltos dentro de los triángulos.)
+ */
+export const INICIO_TRIANGULO: [number, number] = [0.5, Math.sqrt(3) / 2];
 
 export const TRIANGULO_N = 160_000;
 export const CUADRADO_N = 24_000;
@@ -82,9 +95,9 @@ export const JUEGO_TRIANGULO = jugar(TRIANGULO, TRIANGULO_N, 1988, 6, libre, INI
 /** El cuadrado sin regla (dado de 4). */
 export const JUEGO_CUADRADO = jugar(CUADRADO, CUADRADO_N, 1989, 4, libre, [0.5, 0.5]);
 /** El cuadrado con la regla "no repetir la misma esquina dos veces seguidas". */
-export const JUEGO_COPO = jugar(CUADRADO, CUADRADO_N, 1990, 4, (k, previa) => k !== previa, [0.5, 0.5]);
-/** El tetraedro en 3D (dado de 4). */
-export const JUEGO_TETRAEDRO = jugar(TETRAEDRO, TETRAEDRO_N, 1991, 4, libre, [0, 0, 0]);
+export const JUEGO_COPO = jugar(CUADRADO, CUADRADO_N, 1990, 4, (k, previa) => k !== previa, [0.5, 0.5], 40);
+/** El tetraedro en 3D (dado de 4). Empieza en una esquina, que ya es parte del fractal (como el triángulo). */
+export const JUEGO_TETRAEDRO = jugar(TETRAEDRO, TETRAEDRO_N, 1991, 4, libre, TETRAEDRO[0]);
 
 /** Cuántas veces salió cada cara en las primeras `n` tiradas. */
 export function conteoCaras(j: Juego, n: number, caras: number): number[] {
