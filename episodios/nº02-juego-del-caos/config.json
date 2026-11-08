@@ -1,0 +1,15 @@
+{
+  "numero": 2,
+  "tema": "juego del caos",
+  "titulo": "El dado que dibuja fractales",
+  "semilla": 1988,
+  "tintas": {"a": "#FF48B0", "b": "#0078BF"},
+  "impactos": [
+    {"texto": "Sierpinski", "ancla": "triángulo de sierpinski", "duracion": 1.6, "entrada": "barrido"},
+    {"texto": "Cero en el hueco", "ancla": "ni un solo punto", "duracion": 1.6, "entrada": "letras"},
+    {"texto": "Un cuadrado perfecto", "ancla": "cuadrado perfecto", "duracion": 1.6}
+  ],
+  "panel": {"ancla": "sigue tirando", "hasta": "con cuatro puntos", "titulo": "dado"},
+  "cola": 1.8,
+  "audio": {"revelacion": "triángulo de sierpinski", "golpes": ["vuelve el orden", "cuadrado perfecto"], "remate": "el azar no dibuja"}
+}

@@ -231,6 +231,11 @@ Inspirado en los reels de referencia (cortes al ritmo, fondos de un solo color, 
 - **Loop:** el sketch dibuja en la portada el mismo estado que en su último fotograma, y el panel baja antes del final (`hasta`), para que el último fotograma coincida con el primero.
 - **Fuentes:** el subconjunto latino de Space Mono no tiene griego ni flechas (θ, →). Usa texto ("t", ":") en fórmulas y etiquetas.
 - **Rigor:** las afirmaciones del guion se comprueban, con una simulación propia o con fuentes, antes de grabar la voz. Lo que es una metáfora visual se rotula como "esquema". En `nº01`: la autopista empieza en el paso 9 977 (simulado); que la hormiga nunca queda encerrada está demostrado (Bunimovich y Troubetzkoy, 1992); que puede calcular cualquier cosa también (Gajardo, Moreira y Goles, 2002); y que siempre acabe en autopista sigue sin demostrarse.
+  - En `nº02` (simulado con 200 000 puntos):
+    - En el triángulo, ningún punto cae en el hueco central desde el primer salto; es exacto, porque un salto hacia una esquina cae siempre en la copia a la mitad de esa esquina.
+    - En el cuadrado sin regla los puntos lo llenan todo; con «no repetir esquina» sale un fractal.
+    - El tetraedro de Sierpinski tiene dimensión 2, y visto a lo largo del eje que une dos aristas opuestas es un cuadrado lleno.
+    - Ojo al contar puntos «dentro del hueco»: el borde es parte del fractal, y en float32 hace falta un margen.
 
 ### Reglas para sketches generativos (críticas)
 - Render determinista: todo depende de `useCurrentFrame()`. Nada de `requestAnimationFrame`, `Date.now()` ni `Math.random()`.
