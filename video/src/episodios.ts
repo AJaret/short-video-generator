@@ -11,12 +11,23 @@ export type Episodio = {
   tiempos: Tiempos | null;
   /** URL del audio de la voz, si ya se generó. */
   voz: string | null;
+  /** URL de la mezcla final (voz + música + efectos), si ya se generó: se usa en lugar de la voz. */
+  mezcla: string | null;
+};
+
+const url = (archivo: unknown) => {
+  const a = archivo as {default?: string} | string | undefined;
+  return a === undefined ? null : typeof a === 'string' ? a : (a.default ?? null);
 };
 
 /** Regla compartida con producir.py para pasar de carpeta a ID de composición. */
 export const idDeCarpeta = (carpeta: string) => carpeta.replace(/^nº/, 'ep').replace(/[^a-zA-Z0-9-]/g, '');
 
-const archivos = require.context('../../episodios', true, /^\.\/[^/]+\/(Sketch\.tsx|config\.json|tiempos\.json|voz\.wav)$/);
+const archivos = require.context(
+  '../../episodios',
+  true,
+  /^\.\/[^/]+\/(Sketch\.tsx|config\.json|tiempos\.json|voz\.wav|mezcla\.wav)$/,
+);
 
 function cargar(): Episodio[] {
   const porCarpeta = new Map<string, Record<string, unknown>>();
@@ -29,14 +40,14 @@ function cargar(): Episodio[] {
   const episodios: Episodio[] = [];
   for (const [carpeta, f] of porCarpeta) {
     if (!f['config.json'] || !f['Sketch.tsx']) continue;
-    const voz = f['voz.wav'] as {default?: string} | string | undefined;
     episodios.push({
       carpeta,
       id: idDeCarpeta(carpeta),
       config: f['config.json'] as ConfigEpisodio,
       sketch: f['Sketch.tsx'] as ModuloSketch,
       tiempos: (f['tiempos.json'] as Tiempos | undefined) ?? null,
-      voz: voz === undefined ? null : typeof voz === 'string' ? voz : (voz.default ?? null),
+      voz: url(f['voz.wav']),
+      mezcla: url(f['mezcla.wav']),
     });
   }
   return episodios.sort((x, y) => x.carpeta.localeCompare(y.carpeta));

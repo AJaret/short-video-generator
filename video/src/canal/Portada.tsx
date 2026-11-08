@@ -6,12 +6,10 @@ import React from 'react';
 import {useCurrentFrame, useVideoConfig} from 'remotion';
 import {cobertura, ORDEN, recortarPapel, useDibujo} from './capas';
 import {ajustarTexto, trazarRectIrregular} from './dibujo';
-import {ALTO, RECORTE_PORTADA, SEGURA, UTIL} from './diseno';
+import {ALTO, DURACION_PORTADA, RECORTE_PORTADA, SEGURA, UTIL} from './diseno';
 import {fuente, MONO, TITULAR} from './fuentes';
 import {numeroConFormato} from './Numeracion';
 
-/** Segundos que la portada permanece en pantalla (gancho de 0–3 s). */
-export const DURACION_PORTADA = 2.6;
 const FOTOGRAMAS_SALIDA = 8;
 
 export type PropsPortada = {numero: number; tema: string; titulo: string};

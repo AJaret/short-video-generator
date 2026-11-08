@@ -24,3 +24,6 @@ Thumbs.db
 
 # Fotogramas de verificación (producir.py --stills)
 episodios/*/stills/
+
+# Mezcla final generada por video/scripts/sonido.mjs
+episodios/*/mezcla.wav

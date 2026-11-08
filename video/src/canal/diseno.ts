@@ -34,3 +34,9 @@ export const HUECO_SUBTITULO = 40;
 
 /** Centro vertical de la tira de subtítulos sin panel (tercio inferior, sobre la zona segura). */
 export const SUBTITULO_Y = UTIL.y + UTIL.h - 90;
+
+/** Segundos que la portada permanece en pantalla (gancho de 0–3 s). */
+export const DURACION_PORTADA = 2.6;
+
+/** Duración por defecto de un dato de impacto, en segundos. */
+export const DURACION_IMPACTO = 1.6;

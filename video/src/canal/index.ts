@@ -8,7 +8,7 @@ export * from './prng';
 export * from './tiempos';
 export * from './tipos';
 export {RisoFilter} from './RisoFilter';
-export {Portada, DURACION_PORTADA} from './Portada';
+export {Portada} from './Portada';
 export {SubtituloNormal} from './SubtituloNormal';
 export {DatoImpacto, tramosImpacto} from './DatoImpacto';
 export {PanelDatos, progresoPanel, areaSketch} from './PanelDatos';

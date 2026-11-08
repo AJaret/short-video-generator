@@ -199,6 +199,23 @@ ID de composición: el nombre de la carpeta con `nº` → `ep` y sin caracteres 
 - Simulaciones con estado (boids, autómatas, partículas): se precalculan por fotograma o se recalculan de forma determinista desde el fotograma 0. El fotograma N debe ser idéntico en la vista previa y en el render.
 - Los sketches dibujan en escala de grises o con máscaras por tinta. El color final lo pone `<RisoFilter>`.
 
+### Sonido: `video/src/sonido/` (todo por código, determinista)
+- `producir.py` genera `episodios/<ep>/mezcla.wav` antes del render con `node scripts/sonido.mjs <ep>`, que tarda ~2 s. La mezcla junta voz, música, efectos de la plantilla y efectos del episodio, y Remotion **solo reproduce esa pista** (si no existe, solo la voz). `mezcla.wav` no se versiona.
+- `sintesis.ts`: osciladores, filtros (un polo y biquad con barrido), envolventes, limitador con anticipación y lectura y escritura de WAV.
+- `instrumentos.ts` contiene la firma sonora del canal:
+  - `impresora` (traqueteo riso), `sello` (golpe), `papel` (deslizamiento) y `zumbido` (grave que crece).
+  - `tic` (afinado) y `ticShepard` (subida "infinita").
+  - `musicaLofi`: 78 BPM en La menor, con Rhodes, colchón de cinta, bajo y batería con escobillas y swing, más el "wow & flutter" de cinta y crujido de vinilo.
+- `banda.ts` (reglas de mezcla):
+  - Música a −18 dB respecto a la voz (`audio.musicaDb`). Baja 3 dB más mientras habla la voz y 7 dB más durante los datos de impacto.
+  - Efectos: impresora al salir la portada, papel al subir y bajar el panel, y sello + impresora corta en cada impacto.
+  - Zumbido durante los 4 s previos a `audio.revelacion` (un ancla o segundos de `config.json`).
+  - Salida a **−14 LUFS** con limitador a −1 dBFS. En el MP4, Remotion reparte la pista mono en estéreo a −3 dB por canal: medida en estéreo da −14 LUFS.
+- **Efectos propios de un episodio:** `episodios/<ep>/sonido.ts` exporta `eventos({config, tiempos, duracion})` y devuelve una lista de tics con `{t, frecuencia, volumenDb, duracion?, brillo?, shepard?}`.
+  - Para que imagen y sonido coincidan, la línea de tiempo del sketch va en un módulo **puro** (`linea.ts`, sin React), compartido por `Sketch.tsx` y `sonido.ts`. Ejemplo: `nº01`, donde cada paso de la hormiga suena un semitono más alto y en la aceleración suena una escalera de Shepard.
+  - Lección aprendida: 30 tics por segundo a la misma altura se oyen como un zumbido. Para "cada paso más alto" hace falta que cada tic suba de verdad: Shepard, o un rango amplio.
+- Verificación: `pyloudnorm` en el servicio `voz` (volumen total y picos) y un espectrograma de la mezcla.
+
 ### Render
 - `npx remotion render` a 1080×1920, 30 fps, H.264, CRF 18, audio AAC.
 - WebGL en el render: dentro de Docker, Chrome no ve la GPU, así que se usa `swangle` (SwiftShader por CPU), ya fijado en `video/remotion.config.ts`. Si los shaders salen en negro o falla WebGL, revisa esto primero.

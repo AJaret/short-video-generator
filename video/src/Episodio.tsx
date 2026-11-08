@@ -51,7 +51,8 @@ export const ComposicionEpisodio: React.FC<PropsEpisodio> = ({carpeta, guias}) =
         <Portada numero={config.numero} tema={config.tema} titulo={config.titulo} />
       </RisoFilter>
       <GuiaZonasSeguras visible={guias} />
-      {ep.voz ? <Html5Audio src={ep.voz} /> : null}
+      {/* Mezcla final (voz + música + efectos) si existe; si no, solo la voz */}
+      {ep.mezcla ?? ep.voz ? <Html5Audio src={(ep.mezcla ?? ep.voz) as string} /> : null}
     </AbsoluteFill>
   );
 };

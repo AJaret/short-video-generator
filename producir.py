@@ -11,8 +11,9 @@ Se ejecuta en Windows con Python básico (solo librería estándar) y coordina l
   1. Comprueba el episodio (guion.md, config.json, Sketch.tsx).
   2. Libera la GPU si la interfaz de voz está abierta.
   3. Voz: docker compose run --rm voz python voz/generar.py …   (se salta si el guion no cambió)
-  4. Video: docker compose run --rm video npx remotion render <id> …
-  5. Deja el MP4 en episodios/<ep>/<ep>.mp4.
+  4. Sonido: mezcla.wav = voz + música lo-fi + efectos (video/scripts/sonido.mjs, unos segundos)
+  5. Video: docker compose run --rm video npx remotion render <id> …
+  6. Deja el MP4 en episodios/<ep>/<ep>.mp4.
 """
 
 from __future__ import annotations
@@ -180,6 +181,16 @@ def importar_voz_externa(ep: Path, origen: str) -> None:
     avisar(f"Voz externa importada: {ruta.name} → {destino.relative_to(RAIZ).as_posix()}")
 
 
+def generar_sonido(ep: Path) -> None:
+    """mezcla.wav = voz + música lo-fi + efectos (plantilla y episodio). Tarda unos segundos."""
+    titulo("Sonido")
+    if not ((ep / "voz.wav").exists() and (ep / "tiempos.json").exists()):
+        avisar("⚠ Sin voz todavía: no hay banda sonora (se renderiza mudo o solo con lo que exista).")
+        return
+    if docker("compose", "run", "--rm", "video", "node", "scripts/sonido.mjs", ep.name).returncode != 0:
+        fallar("Falló la banda sonora (mira el error de arriba).")
+
+
 def renderizar(ep: Path) -> Path:
     titulo("Video")
     if not (ep / "tiempos.json").exists():
@@ -287,6 +298,7 @@ def main() -> None:
         generar_voz(ep, args.forzar_voz, args.borrador)
     mp4 = None
     if not args.solo_voz:
+        generar_sonido(ep)
         mp4 = renderizar(ep)
     stills = generar_stills(ep, config) if args.stills else []
 

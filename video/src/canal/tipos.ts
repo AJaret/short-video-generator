@@ -31,6 +31,15 @@ export type ConfigEpisodio = {
   panel?: {desde?: number; ancla?: string; hasta?: number | string; titulo?: string};
   /** Segundos extra tras la última palabra (por defecto 1.5). */
   cola?: number;
+  /** Banda sonora (ver video/src/sonido/banda.ts). */
+  audio?: {
+    /** Música lo-fi de fondo (por defecto sí). */
+    musica?: boolean;
+    /** Música respecto a la voz, en dB (por defecto −18). */
+    musicaDb?: number;
+    /** Momento de la revelación (ancla del guion o segundos): el zumbido crece hasta ahí. */
+    revelacion?: string | number;
+  };
 };
 
 /** Una palabra de tiempos.json. */

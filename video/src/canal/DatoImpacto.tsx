@@ -4,13 +4,12 @@ import React from 'react';
 import {useCurrentFrame, useVideoConfig} from 'remotion';
 import {cobertura, ORDEN, recortarPapel, todasLasCapas, useDibujo} from './capas';
 import {ajustarTexto, mezclar, trazarRectIrregular} from './dibujo';
-import {UTIL} from './diseno';
+import {DURACION_IMPACTO, UTIL} from './diseno';
 import {fuente, TITULAR} from './fuentes';
 import {inicioImpacto} from './tiempos';
 import type {Impacto, Tiempos} from './tipos';
 import {centroAreaConPanel} from './PanelDatos';
 
-const DURACION_POR_DEFECTO = 1.6;
 const ENTRADA = 4; // fotogramas
 const SALIDA = 6; // fotogramas
 
@@ -20,7 +19,7 @@ export function tramosImpacto(impactos: Impacto[], tiempos: Tiempos | null): {im
   return impactos.flatMap((impacto) => {
     const inicio = inicioImpacto(impacto, tiempos);
     if (inicio === null) return [];
-    return [{impacto, inicio, fin: inicio + (impacto.duracion ?? DURACION_POR_DEFECTO)}];
+    return [{impacto, inicio, fin: inicio + (impacto.duracion ?? DURACION_IMPACTO)}];
   });
 }
 

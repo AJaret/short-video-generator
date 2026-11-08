@@ -15,8 +15,9 @@
     "paths": {
       "@canal": ["src/canal/index.ts"],
       "@canal/*": ["src/canal/*"],
+      "@sonido/*": ["src/sonido/*"],
       "*": ["node_modules/@types/*", "node_modules/*"]
     }
   },
-  "include": ["src", "remotion.config.ts", "../episodios/**/*.tsx"]
+  "include": ["src", "remotion.config.ts", "../episodios/**/*.tsx", "../episodios/**/*.ts"]
 }
