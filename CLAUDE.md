@@ -107,7 +107,7 @@ Todo corre en Docker; `producir.py` es el único coordinador en Windows, con Pyt
 - [Kit](docs/kit.md): herramientas de motion graphics y motor 3D; leer antes de crear un sketch.
 - [Sonido](docs/sonido.md): instrumentos, composición, mezcla, limitador y sincronía.
 - [Render](docs/render.md): CPU, rendimiento e interpretación de los informes.
-- [nº01](episodios/nº01-hormiga-de-langton/NOTAS.md) y [nº02](episodios/nº02-juego-del-caos/NOTAS.md): rigor y decisiones de cada episodio.
+- [nº01](episodios/nº01-hormiga-de-langton/NOTAS.md), [nº02](episodios/nº02-juego-del-caos/NOTAS.md), [nº03](episodios/nº03-bandada/NOTAS.md) y [nº04](episodios/nº04-lorenz/NOTAS.md): rigor y decisiones de cada episodio.
 
 ## Comandos habituales (PowerShell, raíz del repo)
 
