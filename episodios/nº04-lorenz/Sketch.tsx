@@ -78,6 +78,19 @@ function curvas(c: Parameters<Parameters<typeof useDibujo>[1]>[0], indice: numbe
   }
 }
 
+/**
+ * Flecha del campo de Lorenz en un punto, proyectada en x-z (dx = 10(y − x), dz = xy − 8z/3), en px.
+ * La dirección es exacta; el largo crece con la rapidez pero comprimido (log), para que las flechas
+ * lentas se vean (antes, a 4 px por unidad, la del inicio medía 7 px y no se veía).
+ */
+function flechaLorenz(p: P3): [number, number] {
+  const vx = 10 * (p[1] - p[0]);
+  const vz = p[0] * p[1] - (8 * p[2]) / 3;
+  const v = Math.hypot(vx, vz) || 1;
+  const largo = 70 + 45 * Math.log1p(v);
+  return [(vx / v) * largo, -(vz / v) * largo];
+}
+
 // ── Campo de flechas (esquema) ────────────────────────────────────────────────────────────────
 
 /** Corte del campo de Lorenz en el plano x-z con y = 1: dx = 10(1 − x), dz = x − 8z/3. */
@@ -165,7 +178,12 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
       }
       const marcas = [l.pasos, tiempoAncla(tiempos, 'cambia la flecha', l.pasos + 1), tiempoAncla(tiempos, 'avanzan otra vez', l.pasos + 2)];
       const paso = t < marcas[1] ? 0 : t < marcas[2] ? 1 : 2;
-      const u = paso + fase(t, marcas[paso], Math.min(marcas[paso] + 0.5, marcas[paso + 1] ?? l.casi));
+      const u = t < l.pasos ? 0 : paso + fase(t, marcas[paso], Math.min(marcas[paso] + 0.5, marcas[paso + 1] ?? l.casi));
+      // "Casi apuntan al mismo sitio": las flechas se juntan en el centro para compararlas; vuelven en "como los puntos…"
+      const tJuntas = tiempoAncla(tiempos, 'casi apuntan', l.dos + 1.5);
+      const tSeparan = tiempoAncla(tiempos, 'como los puntos', tJuntas + 3.7);
+      const juntas = t < l.pasos ? salidaCubica(fase(t, tJuntas, tJuntas + 0.5)) * (1 - salidaCubica(fase(t, tSeparan, tSeparan + 0.5))) : 0;
+      const entra = t < l.pasos ? salidaCubica(fase(t, l.dos + 0.2, l.dos + 0.6)) : 1;
       for (const [j, ctx] of [c.solido.b, c.solido.a].entries()) {
         const xx = j ? 1 : 1.001;
         const idx = Math.min(50, Math.round(u * 4));
@@ -178,9 +196,19 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
         ctx.beginPath();
         ctx.arc(x, y, 12, 0, Math.PI * 2);
         ctx.fill();
-        flecha(ctx, x, y, 10 * (pt[1] - pt[0]) * 4, -(pt[0] * pt[1] - (8 * pt[2]) / 3) * 4);
+        const [dx, dz] = flechaLorenz(pt);
+        const ox = x + (500 - x) * juntas;
+        const oy = y + (700 - y) * juntas;
+        flecha(ctx, ox, oy, dx * entra, dz * entra, 6);
         ctx.font = fuente(MONO, 27, 700);
         ctx.fillText(j ? 'ROSA' : 'AZUL', 210 + 470 * j, 1030);
+      }
+      if (juntas > 0.5) {
+        // La diferencia de verdad, medida con las dos flechas del inicio
+        const [ax, az] = flechaLorenz(datos.azul[0]);
+        const [bx, bz] = flechaLorenz(datos.rosa[0]);
+        const grados = (Math.abs(Math.atan2(az, ax) - Math.atan2(bz, bx)) * 180) / Math.PI;
+        rotulo(c, `ángulo entre las dos: ${grados.toFixed(2).replace('.', ',')}°`, 270, 1180, salidaCubica(fase(t, tJuntas + 0.3, tJuntas + 0.7)), {tam: 30, tinta: 'b'});
       }
       rotulo(c, t < l.pasos ? 'misma escala / dos inicios' : 'movimiento / paso ' + (paso + 1), 90, 465, 1, {tam: 32, tinta: 'a'});
       return;
