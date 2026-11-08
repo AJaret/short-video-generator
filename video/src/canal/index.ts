@@ -13,6 +13,7 @@ export * from './fondos';
 export * from './transiciones';
 export * from './graficos';
 export * from './cinetica';
+export * from './tres';
 export {Transiciones} from './CapaTransiciones';
 export {RisoFilter} from './RisoFilter';
 export {Portada} from './Portada';

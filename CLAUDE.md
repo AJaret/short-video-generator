@@ -60,7 +60,7 @@ Degradados suaves, glow, sombras proyectadas, bordes perfectos, blanco puro (#FF
 ---
 
 ## 3 · Formato en pantalla: "Lienzo + panel"
-- Lienzo 1080×1920, 30 fps. Sin cámara.
+- Lienzo 1080×1920, 30 fps. Sin cámara: nada grabado; todo se genera con código. Una cámara virtual 3D (`tres.ts`) sí se permite en las partes que lo pidan.
 - Base: animación a pantalla completa.
 - Panel de datos: sube desde abajo SOLO en episodios con simulación o números. Ocupa ~35 % inferior útil; la animación se compacta arriba. Contiene contadores, fórmula o mini gráfico en dither.
 - Zonas seguras (no poner nada importante): ~200 px arriba, ~380 px abajo, ~140 px a la derecha.
@@ -208,6 +208,19 @@ Inspirado en los reels de referencia (cortes al ritmo, fondos de un solo color, 
   - `rotulo`: etiqueta Space Mono en tira de papel que entra con rebote.
 - `<DatoImpacto>`: `impacto.entrada` puede ser `'sello'` (por defecto), `'letras'` o `'barrido'`.
 - Reglas: el texto y las líneas finas van en capas sólidas; los volúmenes, tonos y orlas, en las tramadas. Nada de degradados: los medios tonos son la trama a 1/3 y 2/3.
+- `tres.ts` · **3D en riso**: un motor propio y ligero, sin Three.js ni WebGL. Proyecta a 2D y pinta con el algoritmo del pintor, así que es determinista y rápido en el render por CPU. El volumen sale de la trama: la luz de cada cara se convierte en cobertura de tinta.
+  - Mallas: `cubo`, `esfera`, `toro`, `cilindro`, `cono` y `superficie(f)` (y = f(x, z), se ve por los dos lados). `transformar` aplica escala, giro y posición.
+  - `Camara` en órbita: `distancia`, `azimut`, `elevacion` y `fov` (pequeño = casi ortográfica; desde arriba parece 2D). La luz va fija respecto a la cámara.
+  - `dibujar3D(capas, objetos, camara, {luz, ambiente, niebla})`. Cada objeto lleva `material: {tinta, sombra?, aristas?, alambre?, tonos?}`:
+    - `sombra` imprime la parte oscura también con la otra tinta.
+    - Las aristas van en la capa sólida.
+    - `niebla` resta tinta con la distancia.
+    - Cada cara tapa lo de detrás en todas las tintas.
+    - `armado(i, n)` hace que las caras lleguen volando una a una, por ejemplo en semicorcheas.
+  - `curva3D`: polilínea con grosor según la profundidad; lo cercano en una tinta y lo lejano en otra, con un halo de papel en los cruces. `puntos3D` + `puntosEsfera`, y `nudoToroidal` como ejemplo.
+  - `giroAlPulso(t, pulso, {paso, division, desde})`: un giro que salta en cada tiempo y frena. Es el movimiento motion graphics de un objeto 3D.
+  - Luz casi de frente = todo claro. Para superficies, una luz rasante (`luz: [-0.85, 0.45, -0.3]`, `ambiente: 0.1`) hace que el relieve se lea por su sombra.
+  - Uso: en las partes de un episodio que lo pidan (atractores, bandadas en 3D, superficies). No hace falta en todo el video. Coste: el muestrario de 48 s, con tres escenas 3D, tarda ~8 min en renderizar.
 
 ### config.json
 `numero`, `tema`, `titulo`, `semilla`, `tintas` (`{a, b}`; se valida que como mucho una sea de serie), `impactos` (máx. 3: `{texto, ancla | desde, duracion}`), `panel` (`{ancla | desde, hasta?, titulo?}`, solo si el episodio lleva datos; `hasta` puede ser un número de segundos o un ancla), `cola` (segundos tras la última palabra) y opcionalmente `voz` (ajustes de la voz).
