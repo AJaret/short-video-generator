@@ -48,6 +48,8 @@ export type ConfigEpisodio = {
     revelacion?: string | number;
     /** Desde aquí la música se reduce al remate (ancla o segundos; por defecto 2 compases tras la revelación). */
     remate?: string | number;
+    /** Golpes musicales extra (anclas o segundos), cada uno con un tiempo de silencio antes. */
+    golpes?: (string | number)[];
   };
 };
 

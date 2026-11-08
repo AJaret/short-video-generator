@@ -9,14 +9,14 @@
 //   · impresora riso al salir la portada (cae en el primer tiempo del compás 1 a 92 BPM),
 //     papel cuando el panel sube/baja, sello en cada impacto (todos en el pulso)
 //   · zumbido grave que crece durante los 4 s previos a la revelación
-//   · −14 LUFS con limitador enlazado a −1 dBFS
+//   · −14 LUFS medidos (BS.1770) con limitador enlazado a −1 dBFS
 import {DURACION_IMPACTO, DURACION_PORTADA} from '../canal/diseno';
 import {cuantizar, pulsoDe, type Pulso} from '../canal/pulso';
 import {momentoImpacto, resolverPanel, tiempoDeAncla} from '../canal/tiempos';
 import type {ConfigEpisodio, Tiempos} from '../canal/tipos';
 import {impresora, papel, sello, tic, ticShepard, zumbido} from './instrumentos';
 import {musicaMisterio, type PlanMusical} from './musica';
-import {aDb, db, estereo, limitador, rms, sumarPaneado} from './sintesis';
+import {aDb, db, estereo, normalizarLufs, rms, sumarPaneado} from './sintesis';
 
 /** Efecto puntual que un episodio pide (sonido.ts): un tic afinado. */
 export type EventoSonoro = {
@@ -31,6 +31,8 @@ export type EventoSonoro = {
   shepard?: boolean;
   /** Paneo (−1 izquierda … 1 derecha). */
   pan?: number;
+  /** En lugar de un tic, un efecto de la plantilla (p. ej. la impresora en un corte de escena). */
+  efecto?: 'impresora' | 'papel';
 };
 
 export type ContextoSonido = {config: ConfigEpisodio; tiempos: Tiempos; duracion: number; pulso: Pulso};
@@ -44,7 +46,7 @@ export type EntradaBanda = {
 };
 
 const COLA_POR_DEFECTO = 1.5;
-const GANANCIA_FINAL_DB = 3.2; // objetivo ≈ −14 LUFS (Reels/TikTok/Shorts), medido con pyloudnorm
+const LUFS_OBJETIVO = -14; // Reels/TikTok/Shorts
 const DURACION_ZUMBIDO = 4;
 const CENTRO = Math.SQRT1_2; // lo mono va al centro con −3 dB por canal (misma sonoridad que antes)
 
@@ -76,8 +78,17 @@ function suavizar(objetivo: Float32Array, ataqueMarcos: number, relajaMarcos: nu
 const anclaOSegundos = (valor: string | number | undefined, tiempos: Tiempos) =>
   typeof valor === 'number' ? valor : valor ? tiempoDeAncla(tiempos, valor) : null;
 
-/** Plan musical a partir de la línea de tiempo del episodio. */
+/**
+ * Plan musical a partir de la línea de tiempo del episodio. Tras la revelación: 2 compases a tope
+ * y luego intensidad media (0,65) mientras se explica, hasta el remate. Cada golpe (la revelación y
+ * los de `audio.golpes`) lleva un tiempo de silencio justo antes.
+ */
 function planMusical(config: ConfigEpisodio, tiempos: Tiempos, duracion: number, pulso: Pulso, revelacion: number | null): PlanMusical {
+  const extras = (config.audio?.golpes ?? [])
+    .map((g) => anclaOSegundos(g, tiempos))
+    .filter((g): g is number => g !== null)
+    .map((g) => cuantizar(g, pulso));
+  const golpes = [...(revelacion !== null ? [revelacion] : []), ...extras];
   const remateBruto = anclaOSegundos(config.audio?.remate, tiempos);
   const remate = remateBruto !== null ? cuantizar(remateBruto, pulso) : revelacion !== null ? revelacion + 2 * pulso.compas : duracion;
   const final = Math.max(remate, cuantizar(duracion - pulso.compas * 0.75, pulso, 4, 'anterior'));
@@ -86,13 +97,13 @@ function planMusical(config: ConfigEpisodio, tiempos: Tiempos, duracion: number,
     duracion,
     pulso,
     final,
-    caidas: revelacion !== null ? [[revelacion - pulso.negra, revelacion]] : [],
-    golpes: revelacion !== null ? [revelacion] : [],
+    caidas: golpes.map((g): [number, number] => [g - pulso.negra, g]),
+    golpes,
     intensidad: (t) => {
       if (t < salida - 0.01) return 0.2;
       if (revelacion !== null && t < revelacion) return 0.3 + 0.55 * Math.min(1, (t - salida) / Math.max(1, revelacion - salida));
       if (revelacion === null) return 0.35 + 0.5 * Math.min(1, (t - salida) / Math.max(1, remate - salida));
-      if (t < remate) return 1;
+      if (t < remate) return t < revelacion + 2 * pulso.compas ? 1 : 0.65;
       return 0.25 * (1 - 0.6 * Math.min(1, (t - remate) / Math.max(1, final - remate)));
     },
   };
@@ -182,21 +193,21 @@ export function construirBanda({config, tiempos, voz, eventos}: EntradaBanda) {
   // 5. Efectos del episodio
   const propios = eventos ? eventos({config, tiempos, duracion, pulso}) : [];
   for (const ev of propios) {
-    const sonido = ev.shepard
-      ? ticShepard(sr, ev.frecuencia, ev.duracion ?? 0.09)
-      : tic(sr, ev.frecuencia, ev.duracion ?? 0.12, ev.brillo ?? 0.35);
+    const sonido =
+      ev.efecto === 'impresora'
+        ? impresora(sr, 0.6, Math.round(ev.t * 100))
+        : ev.efecto === 'papel'
+          ? papel(sr, true, 0.45, Math.round(ev.t * 100))
+          : ev.shepard
+            ? ticShepard(sr, ev.frecuencia, ev.duracion ?? 0.09)
+            : tic(sr, ev.frecuencia, ev.duracion ?? 0.12, ev.brillo ?? 0.35);
     sumarPaneado(mezcla, sonido, sr, ev.t, relativo(ev.volumenDb), ev.pan ?? 0);
   }
   efectos.push(`${propios.length} eventos del episodio`);
   informe.efectos = efectos;
 
-  // 6. Volumen final y limitador enlazado
-  const g = db(GANANCIA_FINAL_DB);
-  for (let i = 0; i < n; i++) {
-    mezcla.l[i] *= g;
-    mezcla.r[i] *= g;
-  }
-  limitador([mezcla.l, mezcla.r], sr, -1);
+  // 6. Sonoridad final medida (BS.1770) y limitador enlazado: −14 LUFS sea cual sea la voz
+  informe.lufs = Math.round(normalizarLufs([mezcla.l, mezcla.r], sr, LUFS_OBJETIVO, -1) * 10) / 10;
   informe.duracion_s = Math.round(duracion * 100) / 100;
   return {mezcla, sr, informe};
 }

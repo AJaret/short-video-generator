@@ -71,6 +71,7 @@ Degradados suaves, glow, sombras proyectadas, bordes perfectos, blanco puro (#FF
 
 ### Estructura temporal (30–45 s)
 0–3 s portada/gancho · 3–25 s misterio y explicación · 25–38 s revelación · 38–45 s remate. Procura que el último fotograma enlace con el primero (loop).
+Excepción aprobada por el usuario: un episodio puede durar más si lo pide el tema. `nº01` dura 71,6 s porque explica lo que se sabe y lo que no.
 
 ### Portada
 El primer fotograma es también la miniatura: "nº XX / tema" en Space Mono, título grande en Archivo Black y un fotograma clave de la animación. Todo lo importante dentro del recorte central 3:4 (1080×1440).
@@ -192,6 +193,7 @@ ID de composición: el nombre de la carpeta con `nº` → `ep` y sin caracteres 
 - **Durante la portada (0–2,6 s) no hay subtítulos normales**, aunque la voz ya hable: el primer fotograma es la miniatura.
 - **Loop:** el sketch dibuja en la portada el mismo estado que en su último fotograma, y el panel baja antes del final (`hasta`), para que el último fotograma coincida con el primero.
 - **Fuentes:** el subconjunto latino de Space Mono no tiene griego ni flechas (θ, →). Usa texto ("t", ":") en fórmulas y etiquetas.
+- **Rigor:** las afirmaciones del guion se comprueban, con una simulación propia o con fuentes, antes de grabar la voz. Lo que es una metáfora visual se rotula como "esquema". En `nº01`: la autopista empieza en el paso 9 977 (simulado); que la hormiga nunca queda encerrada está demostrado (Bunimovich y Troubetzkoy, 1992); que puede calcular cualquier cosa también (Gajardo, Moreira y Goles, 2002); y que siempre acabe en autopista sigue sin demostrarse.
 
 ### Reglas para sketches generativos (críticas)
 - Render determinista: todo depende de `useCurrentFrame()`. Nada de `requestAnimationFrame`, `Date.now()` ni `Math.random()`.
@@ -223,16 +225,24 @@ ID de composición: el nombre de la carpeta con `nº` → `ep` y sin caracteres 
   - El panel sube y baja, y los sellos de impacto entran, en el tiempo más cercano a su ancla (`resolverPanel(…, pulso)`, `momentoImpacto`).
   - **Golpe riso** (`ritmo.golpeVisual`, activo por defecto): en cada tiempo el desajuste de registro de A y B da un salto de +0,9 px que cae en 0,12 s, y en cada compás el fotograma se escala un 1 %. No actúa durante la portada.
 - `banda.ts` (reglas de mezcla, en **estéreo**):
-  - Plan musical: intensidad 0,2 en la portada; sube de 0,3 a 0,85 hasta la revelación (`audio.revelacion`, llevada al tiempo más cercano); **un tiempo de silencio** justo antes; **golpe** en ella; intensidad 1 hasta `audio.remate` (ancla, por defecto 2 compases después); luego se reduce hasta el acorde final.
+  - Plan musical:
+    - Intensidad 0,2 en la portada; sube de 0,3 a 0,85 hasta la revelación (`audio.revelacion`, llevada al tiempo más cercano).
+    - **Un tiempo de silencio** justo antes de la revelación y **golpe** en ella.
+    - Dos compases a tope; luego intensidad media (0,65) mientras se explica, hasta `audio.remate` (ancla, por defecto 2 compases después). Después se reduce hasta el acorde final.
+    - `audio.golpes` (anclas) añade más golpes, cada uno con su tiempo de silencio antes.
   - Música a −18 dB respecto a la voz (`audio.musicaDb`). La base baja 3 dB más mientras habla la voz y 7 dB más durante los impactos; los golpes no bajan.
   - Efectos, todos en el pulso: impresora al salir la portada, papel al subir y bajar el panel, sello + impresora corta en cada impacto, y zumbido durante los 4 s previos a la revelación.
-  - La voz y los efectos van al centro, con −3 dB por canal. Salida a **−14 LUFS** (medido en estéreo) con limitador enlazado a −1 dBFS.
-- **Efectos propios de un episodio:** `episodios/<ep>/sonido.ts` exporta `eventos({config, tiempos, duracion, pulso})` y devuelve una lista de tics con `{t, frecuencia, volumenDb, duracion?, brillo?, shepard?, pan?}`.
+  - La voz y los efectos van al centro, con −3 dB por canal. Salida a **−14 LUFS**: la mezcla mide su propia sonoridad con `lufs()` (BS.1770, coincide con pyloudnorm) y se ajusta sola con `normalizarLufs()` y un limitador enlazado a −1 dBFS. No hay ganancias fijas que calibrar: antes, una ganancia fija dejó `nº01` a −12,8 al cambiar la voz.
+- **Efectos propios de un episodio:** `episodios/<ep>/sonido.ts` exporta `eventos({config, tiempos, duracion, pulso})` y devuelve una lista de tics con `{t, frecuencia, volumenDb, duracion?, brillo?, shepard?, pan?}`. Con `efecto: 'impresora' | 'papel'` se pide un efecto de la plantilla, por ejemplo la impresora en cada corte de escena.
   - Para que imagen y sonido coincidan, la línea de tiempo del sketch va en un módulo **puro** (`linea.ts`, sin React), compartido por `Sketch.tsx` y `sonido.ts`, y **en la rejilla de pulso**. Ejemplo: `nº01`:
     - Un paso de la hormiga por tiempo: salta al empezar el tiempo, frenando, y luego espera. Cada paso suena un escalón más arriba en la pentatónica de La menor, así que los pasos forman parte de la música.
     - La cámara salta en cada tiempo.
     - En la aceleración suena una escalera de Shepard en corcheas, luego semicorcheas y luego fusas.
     - La autopista aparece en el golpe de la revelación.
+    - **Escenas con cortes secos en el pulso**, cada una anclada a una frase del guion: principal → 4 tableros con dibujos de partida distintos → cuadro que la hormiga siempre rompe → cinta (esquema de una máquina que cuenta en binario) → final, que vuelve a la portada.
+    - La simulación está en otro módulo puro (`simulacion.ts`), que también usa el sonido; por ejemplo, para que suene un tic en cada salida del cuadro.
+    - Los dibujos de partida se eligieron simulando 400 semillas con el mismo generador (`out/buscar_tableros.mjs`): 396 acaban en autopista antes de 40 000 pasos. En pantalla solo se muestra lo comprobado.
+    - En el panel, una lista de comprobación se completa a medida que la voz lo dice.
   - Lección aprendida: 30 tics por segundo a la misma altura se oyen como un zumbido. Para "cada paso más alto" hace falta que cada tic suba de verdad: Shepard, o un rango amplio.
 - Verificación:
   - `pyloudnorm` en el servicio `voz` para el volumen total y los picos.

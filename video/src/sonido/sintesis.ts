@@ -163,6 +163,81 @@ export function limitador(canales: Float32Array | Float32Array[], sr: number, te
   }
 }
 
+// ───────────────────────────── Sonoridad (BS.1770) ─────────────────────────────
+
+/** Coeficientes [b0, b1, b2, a1, a2] (normalizados) de los filtros de ponderación K. */
+function ponderacionK(sr: number): number[][] {
+  const estante = (() => {
+    const A = 10 ** (4 / 40), w = (2 * Math.PI * 1500) / sr, cos = Math.cos(w), al = Math.sin(w) / (2 * Math.SQRT1_2);
+    const a0 = A + 1 - (A - 1) * cos + 2 * Math.sqrt(A) * al;
+    return [
+      (A * (A + 1 + (A - 1) * cos + 2 * Math.sqrt(A) * al)) / a0,
+      (-2 * A * (A - 1 + (A + 1) * cos)) / a0,
+      (A * (A + 1 + (A - 1) * cos - 2 * Math.sqrt(A) * al)) / a0,
+      (2 * (A - 1 - (A + 1) * cos)) / a0,
+      (A + 1 - (A - 1) * cos - 2 * Math.sqrt(A) * al) / a0,
+    ];
+  })();
+  const pasaAltos = (() => {
+    const w = (2 * Math.PI * 38) / sr, cos = Math.cos(w), al = Math.sin(w) / (2 * 0.5);
+    const a0 = 1 + al;
+    return [(1 + cos) / 2 / a0, -(1 + cos) / a0, (1 + cos) / 2 / a0, (-2 * cos) / a0, (1 - al) / a0];
+  })();
+  return [estante, pasaAltos];
+}
+
+/**
+ * Sonoridad integrada en LUFS según ITU-R BS.1770 (ponderación K, bloques de 400 ms con 75 % de
+ * solape, puerta absoluta de −70 LUFS y relativa de −10 LU). Coincide con pyloudnorm.
+ */
+export function lufs(canales: Float32Array[], sr: number): number {
+  const filtrados = canales.map((c) => {
+    let x = Float64Array.from(c);
+    for (const [b0, b1, b2, a1, a2] of ponderacionK(sr)) {
+      const y = new Float64Array(x.length);
+      let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+      for (let i = 0; i < x.length; i++) {
+        const v = b0 * x[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+        x2 = x1; x1 = x[i]; y2 = y1; y1 = v;
+        y[i] = v;
+      }
+      x = y;
+    }
+    return x;
+  });
+  const bloque = Math.round(0.4 * sr);
+  const paso = Math.round(0.1 * sr);
+  const z: number[] = [];
+  for (let ini = 0; ini + bloque <= filtrados[0].length; ini += paso) {
+    let suma = 0;
+    for (const c of filtrados) {
+      let s = 0;
+      for (let i = ini; i < ini + bloque; i++) s += c[i] * c[i];
+      suma += s / bloque;
+    }
+    z.push(suma);
+  }
+  const sonoridad = (v: number) => -0.691 + 10 * Math.log10(v);
+  const absolutos = z.filter((v) => sonoridad(v) > -70);
+  if (!absolutos.length) return -Infinity;
+  const media = (l: number[]) => l.reduce((s, v) => s + v, 0) / l.length;
+  const relativa = sonoridad(media(absolutos)) - 10;
+  return sonoridad(media(absolutos.filter((v) => sonoridad(v) > relativa)));
+}
+
+/**
+ * Lleva la pista a `objetivo` LUFS sin pasar de `techoDb`: ganancia + limitador, y una segunda
+ * pasada corta porque el limitador baja un poco la sonoridad. Devuelve la sonoridad final.
+ */
+export function normalizarLufs(canales: Float32Array[], sr: number, objetivo = -14, techoDb = -1): number {
+  for (let pasada = 0; pasada < 2; pasada++) {
+    const g = db(objetivo - lufs(canales, sr));
+    for (const c of canales) for (let i = 0; i < c.length; i++) c[i] *= g;
+    limitador(canales, sr, techoDb);
+  }
+  return lufs(canales, sr);
+}
+
 // ───────────────────────────── Estéreo ─────────────────────────────
 
 export type Estereo = {l: Float32Array; r: Float32Array};
