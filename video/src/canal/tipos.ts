@@ -41,7 +41,7 @@ export type ConfigEpisodio = {
     /** Tempo en BPM (por defecto 92). */
     bpm?: number;
     /** "Golpe riso" visual en cada tiempo (por defecto sí). */
-    golpeVisual?: boolean | 'compas';
+    golpeVisual?: boolean;
   };
   /** Banda sonora (ver video/src/sonido/banda.ts). */
   audio?: {

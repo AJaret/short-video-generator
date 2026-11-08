@@ -31,7 +31,7 @@ Tintas de serie (un episodio puede sustituir UNA tinta por otra de esta lista): 
 ### Textura (filtro global obligatorio)
 - Dithering ordenado Bayer 4×4 (o Floyd–Steinberg en imágenes fijas), 4 niveles por tinta.
 - Punto de dither: 3–4 px a 1080×1920.
-- Desajuste de registro entre tintas: 2–6 px, con temblor leve y determinista.
+- Desajuste de registro entre tintas: 2–6 px, fijo y determinista (por semilla). En video no tiembla: el temblor por fotograma parpadeaba y el que cambiaba por compás se veía como un salto cada ~2,6 s. La vida la da el golpe riso de cada tiempo.
 - Tintas combinadas en modo multiply sobre el papel.
 - Grano de papel por encima de todo al 3–5 % de opacidad.
 

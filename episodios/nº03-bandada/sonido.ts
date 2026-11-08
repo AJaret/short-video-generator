@@ -2,13 +2,13 @@
 //   · Las tres reglas: una nota al presentar cada una.
 //   · El giro: cada semicorchea suena una nota por las aves que acaban de girar (más fuerte cuantas
 //     más), subiendo por la pentatónica de La menor: se OYE cómo el giro recorre la bandada.
-//   · La de delante: una campanita en la semicorchea en que gira (es una seguidora más).
+//   · "¿Y la que iba delante?": una campanita cuando aparece el círculo que la señala.
 // Usa la misma simulación y la misma correspondencia de tiempos que Sketch.tsx.
 import type {ContextoSonido, EventoSonoro} from '@sonido/banda';
 import {tiempoDeAncla} from '@canal/tiempos';
 import {cuantizar} from '@canal/pulso';
 import {hz} from '@sonido/sintesis';
-import {iniciadorasDe, momentosDeGiro, PASO, vuelo} from './simulacion';
+import {iniciadorasDe, momentosDeGiro, vuelo} from './simulacion';
 
 const PENTATONICA = [0, 3, 5, 7, 10];
 const grado = (k: number) => PENTATONICA[k % 5] + 12 * Math.floor(k / 5);
@@ -29,8 +29,6 @@ export function eventos({config, tiempos, duracion, pulso}: ContextoSonido): Eve
   const estados = vuelo(config.semilla, 2 * fin + 3, giroSim);
   const giros = momentosDeGiro(estados, giroSim, giroSim + (remate - giro));
   const ini = iniciadorasDe(estados[0]);
-  const enGiro = estados[Math.round(giroSim / PASO)];
-  const delante = enGiro.map((a, i) => [a.x, i]).sort((a, b) => b[0] - a[0])[0][1];
   const aVideo = (s: number) => s - fin + remate;
 
   // Semicorcheas con aves que acaban de girar (sin contar las iniciadoras)
@@ -44,9 +42,6 @@ export function eventos({config, tiempos, duracion, pulso}: ContextoSonido): Eve
     lista.push({t, frecuencia: hz(grado(Math.min(k, 12)) - 12), volumenDb: -16 + Math.min(8, n * 1.2), duracion: 0.1, brillo: 0.4, pan: ((k % 5) - 2) * 0.2});
   });
   lista.push({t: cuantizar(giro, pulso, 0.25), frecuencia: hz(-24), volumenDb: -6, duracion: 0.4, brillo: 0.25});
-  if (Number.isFinite(giros[delante])) {
-    const t = cuantizar(aVideo(giros[delante]), pulso, 0.25, 'siguiente');
-    if (t < remate) lista.push({t, frecuencia: hz(19), volumenDb: -6, duracion: 0.5, brillo: 0.8});
-  }
+  lista.push({t: cuantizar(remate, pulso, 0.25, 'siguiente'), frecuencia: hz(19), volumenDb: -6, duracion: 0.5, brillo: 0.8});
   return lista;
 }

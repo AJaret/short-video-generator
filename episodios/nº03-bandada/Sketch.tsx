@@ -2,7 +2,7 @@ import React,{useMemo} from 'react';
 import {useCurrentFrame,useVideoConfig} from 'remotion';
 import {cobertura,ORDEN,tiempoDeAncla,useDibujo,type PropsSketch} from '@canal';
 import {reglaEnPantalla} from './reglas';
-import {momentosDeGiro,vuelo,PASO,type Ave} from './simulacion';
+import {vuelo,PASO,type Ave} from './simulacion';
 
 type V=[number,number,number];
 const suave=(x:number)=>{const u=Math.min(1,Math.max(0,x));return u*u*(3-2*u);};
@@ -14,15 +14,8 @@ const Sketch:React.FC<PropsSketch>=({config,tiempos})=>{
  const cerca=ancla('fíjate',5), r1=ancla('si otra',13), r2=ancla('si las de al lado',17), r3=ancla('y si empieza',21);
  const lejos=ancla('ahora mira desde lejos',26), giro=ancla('unas giran',28), remate=ancla('y la que iba delante',34);
  const estados=useMemo(()=>vuelo(config.semilla,2*fin+3,giro+fin-remate),[config.semilla,fin,giro,remate]);
- // La de delante (mayor x cuando empieza el giro) y el segundo del video en que gira: es una seguidora más
- const delante=useMemo(()=>{
-   const giroSim=giro+fin-remate,enGiro=estados[Math.round(giroSim/PASO)];
-   const i=enGiro.map((a,k)=>[a.x,k]).sort((a,b)=>b[0]-a[0])[0][1];
-   const g=momentosDeGiro(estados,giroSim,giroSim+(remate-giro))[i];
-   // En el plano final (vuelve el principio del vuelo, como la portada) la de delante es otra: la de mayor x al empezar
-   const final=estados[0].map((a,k)=>[a.x,k]).sort((a,b)=>b[0]-a[0])[0][1];
-   return {i,t:Number.isFinite(g)?g-fin+remate:Infinity,final};
- },[estados,giro,fin,remate]);
+ // La de delante en el plano final (vuelve el principio del vuelo, como la portada): la de mayor x
+ const delante=useMemo(()=>estados[0].map((a,k)=>[a.x,k]).sort((a,b)=>b[0]-a[0])[0][1],[estados]);
  useDibujo(ORDEN.sketch,(capas)=>{
    if(t>=r1 && t<lejos){
      const regla=t<r2?1:t<r3?2:3;
@@ -60,11 +53,12 @@ const Sketch:React.FC<PropsSketch>=({config,tiempos})=>{
      }
      tinta.setLineDash([]);
    }
-   // "¿Y la que iba delante?": un círculo punteado la señala desde que gira, siguiendo a las demás
-   // y otra vez mientras la voz pregunta por ella; se va antes del final para que el último fotograma sea la portada
+   // "¿Y la que iba delante?": un círculo punteado la señala solo mientras la voz pregunta por ella
+   // (antes aparecía desde que giraba, mientras la voz aún hablaba del giro, y se adelantaba).
+   // Se va antes del final para que el último fotograma sea la portada.
    const preguntando=ultimoPlano && t<Math.min(remate+3.2,fin-0.8);
-   if((!ultimoPlano && t>=delante.t) || preguntando){
-     const d=todas[preguntando?delante.final:delante.i],h=proyectar(d.x,d.y,d.z);
+   if(preguntando){
+     const d=todas[delante],h=proyectar(d.x,d.y,d.z);
      tinta.strokeStyle=cobertura(1);tinta.lineWidth=3;tinta.setLineDash([7,9]);
      tinta.beginPath();tinta.arc(h[0],h[1],46,0,2*Math.PI);tinta.stroke();tinta.setLineDash([]);
    }
