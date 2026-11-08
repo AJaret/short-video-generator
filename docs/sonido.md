@@ -22,7 +22,8 @@
   - A 92 BPM un compás dura 2,609 s, así que la salida de la portada (2,6 s) cae en el primer tiempo del compás 1.
 - **Lo que va al pulso en la plantilla:**
   - El panel sube y baja, y los sellos de impacto entran, en el tiempo más cercano a su ancla (`resolverPanel(…, pulso)`, `momentoImpacto`).
-  - **Golpe riso** (`ritmo.golpeVisual`, activo por defecto): en cada tiempo el desajuste de registro de A y B da un salto de +0,9 px que cae en 0,12 s, y en cada compás el dibujo se escala un 1 % al leer las capas, antes del tramado; el punto conserva sus 3 px. No se escala con CSS. No actúa durante la portada.
+  - **Golpe riso** (`ritmo.golpeVisual`, activo por defecto): en cada tiempo el desajuste de registro de A y B da un salto de +0,9 px que cae en 0,12 s, y en cada compás el dibujo se escala un 1 % al leer las capas, antes del tramado, en escalones de 0,25 % (4 cambios por compás en vez de ~15: cada cambio mueve las líneas finas un píxel); el punto conserva sus 3 px. No se escala con CSS. No actúa durante la portada.
+  - `ritmo.golpeVisual: "compas"`: solo la escala del compás, sin el salto de registro de cada tiempo. Para episodios de líneas finas, donde ese salto separa y junta los colores en cada tiempo (lo usa `nº04`). Medido en el final quieto de `nº04`: el cambio entre fotogramas bajó de 0,48 a 0,10.
 - `banda.ts` (reglas de mezcla, en **estéreo**):
   - Plan musical:
     - Intensidad 0,2 en la portada; sube de 0,3 a 0,85 hasta la revelación (`audio.revelacion`, llevada al tiempo más cercano).

@@ -41,6 +41,8 @@ type Vista = {escala: number; cy: number; ang: number};
 const VISTA_CURVAS: Vista = {escala: 19, cy: 850, ang: 0};
 /** La mariposa de la portada y del final: más pequeña y más arriba, por encima del título. */
 const VISTA_PORTADA: Vista = {escala: 13, cy: 690, ang: 0};
+/** El atractor completo al alejar la cámara (cabe con el giro de ±0,6 rad). */
+const ESCALA_ATRACTOR = 14;
 
 const proyectar = (p: P3, v: Vista): [number, number] => [
   500 + (p[0] * Math.cos(v.ang) + p[1] * Math.sin(v.ang)) * v.escala,
@@ -50,10 +52,14 @@ const proyectar = (p: P3, v: Vista): [number, number] => [
 function vistaEn(t: number, l: Linea): Vista {
   if (t < DURACION_PORTADA) return VISTA_PORTADA;
   const giro = (s: number) => (s >= l.abre ? 0.6 * Math.sin((s - l.abre) * 0.25) * fase(s, l.abre, l.abre + 2) : 0);
-  if (t < l.cierre) return {...VISTA_CURVAS, ang: giro(t)};
+  // "Alejemos la cámara": de 19 a 14 px por unidad. Con el giro (±0,6 rad) la figura abre hasta
+  // |x| ≈ 30: a 19 se salía por los dos lados (−68…1068 px); a 14 queda en 82…918, dentro de las zonas seguras.
+  const lejos = (s: number) => VISTA_CURVAS.escala + (ESCALA_ATRACTOR - VISTA_CURVAS.escala) * salidaCubica(fase(s, l.abre, l.abre + 2));
+  if (t < l.cierre) return {...VISTA_CURVAS, escala: lejos(t), ang: giro(t)};
   // "Una vuelta más": la cámara vuelve al encuadre de la portada
   const k = salidaCubica(fase(t, l.cierre, l.cierre + 0.8));
-  return {escala: 19 + (13 - 19) * k, cy: 850 + (690 - 850) * k, ang: giro(l.cierre) * (1 - k)};
+  const e0 = lejos(l.cierre);
+  return {escala: e0 + (VISTA_PORTADA.escala - e0) * k, cy: 850 + (VISTA_PORTADA.cy - 850) * k, ang: giro(l.cierre) * (1 - k)};
 }
 
 /** Curvas y puntos. Con `completa`, desde el principio de la trayectoria; si no, una estela. */

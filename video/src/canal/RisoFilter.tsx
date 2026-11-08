@@ -24,15 +24,20 @@ import {tramar} from './tramado';
 
 /**
  * Desajuste de registro de una tinta en el fotograma: base fija por semilla (≈1,6–2,4 px), un
- * temblor suave de ±0.8 px y un `empuje` (px) que late con la música ("golpe riso", como el tambor
- * de la impresora en cada vuelta). Entre A y B quedan 2–6 px.
+ * temblor de ±0.8 px y un `empuje` (px) que late con la música ("golpe riso", como el tambor de la
+ * impresora en cada vuelta). Entre A y B quedan 2–6 px.
+ *
+ * `reloj` decide cuándo cambia el temblor. Con pulso es el número de compás (entero): el temblor
+ * cambia solo en el primer tiempo de cada compás, junto al golpe. Antes era un ruido continuo por
+ * fotograma: al redondear a píxeles, cada tinta saltaba 1 px a destiempo cada pocos fotogramas, y
+ * con líneas finas (nº04) todo el dibujo parpadeaba ("tiembla mucho", lo notó el usuario).
  */
-function desajuste(semilla: number, tinta: number, frame: number, base: number, empuje = 0): [number, number] {
+function desajuste(semilla: number, tinta: number, reloj: number, base: number, empuje = 0): [number, number] {
   const azar = mulberry32(semilla * 31 + tinta * 7919);
   const angulo = azar() * Math.PI * 2 + tinta * Math.PI; // A y B tienden a ir en sentidos opuestos
   const radio = base + azar() * 0.8 + empuje;
-  const tx = (ruido1d(frame / 7, semilla + tinta * 101) - 0.5) * 1.6;
-  const ty = (ruido1d(frame / 7, semilla + tinta * 211 + 5) - 0.5) * 1.6;
+  const tx = (ruido1d(reloj, semilla + tinta * 101) - 0.5) * 1.6;
+  const ty = (ruido1d(reloj, semilla + tinta * 211 + 5) - 0.5) * 1.6;
   return [Math.cos(angulo) * radio + tx, Math.sin(angulo) * radio + ty];
 }
 
@@ -81,12 +86,18 @@ export const RisoFilter: React.FC<PropsRisoFilter> = ({tintas, semilla, punto = 
   // Golpe riso: late en cada tiempo de la música (no durante la portada: la miniatura sale limpia)
   const t = frame / fps;
   const conGolpe = Boolean(pulso?.golpeVisual) && t >= DURACION_PORTADA;
-  const latido = conGolpe && pulso ? golpe(t, pulso, 1, 0.12) : 0;
+  // golpeVisual 'compas': solo el golpe de compás, sin el salto de registro de cada tiempo (para
+  // episodios de líneas finas, donde ese salto separa y junta los colores en cada tiempo)
+  const latido = conGolpe && pulso && pulso.golpeVisual === true ? golpe(t, pulso, 1, 0.12) : 0;
+  // Temblor: cambia en cada compás (sin pulso, cada ~0,23 s como antes)
+  const reloj = pulso ? Math.floor(t / pulso.compas + 1e-9) : frame / 7;
   // La escala se aplica dentro de tramar() (al leer las capas), no con CSS sobre el canvas ya tramado:
   // Chrome lo remuestreaba, suavizaba la trama y sacaba colores fuera de la paleta. Cuando el golpe
   // ya se apagó (< 1 %, menos de 0,1 px en el borde) se deja en 1 exacto.
   const golpeCompas = conGolpe && pulso ? golpe(t, pulso, 4, 0.15) : 0;
-  const escala = golpeCompas >= 0.01 ? 1 + EMPUJE_ESCALA * golpeCompas : 1;
+  // En escalones de 0,25 %: cada cambio de escala mueve las líneas finas un píxel, así que menos
+  // cambios (4 por compás en vez de ~15) es menos parpadeo, con el mismo empujón.
+  const escala = golpeCompas >= 0.01 ? 1 + Math.round((EMPUJE_ESCALA * golpeCompas) / 0.0025) * 0.0025 : 1;
 
   // Se ejecuta en cada render, después de que los hijos registraron su dibujo
   useLayoutEffect(() => {
@@ -118,7 +129,7 @@ export const RisoFilter: React.FC<PropsRisoFilter> = ({tintas, semilla, punto = 
       alto: height,
       tramadas: [leer(capas.a), leer(capas.b), leer(capas.k)],
       solidas: [leer(capas.solido.a), leer(capas.solido.b), leer(capas.solido.k)],
-      desajustes: [desajuste(semilla, 1, frame, 1.6, empuje), desajuste(semilla, 2, frame, 1.6, empuje), [0, 0]], // el negro es la referencia
+      desajustes: [desajuste(semilla, 1, reloj, 1.6, empuje), desajuste(semilla, 2, reloj, 1.6, empuje), [0, 0]], // el negro es la referencia
       colores: {a: tintas.a, b: tintas.b, k: NEGRO, papel: PAPEL},
       punto,
       grano,

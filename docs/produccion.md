@@ -76,7 +76,7 @@ ID de composición: el nombre de la carpeta con `nº` → `ep` y sin caracteres 
   - `capas.solido.a/b/k` (**sólidas**): texto y líneas finas. Sin trama (umbral al 50 %) y con el mismo desajuste de registro que su tinta. El punto de 3 px rompe la letra pequeña: el texto va siempre aquí.
 - Cobertura de tinta = alfa × (1 − luminancia): negro opaco = 100 %, gris = tono tramado, transparente = sin tinta. Usa `cobertura(v)` como color de relleno.
 - Para dejar papel (tiras de subtítulos, panel, fondos de etiquetas) usa `recortarPapel(capas, trazado)`: borra lo que ya está dibujado debajo, en las seis capas.
-- La plancha negra es la referencia de registro (no se desplaza). A y B se mueven aproximadamente 1,6–2,4 px de base (con variación por semilla) en sentidos opuestos, con un temblor suave de ±0.8 px.
+- La plancha negra es la referencia de registro (no se desplaza). A y B se mueven aproximadamente 1,6–2,4 px de base (con variación por semilla) en sentidos opuestos, con un temblor suave de ±0.8 px que cambia solo en el primer tiempo de cada compás (con pulso). Antes cambiaba con un ruido continuo por fotograma: al redondear a píxeles, cada tinta saltaba 1 px a destiempo y, con líneas finas (nº04), todo el dibujo parpadeaba.
 - Bordes imperfectos: `trazarRectIrregular`, `trazarLineaIrregular`, `trazarCirculoIrregular` y `trazarPoligonoIrregular` (también estrellas), deterministas por semilla.
 
 

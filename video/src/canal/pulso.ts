@@ -16,7 +16,8 @@ export type Pulso = {
   /** Segundos de un compás. */
   compas: number;
   /** ¿Se ve el "golpe riso" en cada tiempo? */
-  golpeVisual: boolean;
+  /** Golpe riso: true = registro en cada tiempo + escala en cada compás; 'compas' = solo la escala. */
+  golpeVisual: boolean | 'compas';
 };
 
 export function pulsoDe(config: ConfigEpisodio): Pulso {
