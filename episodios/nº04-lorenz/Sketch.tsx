@@ -63,9 +63,9 @@ function vistaEn(t: number, l: Linea): Vista {
 }
 
 /** Curvas y puntos. Con `completa`, desde el principio de la trayectoria; si no, una estela. */
-function curvas(c: Parameters<Parameters<typeof useDibujo>[1]>[0], indice: number, v: Vista, completa: number) {
+function curvas(c: Parameters<Parameters<typeof useDibujo>[1]>[0], indice: number, v: Vista, completa: number, largo = 170) {
   for (const [curva, ctx] of [[datos.azul, c.solido.b], [datos.rosa, c.solido.a]] as const) {
-    const estela = Math.max(0, indice - 170);
+    const estela = Math.max(0, indice - largo);
     const desde = Math.floor(estela * (1 - completa));
     ctx.strokeStyle = ctx.fillStyle = cobertura(1);
     ctx.lineWidth = completa > 0.5 ? 2.5 : 5;
@@ -224,7 +224,8 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     const v = vistaEn(t, l);
     // La figura completa: en la portada, al alejar la cámara y en el final
     const completa = t < DURACION_PORTADA || t >= l.cierre ? 1 : t >= l.abre ? fase(t, l.abre, l.abre + 2) : 0;
-    curvas(c, indice, v, completa);
+    // En la escena de la línea, estela larga: que se lea como una línea que recorre la figura
+    curvas(c, indice, v, completa, t < l.inicio ? 450 : 170);
     if (t >= l.casi && t < l.abre) {
       // La distancia entre los dos puntos, como una línea punteada
       const a = proyectar(datos.rosa[indice], v);

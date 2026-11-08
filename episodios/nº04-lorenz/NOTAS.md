@@ -8,5 +8,6 @@ Comprobación: `docker compose run --rm analisis python "episodios/nº04-lorenz/
 - «Ya cruzó a la izquierda… y la azul todavía da otra vuelta por la derecha»: `verificar.py` busca el primer paso en que la rosa cruza a x < 0 mientras la azul sigue en x > 0 y da al menos una vuelta completa más por la derecha (paso 3472 → 3538).
 - El campo de flechas es un corte en el plano x-z con y = 1 (dx = 10(1 − x), dz = x − 8z/3) y se rotula como «esquema»; el punto rosa que lo recorre sigue ese corte con RK4.
 - Portada y último fotograma: la mariposa completa con los dos puntos en lóbulos opuestos (el instante final de las trayectorias), por encima del título. Antes era una elipse pequeña, porque al principio las dos curvas van pegadas.
-- Sonido: cada cambio de lóbulo suena en su lado del estéreo (la rosa aguda, la azul grave), con la misma línea de tiempo que la imagen (`linea.ts`).
+- «Fíjate en esta línea»: el tramo 1200→1880 de las trayectorias. Las curvas van pegadas mientras cruzan de un lóbulo al otro (menos de 2 px de separación) y se abren a ~100 px justo después de «¿cuándo se separan?». El tramo anterior (420→720) eran solo vueltas cerradas en un lóbulo y se veía como un óvalo girando.
+- Sonido: cada cambio de lóbulo suena en su lado del estéreo (la rosa aguda, la azul grave), con la misma línea de tiempo que la imagen (`linea.ts`), también en la escena de la línea.
 - Duración: 80 s por la toma de voz. Para acortarlo habría que regrabar.

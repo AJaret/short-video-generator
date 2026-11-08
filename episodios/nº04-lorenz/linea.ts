@@ -2,7 +2,7 @@
 // (sonido.ts), así los cambios de lóbulo suenan cuando se ven.
 //
 //   portada (0–2,6 s)        la mariposa completa con los dos puntos en lóbulos opuestos (= último fotograma)
-//   línea (→ "vamos al principio")       las dos curvas van pegadas: parecen una sola
+//   línea (→ "vamos al principio")       las dos curvas van pegadas y cruzan de lóbulo; se abren al final
 //   esquema (→ "en algunas vueltas")     ampliación del inicio, campo de flechas y dos pasos
 //   curvas (→ "alejemos la cámara")      el tramo en que se separan, se reacercan y cruzan de lado
 //   atractor (→ "una vuelta más")        la figura completa, girando
@@ -23,6 +23,10 @@ export type Linea = {
   cierre: number;
   fin: number;
 };
+
+/** Tramo de las trayectorias en la escena de la línea (índices de trayectorias.json). */
+export const LINEA_DESDE = 1200;
+export const LINEA_HASTA = 1880;
 
 export const fase = (t: number, a: number, b: number) => Math.max(0, Math.min(1, (t - a) / Math.max(0.01, b - a)));
 
@@ -49,7 +53,10 @@ export function linea(tiempos: Tiempos | null, fin: number): Linea {
  */
 export function indiceEn(t: number, l: Linea): number {
   if (t < DURACION_PORTADA) return datos.fin;
-  if (t < l.inicio) return Math.floor(420 + fase(t, DURACION_PORTADA, l.inicio) * 300);
+  // "Fíjate en esta línea": un tramo largo que cruza de un lóbulo al otro con las dos curvas pegadas;
+  // se abren (de ~2 px a ~100 px) justo después de "¿cuándo se separan?". Antes era 420→720, solo
+  // vueltas cerradas en el lóbulo izquierdo: se veía como un óvalo girando.
+  if (t < l.inicio) return Math.floor(LINEA_DESDE + fase(t, DURACION_PORTADA, l.inicio) * (LINEA_HASTA - LINEA_DESDE));
   if (t < l.rosa) return Math.floor(2700 + fase(t, l.casi, l.rosa) * (datos.cruce - 2700));
   if (t < l.abre) return Math.floor(datos.cruce + fase(t, l.rosa, l.abre) * (datos.fin - datos.cruce));
   return datos.fin;
@@ -62,7 +69,7 @@ export function indiceEn(t: number, l: Linea): number {
  */
 export function cambiosDeLobulo(l: Linea, fps = 30): {t: number; curva: 'rosa' | 'azul'; lado: number}[] {
   const out: {t: number; curva: 'rosa' | 'azul'; lado: number}[] = [];
-  const tramos: [number, number][] = [[l.casi, l.abre]];
+  const tramos: [number, number][] = [[DURACION_PORTADA, l.inicio], [l.casi, l.abre]];
   for (const [desde, hasta] of tramos) {
     let previo = indiceEn(desde, l);
     for (let f = Math.ceil(desde * fps) + 1; f / fps < hasta; f++) {
