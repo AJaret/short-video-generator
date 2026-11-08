@@ -27,3 +27,4 @@ episodios/*/stills/
 
 # Mezcla final generada por video/scripts/sonido.mjs
 episodios/*/mezcla.wav
+video/src/muestrario/mezcla.wav

@@ -12,6 +12,11 @@ export type Impacto = {
   desde?: number;
   /** Duración en segundos (por defecto 1.6). */
   duracion?: number;
+  /**
+   * Cómo entra: 'sello' (por defecto, sobretamaño que se asienta), 'letras' (letra a letra en
+   * semicorcheas) o 'barrido' (una barra de tinta lo descubre en un tiempo).
+   */
+  entrada?: 'sello' | 'letras' | 'barrido';
 };
 
 /** config.json de un episodio. */

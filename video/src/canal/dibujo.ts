@@ -103,3 +103,60 @@ export function ajustarTexto(
 
 /** Interpolación lineal. */
 export const mezclar = (a: number, b: number, f: number) => a + (b - a) * f;
+
+/**
+ * Traza (sin rellenar) un círculo de borde tembloroso y determinista. `amplitud` en px
+ * (por defecto ~1,5 % del radio, entre 1 y 5 px).
+ */
+export function trazarCirculoIrregular(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  semilla: number,
+  amplitud = Math.max(1, Math.min(5, r * 0.015)),
+  paso = 24,
+  /** Añadir al trazado actual (para agujeros con 'evenodd') en lugar de empezar uno nuevo. */
+  continuar = false,
+): void {
+  const n = Math.max(12, Math.round((2 * Math.PI * r) / paso));
+  if (!continuar) ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const ang = (i / n) * Math.PI * 2;
+    const rr = r + (hash01(semilla, i) - 0.5) * 2 * amplitud;
+    const x = cx + Math.cos(ang) * rr;
+    const y = cy + Math.sin(ang) * rr;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+/**
+ * Traza (sin rellenar) un polígono regular de `lados` lados con vértices temblorosos.
+ * `rotacion` en radianes; con `interior` (0…1) traza una estrella de `lados` puntas.
+ */
+export function trazarPoligonoIrregular(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  lados: number,
+  semilla: number,
+  rotacion = 0,
+  interior?: number,
+  amplitud = Math.max(1, Math.min(5, r * 0.02)),
+): void {
+  const vertices = interior === undefined ? lados : lados * 2;
+  ctx.beginPath();
+  for (let i = 0; i < vertices; i++) {
+    const ang = rotacion - Math.PI / 2 + (i / vertices) * Math.PI * 2;
+    const base = interior !== undefined && i % 2 === 1 ? r * interior : r;
+    const rr = base + (hash01(semilla, i) - 0.5) * 2 * amplitud;
+    const x = cx + Math.cos(ang) * rr;
+    const y = cy + Math.sin(ang) * rr;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}

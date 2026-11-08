@@ -1,5 +1,8 @@
 // <DatoImpacto>: Archivo Black ~120 px al centro para el dato clave. Máximo 3 por video.
-// Entra como un sello (un leve sobretamaño que se asienta) sobre un bloque de tinta A.
+// Sobre un bloque de papel con su sombra de tinta A. Tres entradas (`impacto.entrada`):
+//   · 'sello' (por defecto): un leve sobretamaño que se asienta.
+//   · 'letras': el bloque cae como sello y el texto se imprime letra a letra, en semicorcheas.
+//   · 'barrido': una barra de tinta A cruza el bloque en un tiempo y deja el texto descubierto.
 import React from 'react';
 import {useCurrentFrame, useVideoConfig} from 'remotion';
 import {cobertura, ORDEN, recortarPapel, todasLasCapas, useDibujo} from './capas';
@@ -7,6 +10,7 @@ import {ajustarTexto, mezclar, trazarRectIrregular} from './dibujo';
 import {DURACION_IMPACTO, UTIL} from './diseno';
 import {fuente, TITULAR} from './fuentes';
 import {momentoImpacto} from './tiempos';
+import {textoBarrido, textoLetras} from './cinetica';
 import type {Pulso} from './pulso';
 import type {Impacto, Tiempos} from './tipos';
 import {centroAreaConPanel} from './PanelDatos';
@@ -78,7 +82,25 @@ export const DatoImpacto: React.FC<PropsDatoImpacto> = ({impactos, tiempos, prog
     k.fillStyle = cobertura(tinta);
     k.textAlign = 'center';
     k.textBaseline = 'middle';
-    lineas.forEach((linea, i) => k.fillText(linea, cx, cy - alto / 2 + interlinea * (i + 0.5) + 4));
+    const yLinea = (i: number) => cy - alto / 2 + interlinea * (i + 0.5) + 4;
+    const entrada = tramo.impacto.entrada ?? 'sello';
+    const ritmo: Pulso = pulso ?? {bpm: 92, negra: 60 / 92, compas: 240 / 92, golpeVisual: false};
+    if (entrada === 'letras' && restantes >= SALIDA) {
+      // Cada línea empieza donde acabó la anterior (contando solo letras)
+      let previas = 0;
+      lineas.forEach((linea, i) => {
+        textoLetras(k, linea, cx, yLinea(i), t, tramo.inicio + previas * ritmo.negra * 0.25, ritmo);
+        previas += linea.replace(/\s/g, '').length;
+      });
+    } else if (entrada === 'barrido' && restantes >= SALIDA) {
+      const p = Math.min(1, (t - tramo.inicio) / ritmo.negra);
+      lineas.forEach((linea, i) => {
+        const x = cx - k.measureText(linea).width / 2;
+        textoBarrido(capas, k, linea, x, yLinea(i), p, {alto: interlinea * 0.92, semilla: semillaForma + 10 + i, margen: 10});
+      });
+    } else {
+      lineas.forEach((linea, i) => k.fillText(linea, cx, yLinea(i)));
+    }
   });
 
   return null;

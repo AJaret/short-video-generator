@@ -43,6 +43,8 @@ export type FnDibujo = (capas: Capas, info: InfoDibujo) => void;
 /** Orden de dibujo de la plantilla: lo de mayor número queda encima. */
 export const ORDEN = {
   sketch: 0,
+  /** Transiciones entre escenas: tapan el sketch, no la plantilla. */
+  transicion: 5,
   panel: 10,
   impacto: 20,
   subtitulo: 30,
@@ -88,13 +90,14 @@ export function recortarPapel(
   capas: Capas,
   trazar: (ctx: CanvasRenderingContext2D) => void,
   fuerza = 1,
+  regla: CanvasFillRule = 'nonzero',
 ): void {
   for (const ctx of todasLasCapas(capas)) {
     ctx.save();
     ctx.globalCompositeOperation = 'destination-out';
     ctx.fillStyle = cobertura(fuerza);
     trazar(ctx);
-    ctx.fill();
+    ctx.fill(regla);
     ctx.restore();
   }
 }

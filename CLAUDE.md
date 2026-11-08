@@ -183,7 +183,31 @@ ID de composición: el nombre de la carpeta con `nº` → `ep` y sin caracteres 
 - Cobertura de tinta = alfa × (1 − luminancia): negro opaco = 100 %, gris = tono tramado, transparente = sin tinta. Usa `cobertura(v)` como color de relleno.
 - Para dejar papel (tiras de subtítulos, panel, fondos de etiquetas) usa `recortarPapel(capas, trazado)`: borra lo que ya está dibujado debajo, en las seis capas.
 - La plancha negra es la referencia de registro (no se desplaza). A y B se mueven 2–3 px en sentidos opuestos, con un temblor suave de ±0.8 px.
-- Bordes imperfectos: `trazarRectIrregular` y `trazarLineaIrregular` (deterministas por semilla).
+- Bordes imperfectos: `trazarRectIrregular`, `trazarLineaIrregular`, `trazarCirculoIrregular` y `trazarPoligonoIrregular` (también estrellas), deterministas por semilla.
+
+### Kit de motion graphics (`video/src/canal/`)
+Inspirado en los reels de referencia (cortes al ritmo, fondos de un solo color, formas geométricas, nubes de partículas), traducido a riso. Son funciones de dibujo puras que el sketch combina, y su tiempo sale siempre del pulso. Se ven todas en la composición **`muestrario`** (`video/src/muestrario/`), que sirve de catálogo y de ejemplo de uso.
+- `curvas.ts`: `tramo(t, inicio, duracion)` y curvas (`salidaCubica`, `entradaSalidaCubica`, `salidaExpo`, `salidaRebote`). Arranques secos y frenadas suaves.
+- `fondos.ts`:
+  - `fondoTinta(capas, 'b')` pone una plancha de tinta a sangre. Por defecto va en la capa sólida, para que el texto recortado salga nítido; con `{trama: true, cobertura: 0.34}` queda de medio tono punteado.
+  - `enNegativo(capas, ctx => …)` deja papel con cualquier relleno, trazo o `fillText`: formas y titulares en papel sobre la tinta.
+  - Un relleno de tinta A sobre la plancha B sale del multiply como `#002284`.
+- `transiciones.ts` + `<Transiciones lista pulso>` (`ORDEN.transicion`, por encima del sketch y por debajo de la plantilla):
+  - Tipos: `barrido` (mancha de borde ondulado con orla punteada, en cualquier `angulo`), `iris` (agujero que se cierra hacia un `centro` y se abre), `trama` (oleada de puntos que crecen y se encogen) y `corte`.
+  - Todas tapan, cortan y destapan. Duran 2 negras por defecto: si empiezan un tiempo antes del compás (`t: compas - negra`), el corte cae justo en el compás.
+  - `corteDe(tr, pulso)` da el momento del cambio de escena y `escenaEn(t, lista, pulso)` el índice de la escena vigente.
+  - Sonido sugerido: papel al empezar un barrido e impresora en cada corte.
+- `graficos.ts`:
+  - `estallido` (rayos que salen en un golpe), `trazarEstrella`.
+  - `ondas`: nace un anillo en cada tiempo.
+  - `marcasRegistro`: cruces de registro impresas en las tres planchas; el desajuste las separa en tres colores y saltan con el golpe riso. Van en las esquinas, dentro de las zonas seguras, porque son decoración.
+  - `nubeParticulas(ctx, n, p, destino, {desde})`: puntos que vuelan de dispersos (o de otra figura) a `enCirculo`, `enRejilla` o `enEspiral` (girasol).
+- `cinetica.ts`:
+  - `textoLetras`: letra a letra, una por semicorchea; `momentosLetras` da los mismos instantes al sonido.
+  - `textoBarrido`: una barra de tinta tapa el hueco y, al retirarse, deja el texto.
+  - `rotulo`: etiqueta Space Mono en tira de papel que entra con rebote.
+- `<DatoImpacto>`: `impacto.entrada` puede ser `'sello'` (por defecto), `'letras'` o `'barrido'`.
+- Reglas: el texto y las líneas finas van en capas sólidas; los volúmenes, tonos y orlas, en las tramadas. Nada de degradados: los medios tonos son la trama a 1/3 y 2/3.
 
 ### config.json
 `numero`, `tema`, `titulo`, `semilla`, `tintas` (`{a, b}`; se valida que como mucho una sea de serie), `impactos` (máx. 3: `{texto, ancla | desde, duracion}`), `panel` (`{ancla | desde, hasta?, titulo?}`, solo si el episodio lleva datos; `hasta` puede ser un número de segundos o un ancla), `cola` (segundos tras la última palabra) y opcionalmente `voz` (ajustes de la voz).
@@ -265,6 +289,8 @@ docker compose run --rm video npx tsc --noEmit -p . # comprobar tipos
 docker compose build voz                            # tras cambiar voz/requirements.txt (tarda: ~5 GB)
 docker compose run --rm voz python voz/generar.py --guion episodios/nº00-prueba/guion.md --salida episodios/nº00-prueba/
 docker compose up -d voz                            # interfaz de pruebas en http://localhost:7860
+docker compose run --rm video node scripts/sonido_muestrario.mjs   # banda del muestrario
+docker compose run --rm video npx remotion render muestrario out/muestrario.mp4 --props='{"guias":false}'
 ```
 La primera ejecución de voz descarga los pesos de Chatterbox (~3 GB) y de Whisper `small` al volumen `modelos_voz`.
 Los stills se guardan en `video/out/`.
