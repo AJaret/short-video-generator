@@ -5,6 +5,7 @@
     python producir.py episodios/nº03-lorenz --solo-video
     python producir.py episodios/nº03-lorenz --stills     # además, fotogramas de verificación
     python producir.py nº03-lorenz --borrador             # 1 toma de voz por bloque (3× más rápido)
+    python producir.py nº03-lorenz --voz-externa toma.mp3 # usar un audio externo (ElevenLabs…) como voz
 
 Se ejecuta en Windows con Python básico (solo librería estándar) y coordina los contenedores:
   1. Comprueba el episodio (guion.md, config.json, Sketch.tsx).
@@ -158,6 +159,27 @@ def generar_voz(ep: Path, forzar: bool, borrador: bool) -> None:
         fallar("generar.py terminó pero no hay tiempos.json.")
 
 
+FORMATOS_AUDIO = {".mp3", ".wav", ".m4a", ".flac", ".ogg"}
+
+
+def importar_voz_externa(ep: Path, origen: str) -> None:
+    """Copia un audio externo (ElevenLabs, locución real…) al episodio como voz_externa.<ext>.
+
+    Desde ese momento generar.py usa ese audio (solo lo alinea) en lugar de Chatterbox, también en
+    las siguientes ejecuciones. Para volver a Chatterbox, borra episodios/<ep>/voz_externa.*.
+    """
+    ruta = Path(origen).expanduser()
+    if not ruta.is_file():
+        fallar(f"No existe el audio externo: {ruta}")
+    if ruta.suffix.lower() not in FORMATOS_AUDIO:
+        fallar(f"Formato no admitido ({ruta.suffix}). Usa uno de: {', '.join(sorted(FORMATOS_AUDIO))}")
+    for viejo in ep.glob("voz_externa.*"):
+        viejo.unlink()
+    destino = ep / f"voz_externa{ruta.suffix.lower()}"
+    shutil.copy2(ruta, destino)
+    avisar(f"Voz externa importada: {ruta.name} → {destino.relative_to(RAIZ).as_posix()}")
+
+
 def renderizar(ep: Path) -> Path:
     titulo("Video")
     if not (ep / "tiempos.json").exists():
@@ -245,7 +267,10 @@ def main() -> None:
     p.add_argument("--forzar-voz", action="store_true", help="regenerar la voz aunque el guion no haya cambiado")
     p.add_argument("--borrador", action="store_true", help="1 toma de voz por bloque en vez de 3 (más rápido)")
     p.add_argument("--stills", action="store_true", help="renderizar también los fotogramas de verificación")
+    p.add_argument("--voz-externa", metavar="AUDIO", help="usar este audio (p. ej. un MP3 de ElevenLabs) como voz del episodio")
     args = p.parse_args()
+    if args.voz_externa and args.solo_video:
+        fallar("--voz-externa necesita el paso de voz: no se puede combinar con --solo-video.")
 
     ep = resolver_episodio(args.episodio)
     config = comprobar_episodio(ep, args.solo_video, args.solo_voz)
@@ -253,6 +278,10 @@ def main() -> None:
     avisar(f"Episodio {ep.name} · composición {id_composicion(ep.name)} · «{config['titulo']}»")
     inicio = time.time()
 
+    if args.voz_externa:
+        importar_voz_externa(ep, args.voz_externa)
+    elif any(ep.glob("voz_externa.*")):
+        avisar("El episodio usa una voz externa (voz_externa.*): no se genera con Chatterbox.")
     if not args.solo_video:
         liberar_gpu()
         generar_voz(ep, args.forzar_voz, args.borrador)

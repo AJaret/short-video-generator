@@ -156,6 +156,13 @@ ID de composición: el nombre de la carpeta con `nº` → `ep` y sin caracteres 
   - Caché: `.hash_voz` guarda el hash del guion, los ajustes, la referencia y las versiones. Si no cambia, no se regenera (salvo con `--forzar`).
   - `tiempos.json`: `{palabras: [{texto, inicio, fin}], duracion, meta: {segmentos, palabras_por_minuto, empatadas_whisper}}`.
 - Interfaz de pruebas: `docker compose up -d voz` → http://localhost:7860. Sirve para probar frases sueltas y para generar el episodio completo.
+- **Voz externa (ElevenLabs, locución real…):** desde `nº01` el usuario prefiere ElevenLabs, porque la voz de Chatterbox no le convenció.
+  - Importación: `python producir.py <ep> --voz-externa toma.mp3` copia el audio a `episodios/<ep>/voz_externa.mp3`. Ese archivo **se versiona**, porque es la fuente y no se puede regenerar.
+  - Mientras ese archivo exista, `generar.py` no usa Chatterbox: Whisper alinea el audio con el guion, convierte el resultado a `voz.wav` (−16 LUFS) y saca `tiempos.json`. Tarda ~30 s.
+  - El resumen avisa de lo que Whisper oyó y **no está en el guion** (por ejemplo, una etiqueta de emoción leída en voz alta).
+  - Para volver a Chatterbox, basta con borrar `voz_externa.*`.
+  - El texto que se pega en ElevenLabs debe tener **las mismas palabras que `guion.md`**; las etiquetas `[curious]` y los `<break>` dan igual. Si cambian palabras, hay que actualizar el guion. Formato que funcionó en `nº01`: Eleven v3 con etiquetas en inglés (`[curious]`, `[mischievously]`, `[excited]`, `[serious]`) y puntos suspensivos para las pausas; el usuario evitó `[whispers]`/`[softly]` porque el cambio de volumen sonaba brusco.
+  - Licencia: el plan gratuito de ElevenLabs normalmente no permite uso comercial. Antes de publicar, el usuario debe confirmar que su plan lo permite.
 
 ### Video: `video/` (Remotion + TypeScript)
 - Lee los archivos del episodio (`voz.wav`, `tiempos.json`, `config.json`, `Sketch.tsx`) desde `episodios/<ep>/`.

@@ -671,6 +671,106 @@ def producir_voz(
     return {"audio": audio, "sr": sr, "tiempos": tiempos, "resumen": resumen}
 
 
+# ───────────────────────────── Voz externa (p. ej. ElevenLabs) ─────────────────────────────
+
+NOMBRE_EXTERNA = "voz_externa"  # episodios/<ep>/voz_externa.<mp3|wav|…>
+
+
+def buscar_voz_externa(carpeta: Path) -> Path | None:
+    """Audio grabado o generado fuera (ElevenLabs, una locución real…) guardado en el episodio."""
+    return next((p for p in sorted(carpeta.glob(f"{NOMBRE_EXTERNA}.*")) if p.is_file()), None)
+
+
+def huella_externa(texto_guion: str, ruta: Path, ajustes: Ajustes) -> str:
+    datos = {
+        "guion": texto_guion,
+        "audio": hashlib.sha256(ruta.read_bytes()).hexdigest(),
+        "modelo_whisper": ajustes.modelo_whisper,
+        "cadena": VERSION_CADENA,
+        "whisper": metadata.version("openai-whisper"),
+    }
+    return hashlib.sha256(json.dumps(datos, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
+def importar_voz(texto_guion: str, ruta: Path, ajustes: Ajustes, avisar=print) -> dict:
+    """Usa un audio externo como voz del episodio: solo lo alinea con el guion (sin Chatterbox).
+
+    Whisper transcribe el audio completo con tiempos por palabra y se empata con las palabras del
+    guion original; las que no empatan se reparten entre sus vecinas. También se informa de lo que
+    Whisper oyó y no está en el guion (p. ej. una etiqueta de emoción leída en voz alta).
+    Devuelve {"audio", "sr", "tiempos", "resumen"} como producir_voz.
+    """
+    import librosa
+
+    segmentos = leer_guion(texto_guion, ajustes)
+    fichas = [f for s in segmentos for f in s.texto.split()]
+    if not fichas:
+        raise ValueError("El guion no tiene texto para leer.")
+    audio, sr = librosa.load(str(ruta), sr=None, mono=True)
+    audio = audio.astype(np.float32)
+    duracion = len(audio) / sr
+
+    avisar(f"  alineando {ruta.name} ({duracion:.1f} s) con Whisper ({ajustes.modelo_whisper})…")
+    import torch
+
+    torch.cuda.reset_peak_memory_stats()
+    oido = Oido(ajustes.modelo_whisper)
+    try:
+        resultado = oido.modelo.transcribe(
+            librosa.resample(audio, orig_sr=sr, target_sr=16000).astype(np.float32),
+            language=IDIOMA,
+            word_timestamps=True,
+            condition_on_previous_text=False,
+            temperature=0.0,
+            fp16=True,
+        )
+    finally:
+        oido.cerrar()
+    vram_whisper = vram_usada_gb()
+
+    reconocidas = [
+        (w["word"].strip(), float(w["start"]), float(w["end"]))
+        for s in resultado.get("segments", [])
+        for w in s.get("words", [])
+        if normalizar(w["word"])
+    ]
+    tiempos_fichas, empatadas = _empatar(fichas, reconocidas, 0.0, duracion)
+
+    # Palabras que Whisper oyó y no están en el guion (descontando números escritos con cifras)
+    guion_norm = [normalizar(f) for f in fichas]
+    oido_norm = [normalizar(w) for w, _, _ in reconocidas]
+    extra: list[str] = []
+    for tag, _, _, j1, j2 in difflib.SequenceMatcher(a=guion_norm, b=oido_norm, autojunk=False).get_opcodes():
+        if tag in ("insert", "replace"):
+            extra += [reconocidas[j][0] for j in range(j1, j2) if not normalizar(reconocidas[j][0]).isdigit()]
+
+    palabras = [{"texto": f, "inicio": round(a, 3), "fin": round(b, 3)} for f, (a, b) in zip(fichas, tiempos_fichas)]
+    proporcion = empatadas / len(fichas)
+    habla = (palabras[-1]["fin"] - palabras[0]["inicio"]) if palabras else duracion
+    tiempos = {
+        "palabras": palabras,
+        "duracion": round(duracion, 3),
+        "meta": {
+            "origen": "externa",
+            "archivo": ruta.name,
+            "palabras_por_minuto": round(len(palabras) / (duracion / 60), 1),
+            "empatadas_whisper": round(proporcion, 3),
+            "transcripcion_whisper": resultado.get("text", "").strip(),
+        },
+    }
+    resumen = {
+        "origen": f"voz externa ({ruta.name})",
+        "duracion_s": round(duracion, 2),
+        "palabras": len(palabras),
+        "palabras_por_minuto": tiempos["meta"]["palabras_por_minuto"],
+        "palabras_por_minuto_hablando": round(len(palabras) / (habla / 60), 1) if habla > 0 else None,
+        "empatadas_whisper": f"{proporcion:.0%}",
+        "oido_y_no_esta_en_el_guion": extra,
+        "vram_whisper_gb": round(vram_whisper, 2),
+    }
+    return {"audio": normalizar_volumen(audio, sr), "sr": sr, "tiempos": tiempos, "resumen": resumen}
+
+
 def guardar(resultado: dict, salida: Path, huella_actual: str | None = None) -> None:
     import soundfile
 
