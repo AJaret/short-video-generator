@@ -2,7 +2,7 @@
 // (Sketch.tsx) y el sonido (sonido.ts). Todo sale de una semilla: el fotograma N es siempre igual.
 //
 // Regla: tira el dado y salta a medio camino de la esquina que salió. Comprobado con
-// out/caos_verificar.py (200 000 puntos):
+// verificar.py (200 000 puntos):
 //   · triángulo: ni un punto en el hueco central desde el primer salto (un salto hacia una esquina
 //     cae siempre dentro de la copia a la mitad de esa esquina);
 //   · cuadrado sin regla: lo llena todo (ruido); con "no repetir la misma esquina": un fractal;

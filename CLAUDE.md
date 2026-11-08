@@ -84,7 +84,7 @@ El primer fotograma es también la miniatura: "nº XX / tema" en Space Mono, tí
 ```
 guion.md ─▶ voz/ (Python, GPU) ─▶ voz.wav + tiempos.json
                                           │
-Sketch.tsx (canvas/WebGL) ─▶ video/ (Remotion, plantilla del canal) ─▶ MP4 1080×1920
+Sketch.tsx (canvas 2D) ─▶ video/ (Remotion, plantilla del canal) ─▶ MP4 1080×1920 ─▶ informe (hoja + sonoridad)
 
 Todo lo coordina producir.py desde la raíz del repo.
 ```
@@ -119,10 +119,20 @@ python producir.py episodios/nº03-lorenz --solo-video
 python producir.py nº03-lorenz --stills          # además: fotogramas de verificación en episodios/<ep>/stills/
 python producir.py nº03-lorenz --borrador        # 1 toma de voz por bloque (3× más rápido)
 python producir.py nº03-lorenz --forzar-voz      # regenerar la voz aunque el guion no cambie
+python producir.py nº03-lorenz --solo-video --tramo 40-60   # solo ese tramo (s) → <ep>.tramo.mp4, ~1 min
+python producir.py nº03-lorenz --solo-video --pulso         # el informe mide también la sincronía (~1 min más)
 ```
 - Se ejecuta en Windows (PowerShell), con solo la librería estándar. Comprueba el episodio y el `config.json`, comprueba que Docker responda y, si la interfaz de voz está abierta, la detiene para liberar la GPU.
-- `--stills` elige solos los fotogramas a revisar: portada (0), subtítulo normal (la primera palabra tras la portada sin impacto ni panel), dato de impacto (0,4 s después de su ancla) y panel (1,5 s después de que sube). Cada vez que se produce un episodio hay que revisarlos.
-- Tiempos de referencia de `nº00` (12 s de voz): la voz con 3 tomas tarda ~4 min, y el render con los 4 fotogramas ~2,5 min.
+- `--stills` elige solos los fotogramas a revisar: portada (0), subtítulo normal (la primera palabra tras la portada sin impacto ni panel), dato de impacto (0,4 s después de su ancla) y panel (1,5 s después de que sube). Se sacan del MP4 con ffmpeg, en segundos. Cada vez que se produce un episodio hay que revisarlos.
+- **Informe automático** tras cada render (`herramientas/informe.py`, en el servicio `voz`, que tiene ffmpeg completo; el de Remotion viene recortado):
+  - `episodios/<ep>/stills/hoja.png`: hoja de contactos con 24 fotogramas repartidos, cada uno con su segundo. Es lo primero que se revisa.
+  - `informe.txt`: LUFS, pico y *true peak*.
+  - Con `--pulso`: % de picos visuales fuertes en la rejilla y los que quedan fuera.
+  - Con `--tramo`: `hoja_tramo.png` e `informe_tramo.txt`, con los segundos del episodio.
+- **Para iterar**, renderiza solo el tramo que cambió con `--tramo`, y el episodio completo al final.
+- Tiempos de referencia:
+  - `nº00` (12 s de voz): la voz con 3 tomas tarda ~4 min.
+  - `nº02` (66,9 s): el render completo, con stills, hoja y sincronía, tarda **2,7 min**; un tramo de 20 s, ~1 min. Antes del filtro por CPU eran 9,5 min.
 Pasos: 1) lee `guion.md` y `config.json` · 2) genera `voz.wav` y `tiempos.json` con `voz/generar.py` (`docker compose run --rm voz ...`), saltándose el paso si el guion no cambió (compara un hash) · 3) libera la GPU (el contenedor de voz termina) · 4) lanza `npx remotion render` en el servicio `video` con el ID de composición del episodio · 5) deja el MP4 en `episodios/<ep>/<ep>.mp4`.
 ID de composición: el nombre de la carpeta con `nº` → `ep` y sin caracteres fuera de `[a-zA-Z0-9-]` (`nº03-lorenz` → `ep03-lorenz`). La regla está en `video/src/episodios.ts` y `producir.py` debe usar la misma.
 
@@ -169,7 +179,7 @@ ID de composición: el nombre de la carpeta con `nº` → `ep` y sin caracteres 
 - Lee los archivos del episodio (`voz.wav`, `tiempos.json`, `config.json`, `Sketch.tsx`) desde `episodios/<ep>/`.
 - Licencia de Remotion: gratis para individuos y empresas de hasta 3 personas (uso comercial incluido).
 - Componentes de plantilla, reutilizables en todos los episodios:
-  - `<RisoFilter>`: post-proceso WebGL de todo el fotograma (separación en tintas, dither Bayer, desajuste de registro, multiply, grano).
+  - `<RisoFilter>`: post-proceso de todo el fotograma por CPU (`tramado.ts`: separación en tintas, dither Bayer, desajuste de registro, multiply, grano).
   - `<Portada>`, `<SubtituloNormal>`, `<DatoImpacto>`, `<PanelDatos>`, `<Numeracion>`.
   - `<GuiaZonasSeguras>`: superpone las zonas seguras solo en la vista previa, nunca en el render.
 - Cada episodio solo aporta su sketch generativo y su configuración.
@@ -220,7 +230,8 @@ Inspirado en los reels de referencia (cortes al ritmo, fondos de un solo color, 
   - `curva3D`: polilínea con grosor según la profundidad; lo cercano en una tinta y lo lejano en otra, con un halo de papel en los cruces. `puntos3D` + `puntosEsfera`, y `nudoToroidal` como ejemplo.
   - `giroAlPulso(t, pulso, {paso, division, desde})`: un giro que salta en cada tiempo y frena. Es el movimiento motion graphics de un objeto 3D.
   - Luz casi de frente = todo claro. Para superficies, una luz rasante (`luz: [-0.85, 0.45, -0.3]`, `ambiente: 0.1`) hace que el relieve se lea por su sombra.
-  - Uso: en las partes de un episodio que lo pidan (atractores, bandadas en 3D, superficies). No hace falta en todo el video. Coste: el muestrario de 48 s, con tres escenas 3D, tarda ~8 min en renderizar.
+  - Uso: en las partes de un episodio que lo pidan (atractores, bandadas en 3D, superficies). No hace falta en todo el video.
+  - Para nubes de decenas de miles de puntos (como el tetraedro de `nº02`), proyecta con `proyectar` y escribe los puntos directamente en un `ImageData`: es mucho más rápido que un `arc` por punto.
 
 ### config.json
 `numero`, `tema`, `titulo`, `semilla`, `tintas` (`{a, b}`; se valida que como mucho una sea de serie), `impactos` (máx. 3: `{texto, ancla | desde, duracion}`), `panel` (`{ancla | desde, hasta?, titulo?}`, solo si el episodio lleva datos; `hasta` puede ser un número de segundos o un ancla), `cola` (segundos tras la última palabra) y opcionalmente `voz` (ajustes de la voz).
@@ -231,7 +242,8 @@ Inspirado en los reels de referencia (cortes al ritmo, fondos de un solo color, 
 - **Loop:** el sketch dibuja en la portada el mismo estado que en su último fotograma, y el panel baja antes del final (`hasta`), para que el último fotograma coincida con el primero.
 - **Fuentes:** el subconjunto latino de Space Mono no tiene griego ni flechas (θ, →). Usa texto ("t", ":") en fórmulas y etiquetas.
 - **Rigor:** las afirmaciones del guion se comprueban, con una simulación propia o con fuentes, antes de grabar la voz. Lo que es una metáfora visual se rotula como "esquema". En `nº01`: la autopista empieza en el paso 9 977 (simulado); que la hormiga nunca queda encerrada está demostrado (Bunimovich y Troubetzkoy, 1992); que puede calcular cualquier cosa también (Gajardo, Moreira y Goles, 2002); y que siempre acabe en autopista sigue sin demostrarse.
-  - En `nº02` (simulado con 200 000 puntos):
+  - Las comprobaciones se versionan con el episodio, en `verificar.py` o `verificar.mjs`, para poder repetirlas.
+  - En `nº02` (simulado con 200 000 puntos, `verificar.py`):
     - En el triángulo, ningún punto cae en el hueco central desde el primer salto; es exacto, porque un salto hacia una esquina cae siempre en la copia a la mitad de esa esquina.
     - En el cuadrado sin regla los puntos lo llenan todo; con «no repetir esquina» sale un fractal.
     - El tetraedro de Sierpinski tiene dimensión 2, y visto a lo largo del eje que une dos aristas opuestas es un cuadrado lleno.
@@ -283,18 +295,23 @@ Inspirado en los reels de referencia (cortes al ritmo, fondos de un solo color, 
     - La autopista aparece en el golpe de la revelación.
     - **Escenas con cortes secos en el pulso**, cada una anclada a una frase del guion: principal → 4 tableros con dibujos de partida distintos → cuadro que la hormiga siempre rompe → cinta (esquema de una máquina que cuenta en binario) → final, que vuelve a la portada.
     - La simulación está en otro módulo puro (`simulacion.ts`), que también usa el sonido; por ejemplo, para que suene un tic en cada salida del cuadro.
-    - Los dibujos de partida se eligieron simulando 400 semillas con el mismo generador (`out/buscar_tableros.mjs`): 396 acaban en autopista antes de 40 000 pasos. En pantalla solo se muestra lo comprobado.
+    - Los dibujos de partida se eligieron simulando 400 semillas con el mismo generador (`episodios/nº01-hormiga-de-langton/verificar.mjs`): 396 acaban en autopista antes de 40 000 pasos. En pantalla solo se muestra lo comprobado.
     - En el panel, una lista de comprobación se completa a medida que la voz lo dice.
   - Lección aprendida: 30 tics por segundo a la misma altura se oyen como un zumbido. Para "cada paso más alto" hace falta que cada tic suba de verdad: Shepard, o un rango amplio.
-- Verificación:
-  - `pyloudnorm` en el servicio `voz` para el volumen total y los picos.
+- Verificación (la hace `herramientas/informe.py` tras cada render):
+  - `pyloudnorm` para el volumen total y ebur128 de ffmpeg para el *true peak*.
   - El tempo se mide en el canal lateral (L−R), donde no está la voz. Con la voz, el detector se confunde: en `nº01` daba 126 BPM en la mezcla y 92,3 BPM en el lateral.
   - Los picos de cambio entre fotogramas del MP4 se comparan con la rejilla. En `nº01`, el 79 % cae a ≤ 2 fotogramas de un tiempo; los demás son cambios de subtítulo, que siguen a la voz.
   - La correlación L/R de la mezcla sale ~1 porque la voz al centro domina. Es normal: la música sí es estéreo.
 
 ### Render
 - `npx remotion render` a 1080×1920, 30 fps, H.264, CRF 18, audio AAC.
-- WebGL en el render: dentro de Docker, Chrome no ve la GPU, así que se usa `swangle` (SwiftShader por CPU), ya fijado en `video/remotion.config.ts`. Si los shaders salen en negro o falla WebGL, revisa esto primero.
+- **Sin GPU ni WebGL:** el filtro riso va por CPU (`video/src/canal/tramado.ts`) y Chrome se lanza con `swiftshader` (`video/remotion.config.ts`), que deja los canvas en memoria normal.
+  - Antes el filtro era un shader WebGL con `swangle`. La GPU emulada vive en **un solo proceso compartido** por todas las pestañas, así que el render no pasaba de ~3,5 fotogramas/s con ningún número de hilos (medido: 4, 8, 12 y 16 daban lo mismo, y PNG/JPEG o media escala tampoco influían).
+  - Por CPU, cada pestaña filtra por su cuenta: 90 fotogramas pasan de 25 s a 7,4 s.
+  - Comparado píxel a píxel con el shader: diferencia media de ~2/255, que es el grano. Solo cambia de verdad el 0,02–0,19 % de los píxeles, en bordes por redondeo.
+  - No vuelvas a WebGL sin medir. El cuello de botella no está en el dibujo: dentro de la página, todo un fotograma tarda ~3 ms.
+- Los canvas de las capas se crean con `willReadFrequently: true`, porque el filtro lee sus píxeles en cada fotograma.
 - Fuentes empaquetadas desde npm (`@fontsource`): el render no depende de internet.
 
 ### Comandos (desde la raíz del repo, en PowerShell)
@@ -322,6 +339,11 @@ episodios/
     tiempos.json    # generado
     config.json     # número, título, tintas, semilla, momentos de impacto, ¿panel?
     Sketch.tsx      # la animación generativa del episodio
+    linea.ts        # (opcional) línea de tiempo pura, compartida con sonido.ts
+    simulacion.ts   # (opcional) simulación pura y determinista
+    sonido.ts       # (opcional) efectos propios en el pulso
+    verificar.py    # comprobación de las afirmaciones del guion (o verificar.mjs)
+    voz_externa.mp3 # toma de ElevenLabs (se versiona)
 ```
 `episodios/nº00-prueba/` es el episodio de prueba de la plantilla y de la voz. Su `voz.wav` y su `tiempos.json` se generan igual que en cualquier episodio. Para probar un sketch sin GPU hay un generador de tiempos falsos: `node scripts/tiempos_falsos.js ../episodios/<ep>/guion.md ../episodios/<ep>/tiempos.json`, que se ejecuta dentro del servicio `video`.
 
@@ -330,5 +352,5 @@ episodios/
 ## Cómo trabajar en este repo
 - Antes de un cambio grande, propón un plan breve y espera aprobación.
 - Respeta la paleta, las tipografías y las zonas seguras sin excepciones. Si algo no encaja, pregunta en vez de inventar un estilo nuevo.
-- Verifica visualmente: renderiza fotogramas sueltos (`npx remotion still`) de portada, subtítulo normal, dato de impacto y panel, y revísalos antes de dar algo por terminado.
+- Verifica visualmente: `producir.py --stills` (portada, subtítulo normal, dato de impacto y panel) y la hoja de contactos `stills/hoja.png`; revísalos antes de dar algo por terminado.
 - Código y comentarios en español.

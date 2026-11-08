@@ -19,7 +19,7 @@ export const INICIO_AUTOPISTA = 9977;
 
 /**
  * Dibujos de partida de los 4 tableros: casillas negras al azar (semilla) en un cuadrado de
- * (2·RADIO+1)² alrededor de la hormiga. Verificado con out/buscar_tableros.mjs (396 de 400 semillas
+ * (2·RADIO+1)² alrededor de la hormiga. Verificado con verificar.mjs (396 de 400 semillas
  * acaban en autopista antes de 40 000 pasos): `autopista` es el paso en que empieza la de cada uno.
  * Una por cada dirección en que puede salir la autopista.
  */

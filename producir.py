@@ -6,6 +6,8 @@
     python producir.py episodios/nº03-lorenz --stills     # además, fotogramas de verificación
     python producir.py nº03-lorenz --borrador             # 1 toma de voz por bloque (3× más rápido)
     python producir.py nº03-lorenz --voz-externa toma.mp3 # usar un audio externo (ElevenLabs…) como voz
+    python producir.py nº03-lorenz --solo-video --tramo 40-60   # solo ese tramo (s) → <ep>.tramo.mp4
+    python producir.py nº03-lorenz --solo-video --pulso   # además, medir la sincronía imagen/música
 
 Se ejecuta en Windows con Python básico (solo librería estándar) y coordina los contenedores:
   1. Comprueba el episodio (guion.md, config.json, Sketch.tsx).
@@ -14,6 +16,8 @@ Se ejecuta en Windows con Python básico (solo librería estándar) y coordina l
   4. Sonido: mezcla.wav = voz + música lo-fi + efectos (video/scripts/sonido.mjs, unos segundos)
   5. Video: docker compose run --rm video npx remotion render <id> …
   6. Deja el MP4 en episodios/<ep>/<ep>.mp4.
+  7. Informe (herramientas/informe.py, servicio voz): hoja de contactos y sonoridad en
+     episodios/<ep>/stills/; con --stills, los fotogramas de verificación sacados del MP4.
 """
 
 from __future__ import annotations
@@ -191,13 +195,22 @@ def generar_sonido(ep: Path) -> None:
         fallar("Falló la banda sonora (mira el error de arriba).")
 
 
-def renderizar(ep: Path) -> Path:
-    titulo("Video")
+def leer_tramo(texto: str) -> tuple[float, float]:
+    """"40-60" → (40.0, 60.0) en segundos."""
+    m = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*", texto)
+    if not m or float(m.group(1)) >= float(m.group(2)):
+        fallar(f"--tramo debe ser DESDE-HASTA en segundos (p. ej. 40-60), no «{texto}».")
+    return float(m.group(1)), float(m.group(2))
+
+
+def renderizar(ep: Path, tramo: tuple[float, float] | None = None) -> Path:
+    titulo("Video" + (f" · tramo {tramo[0]:g}–{tramo[1]:g} s" if tramo else ""))
     if not (ep / "tiempos.json").exists():
         avisar("⚠ No hay tiempos.json: se renderiza sin voz ni subtítulos (15 s). Usa sin --solo-video para generar la voz.")
-    salida = ep / f"{ep.name}.mp4"
+    salida = ep / (f"{ep.name}.tramo.mp4" if tramo else f"{ep.name}.mp4")
     destino = "../" + ruta_contenedor(salida)  # el servicio video trabaja en /repo/video
-    if docker("compose", "run", "--rm", "video", "npx", "remotion", "render", id_composicion(ep.name), destino).returncode != 0:
+    extra = [f"--frames={int(tramo[0] * FPS)}-{int(tramo[1] * FPS) - 1}"] if tramo else []
+    if docker("compose", "run", "--rm", "video", "npx", "remotion", "render", id_composicion(ep.name), destino, *extra).returncode != 0:
         fallar("Falló el render (mira el error de arriba).")
     if not salida.exists():
         fallar(f"Remotion terminó pero no aparece {salida}.")
@@ -246,7 +259,29 @@ def momentos_de_verificacion(ep: Path, config: dict) -> dict[str, int]:
     return {k: min(int(round(v * FPS)), int(duracion * FPS) - 1) for k, v in momentos.items()}
 
 
+def informe(ep: Path, config: dict, mp4: Path, stills: bool, medir_pulso: bool, desde: float = 0.0) -> list[Path]:
+    """Hoja de contactos + sonoridad (+ stills sacados del MP4, + sincronía) con herramientas/informe.py."""
+    titulo("Informe")
+    carpeta = ep / "stills"
+    momentos = momentos_de_verificacion(ep, config) if stills else {}
+    if momentos:
+        avisar("  stills: " + ", ".join(f"{n} ({f / FPS:.2f} s)" for n, f in momentos.items()))
+    bpm = (config.get("ritmo") or {}).get("bpm", 92)
+    orden = ["compose", "run", "--rm", "voz", "python", "herramientas/informe.py", ruta_contenedor(mp4),
+             "--carpeta", ruta_contenedor(carpeta), "--bpm", str(bpm), "--desde", str(desde),
+             "--hoja", "hoja_tramo.png" if desde or mp4.name.endswith(".tramo.mp4") else "hoja.png"]
+    for nombre, frame in momentos.items():
+        orden += ["--still", f"{nombre}={frame / FPS:.3f}"]
+    if medir_pulso:
+        orden.append("--pulso")
+    if docker(*orden).returncode != 0:
+        avisar("⚠ Falló el informe (el MP4 está bien; mira el error de arriba).")
+        return []
+    return [carpeta / f"{n}.png" for n in momentos]
+
+
 def generar_stills(ep: Path, config: dict) -> list[Path]:
+    """Stills renderizados con Remotion (solo cuando no hay MP4 completo del que sacarlos)."""
     titulo("Fotogramas de verificación")
     carpeta = ep / "stills"
     carpeta.mkdir(exist_ok=True)
@@ -279,7 +314,10 @@ def main() -> None:
     p.add_argument("--borrador", action="store_true", help="1 toma de voz por bloque en vez de 3 (más rápido)")
     p.add_argument("--stills", action="store_true", help="renderizar también los fotogramas de verificación")
     p.add_argument("--voz-externa", metavar="AUDIO", help="usar este audio (p. ej. un MP3 de ElevenLabs) como voz del episodio")
+    p.add_argument("--tramo", metavar="DESDE-HASTA", help="renderizar solo ese tramo, en segundos (p. ej. 40-60), a <ep>.tramo.mp4")
+    p.add_argument("--pulso", action="store_true", help="en el informe, medir también la sincronía imagen/música (~1 min)")
     args = p.parse_args()
+    tramo = leer_tramo(args.tramo) if args.tramo else None
     if args.voz_externa and args.solo_video:
         fallar("--voz-externa necesita el paso de voz: no se puede combinar con --solo-video.")
 
@@ -297,10 +335,14 @@ def main() -> None:
         liberar_gpu()
         generar_voz(ep, args.forzar_voz, args.borrador)
     mp4 = None
+    stills: list[Path] = []
     if not args.solo_voz:
         generar_sonido(ep)
-        mp4 = renderizar(ep)
-    stills = generar_stills(ep, config) if args.stills else []
+        mp4 = renderizar(ep, tramo)
+        # Los stills salen del MP4 completo (segundos); en un tramo no tienen sentido
+        stills = informe(ep, config, mp4, args.stills and not tramo, args.pulso, tramo[0] if tramo else 0.0)
+    elif args.stills:
+        stills = generar_stills(ep, config)
 
     titulo("Listo")
     if (ep / "tiempos.json").exists():
@@ -310,6 +352,9 @@ def main() -> None:
         avisar(f"  video: {mp4.relative_to(RAIZ).as_posix()} ({mp4.stat().st_size / 1e6:.1f} MB)")
     for s in stills:
         avisar(f"  still: {s.relative_to(RAIZ).as_posix()}")
+    if mp4:
+        nombre = "informe_tramo.txt" if tramo else "informe.txt"
+        avisar(f"  informe: {(ep / 'stills' / nombre).relative_to(RAIZ).as_posix()} (+ hoja de contactos)")
     avisar(f"  tiempo total: {(time.time() - inicio) / 60:.1f} min")
 
 

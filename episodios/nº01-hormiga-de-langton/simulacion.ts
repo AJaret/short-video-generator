@@ -36,7 +36,7 @@ export type Simulacion = {
   autopista: number;
 };
 
-/** Dibujo de partida al azar (mismo generador que out/buscar_tableros.mjs). */
+/** Dibujo de partida al azar (mismo generador que verificar.mjs). */
 export function dibujoInicial(semilla: number): Uint8Array {
   const azar = mulberry32(semilla);
   const negra = new Uint8Array(LADO * LADO);

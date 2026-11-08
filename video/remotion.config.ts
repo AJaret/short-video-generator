@@ -15,8 +15,9 @@ Config.setCodec('h264');
 Config.setCrf(18);
 Config.setVideoImageFormat('png');
 
-// WebGL dentro de Docker: SwiftShader por CPU (Chrome no ve la GPU en el contenedor)
-Config.setChromiumOpenGlRenderer('swangle');
+// Sin GPU: el filtro riso es por CPU (tramado.ts). 'swiftshader' deja el canvas en memoria normal y
+// cada pestaña trabaja por su cuenta; con 'swangle' todo pasaba por un único proceso de GPU emulada.
+Config.setChromiumOpenGlRenderer('swiftshader');
 
 // Los episodios viven fuera de video/: les damos acceso a node_modules y al alias @canal
 Config.overrideWebpackConfig((actual) => ({

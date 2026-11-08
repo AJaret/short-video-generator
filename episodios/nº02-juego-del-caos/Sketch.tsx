@@ -547,7 +547,8 @@ export function panel(frame: number, {fps, duracion, tiempos, config}: ContextoS
   const t = frame / fps;
   const pulso = pulsoDe(config);
   const l = linea(tiempos, duracion / fps, pulso);
-  if (escenaEn(t, l) === 'cuadrado') {
+  // Desde el cuadrado (también mientras el panel baja en el 3D), los datos del cuadrado
+  if (escenaEn(t, l) !== 'triangulo') {
     const {ruido, copo} = tiradasCuadrado(t, l);
     const conRegla = t >= l.tRegla + l.negra;
     const n = conRegla ? copo : ruido;
