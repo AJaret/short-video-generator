@@ -48,7 +48,7 @@ python producir.py nº03-lorenz --solo-video --pulso         # el informe mide t
 - `--stills` elige solos los fotogramas a revisar: portada (0), subtítulo normal (la primera palabra tras la portada sin impacto ni panel), dato de impacto (tras completar su entrada, con el ancla cuantizada al pulso) y panel (1,5 s después de que sube). Se sacan del MP4 con ffmpeg, en segundos. Cada vez que se produce un episodio hay que revisarlos.
 - **Informe automático** tras cada render (`herramientas/informe.py`, en el servicio `analisis`, que reutiliza la imagen de voz sin reservar GPU y tiene ffmpeg completo; el de Remotion viene recortado):
   - `episodios/<ep>/stills/hoja.png`: hoja de contactos con 24 fotogramas repartidos, cada uno con su segundo. Es lo primero que se revisa.
-  - `informe.txt`: LUFS, pico y *true peak*.
+  - `informe.txt`: LUFS, pico y *true peak*, loop y dinamismo (tramos de imagen quieta de más de 4 s).
   - Con `--pulso`: % de picos visuales fuertes en la rejilla y los que quedan fuera.
   - Con `--tramo`: `hoja_tramo.png` e `informe_tramo.txt`, con los segundos del episodio.
 - **Para iterar**, renderiza solo el tramo que cambió con `--tramo`, y el episodio completo al final.

@@ -135,3 +135,12 @@ export function resolverPanel(
   const hastaBruto = typeof panel.hasta === 'string' ? (tiempoDeAncla(tiempos, panel.hasta) ?? undefined) : panel.hasta;
   return {desde, hasta: hastaBruto === undefined ? undefined : alPulso(hastaBruto), titulo: panel.titulo};
 }
+
+/**
+ * Instantes en que se imprime cada palabra del título de la portada: una por corchea desde la primera
+ * corchea (el fotograma 0 queda sin título, igual que el último: el loop cierra exacto). Los usa la
+ * portada y el sonido (un golpe de sello por palabra).
+ */
+export function momentosPortada(titulo: string, negra: number): number[] {
+  return titulo.trim().split(/\s+/).map((_, i) => (i + 1) * (negra / 2));
+}

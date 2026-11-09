@@ -73,5 +73,27 @@ class Produccion(unittest.TestCase):
             render.assert_not_called()
 
 
+
+try:
+    import numpy  # noqa: F401  (en Windows no hay paquetes: esta prueba corre en el servicio analisis)
+    import PIL  # noqa: F401
+    HAY_NUMPY = True
+except ImportError:
+    HAY_NUMPY = False
+
+
+@unittest.skipUnless(HAY_NUMPY, 'necesita numpy y PIL (docker compose run --rm analisis python -m unittest ...)')
+class Dinamismo(unittest.TestCase):
+    def test_tramos_quietos(self):
+        import numpy as np
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import informe
+        # 30 fotogramas quietos, 5 en movimiento, 150 quietos (5 s) y uno en movimiento al final
+        dif = np.r_[np.zeros(30), np.full(5, 3.0), np.zeros(150), [3.0]]
+        tramos = informe.tramos_quietos(dif, fps=30)
+        self.assertEqual(len(tramos), 2)
+        self.assertAlmostEqual(tramos[1][1] - tramos[1][0], 5.0)
+        self.assertEqual(informe.tramos_quietos(np.full(10, 2.0), fps=30), [])
+
 if __name__ == '__main__':
     unittest.main()

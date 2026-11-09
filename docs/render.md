@@ -11,6 +11,8 @@
 - Fuentes empaquetadas desde npm (`@fontsource`): el render no depende de internet.
 
 
-El informe corre en `analisis`, sin GPU. El loop compara el primer y último fotograma reducidos a 270×480; avisa si más del 15 % cambia más de 48/255. Es una heurística: la portada añade texto y no se exige igualdad de píxeles. Los tramos no miden loop.
+El informe corre en `analisis`, sin GPU. El loop compara el primer y último fotograma reducidos a 270×480; avisa si más del 15 % cambia más de 48/255. Es una heurística: hasta `nº03` la portada añadía texto en el fotograma 0 (~7 %); desde `nº04` un loop correcto da ~0 %. Los tramos no miden loop.
+
+Dinamismo: cambio medio entre fotogramas a 96×96. Quieto es < 0,005 (calibrado en `nº04`: imagen quieta ≤ 0,001; el acercamiento más lento sobre líneas finas, 0,009–0,02); avisa de tramos quietos de más de 4 s. También da el % de fotogramas con cambio fuerte (> 1,0), comparable con los reels de referencia (49–75 %).
 
 Los informes completos y parciales usan nombres separados, incluso si un tramo empieza en cero: `informe.txt`/`hoja.png` frente a `informe_tramo.txt`/`hoja_tramo.png`. Con tramos, `--pulso` usa los segundos del episodio para conservar la fase de la rejilla.

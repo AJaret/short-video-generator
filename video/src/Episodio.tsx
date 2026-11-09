@@ -50,7 +50,7 @@ export const ComposicionEpisodio: React.FC<PropsEpisodio> = ({carpeta, guias}) =
           <SubtituloNormal tiempos={tiempos} progresoPanel={progreso} ocultoEn={(t) => t < DURACION_PORTADA} />
         ) : null}
         <Numeracion numero={config.numero} desde={DURACION_PORTADA} />
-        <Portada numero={config.numero} tema={config.tema} titulo={config.titulo} />
+        <Portada numero={config.numero} tema={config.tema} titulo={config.titulo} pulso={pulso} />
       </RisoFilter>
       <GuiaZonasSeguras visible={guias} />
       {/* Mezcla final (voz + música + efectos) si existe; si no, solo la voz */}

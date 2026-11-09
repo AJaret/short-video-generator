@@ -22,6 +22,8 @@
   - Batería completa: bombo en 1 y 3, palmada de papel en 2 y 4, hi-hat en corcheas y luego semicorcheas, hi-hat abierto a tope. Bajo pulsado en corcheas y campanitas dos octavas arriba.
   - La intensidad se lee al empezar cada compás (o en el golpe): las capas entran en la raya y cada sección suena distinta.
   - Fin de cada frase de 4 compases: redoble de palmadas, o un stop cada 8. Redoble que acelera en el compás anterior a cada golpe.
+  - **Variación por episodio** (`varianteMusical`): `audio.tono` (tonalidad menor, de Mi menor a Re menor, transpuesta desde La menor), `audio.progresion` (`misterio` i–VI–i–VII, `andaluza` i–VII–VI–V, `epica` i–VI–III–VII, `ola` i–iv–i–v), `audio.patron` del arpegio (`giro`, `ola`, `salto`, `pulso`) y `audio.lider` del gancho (`glock`, `vibrafono`, `marimba`). Lo que no se diga sale de la semilla, y el gancho (4 compases) se genera con ella. El informe de la mezcla imprime la variante. Los efectos afinados de `sonido.ts` reciben `tono` en el contexto y deben sumarlo a sus notas.
+  - Portada: un golpe de sello por cada palabra del título (`momentosPortada`, una por corchea).
   - Efectos nuevos para `sonido.ts`: `golpe` (empujón de cámara), `barrido` (aire que termina en el corte) y `parada` (la música calla `duracion` s).
 - **Pulso (`video/src/canal/pulso.ts`):** el reloj que comparten animación, plantilla y sonido.
   - `pulsoDe(config)` (`ritmo.bpm`, 92 por defecto), `cuantizar(t, pulso, division, modo)`, `golpe(t, pulso)` (envolvente que late en cada tiempo) y `faseEn`.

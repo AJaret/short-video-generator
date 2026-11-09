@@ -12,10 +12,10 @@
 //   · −14 LUFS medidos (BS.1770) con limitador enlazado a −1 dBFS
 import {DURACION_PORTADA} from '../canal/diseno';
 import {cuantizar, pulsoDe, type Pulso} from '../canal/pulso';
-import {anclasNoEncontradas, finImpacto, momentoImpacto, resolverPanel, tiempoDeAncla} from '../canal/tiempos';
+import {anclasNoEncontradas, finImpacto, momentoImpacto, momentosPortada, resolverPanel, tiempoDeAncla} from '../canal/tiempos';
 import type {ConfigEpisodio, Tiempos} from '../canal/tipos';
 import {barrido, golpeCorto, impresora, papel, sello, tic, ticShepard, zumbido} from './instrumentos';
-import {musicaMisterio, musicaViva, type PlanMusical} from './musica';
+import {musicaMisterio, musicaViva, varianteMusical, type PlanMusical} from './musica';
 import type {BancoMuestras} from './muestreo';
 import {aDb, db, estereo, normalizarLufs, rms, sumarPaneado} from './sintesis';
 
@@ -40,7 +40,11 @@ export type EventoSonoro = {
   efecto?: 'impresora' | 'papel' | 'golpe' | 'barrido' | 'parada';
 };
 
-export type ContextoSonido = {config: ConfigEpisodio; tiempos: Tiempos; duracion: number; pulso: Pulso};
+/**
+ * `tono`: semitonos que la música del episodio está transpuesta respecto a La menor (0 en la música
+ * misterio). Los efectos afinados del episodio deben sumarlo para no desafinar con la música.
+ */
+export type ContextoSonido = {config: ConfigEpisodio; tiempos: Tiempos; duracion: number; pulso: Pulso; tono: number};
 
 export type EntradaBanda = {
   config: ConfigEpisodio;
@@ -155,14 +159,15 @@ export function construirBanda({config, tiempos, voz, eventos, muestras}: Entrad
   const revelacionBruta = anclaOSegundos(audio.revelacion, tiempos);
   const revelacion = revelacionBruta !== null ? cuantizar(revelacionBruta, pulso) : null;
 
-  const propios = eventos ? eventos({config, tiempos, duracion, pulso}) : [];
+  const variante = audio.estilo === 'viva' ? varianteMusical(audio, config.semilla) : null;
+  const propios = eventos ? eventos({config, tiempos, duracion, pulso, tono: variante?.tono ?? 0}) : [];
 
   // 3. Música compuesta para el episodio, con ducking
   if (audio.musica !== false) {
     const viva = audio.estilo === 'viva';
     const plan = planMusical(config, tiempos, duracion, pulso, revelacion, viva);
     for (const ev of propios) if (ev.efecto === 'parada') plan.caidas.push([ev.t, ev.t + (ev.duracion ?? pulso.negra)]);
-    const {base, acentos} = viva ? musicaViva(sr, plan, config.semilla, muestras) : musicaMisterio(sr, plan, config.semilla);
+    const {base, acentos} = variante ? musicaViva(sr, plan, config.semilla, muestras, variante) : musicaMisterio(sr, plan, config.semilla);
     const musicaDb = audio.musicaDb ?? -18;
     const g = (db(nivelDb + musicaDb) / db(-20)) * CENTRO;
     const marco = Math.round(sr * 0.01);
@@ -186,6 +191,7 @@ export function construirBanda({config, tiempos, voz, eventos, muestras}: Entrad
       caida: plan.caidas.map(([a, b]) => `${a.toFixed(2)}–${b.toFixed(2)} s`),
       golpes: plan.golpes.map((t) => `${t.toFixed(2)} s`),
       acorde_final: `${plan.final.toFixed(2)} s`,
+      ...(variante ? {variante: variante.nombres} : {}),
     };
   }
 
@@ -193,6 +199,10 @@ export function construirBanda({config, tiempos, voz, eventos, muestras}: Entrad
   const efectos: string[] = [];
   sumarPaneado(mezcla, impresora(sr, 0.9, config.semilla), sr, DURACION_PORTADA - 0.35, relativo(-6));
   efectos.push(`impresora ${(DURACION_PORTADA - 0.35).toFixed(2)} s`);
+  // Cada palabra del título de la portada cae con un golpe de sello (en corcheas, ver <Portada>)
+  for (const t of momentosPortada(config.titulo, pulso.negra)) {
+    sumarPaneado(mezcla, sello(sr, Math.round(t * 1000) + 5), sr, t, relativo(-11));
+  }
   const panel = resolverPanel(config.panel, tiempos, pulso);
   if (panel) {
     sumarPaneado(mezcla, papel(sr, true), sr, panel.desde, relativo(-8), -0.25);

@@ -28,7 +28,7 @@ const ultimaLetra = impacto.inicio + (impacto.impacto.texto.replace(/\s/g, '').l
 assert.ok(impacto.fin - 6 / 30 - ultimaLetra >= 0.699);
 assert.throws(() => m.tramosImpacto([{texto: 'uno', desde: 10}, {texto: 'dos', desde: 11}], t, p), /se solapan/);
 const l = m.linea(t, t.duracion + c.cola, p);
-const evs = m.eventos({config: c, tiempos: t, duracion: t.duracion + c.cola, pulso: p});
+const evs = m.eventos({config: c, tiempos: t, duracion: t.duracion + c.cola, pulso: p, tono: 0});
 let notas = 0;
 const semis = m.semicorcheasCuadrado(l);
 for (const [lista, juego, regla] of [[semis.ruido, m.JUEGO_CUADRADO, false], [semis.copo, m.JUEGO_COPO, true]]) {

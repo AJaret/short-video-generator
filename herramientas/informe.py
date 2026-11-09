@@ -10,6 +10,7 @@ viene recortado, sin filtros de análisis):
 Escribe en --carpeta los stills (PNG a tamaño completo), la hoja de contactos (24 fotogramas
 repartidos con su segundo) y el informe (--informe, informe.txt por defecto) con lo mismo que imprime.
 En un video completo comprueba también el loop: el último fotograma debe coincidir con el primero.
+Siempre mide el dinamismo: avisa si la imagen se queda casi quieta más de 4 s seguidos.
 """
 
 from __future__ import annotations
@@ -26,10 +27,20 @@ INICIO = 2.6  # salida de la portada: la sincronía se mide después
 FPS = 30
 
 # Loop: % de píxeles (a 270×480) que cambian más de UMBRAL_PIXEL entre el primer y el último fotograma.
-# Aunque el loop esté bien, el primer fotograma lleva encima el título de la portada y el último no:
-# en nº01 y nº02 (loops correctos) eso da un 7 % de píxeles distintos; en nº00, que no hace loop, un 28 %.
+# Hasta nº03 el primer fotograma llevaba encima el título de la portada y el último no: con loops
+# correctos eso daba un 7 %; en nº00, que no hace loop, un 28 %. Desde nº04 el título entra después del
+# fotograma 0 y un loop correcto da ~0 %.
 UMBRAL_PIXEL = 48  # de 255, en el canal que más cambia: deja fuera el grano y el temblor del registro
 UMBRAL_LOOP = 0.15
+
+# Dinamismo (2026-11-08, tras comparar con los reels de referencia): cambio medio entre fotogramas a
+# 96×96 en gris. Calibrado en nº04: una imagen quieta de verdad da ≤ 0,001 (el AAC deja algo de ruido)
+# y el acercamiento de cámara más lento sobre líneas finas ya da 0,009–0,02; por eso QUIETO = 0,005.
+# MOVIMIENTO (cambio fuerte) sirve para compararse con las referencias: 49 % y 75 % de fotogramas por
+# encima de 1,0; nº04 antes de la prueba de dinamismo, 1 %.
+QUIETO = 0.005
+MOVIMIENTO = 1.0
+UMBRAL_QUIETO_S = 4.0
 
 
 def fotograma(mp4: str, t: float, escala: tuple[int, int] | None = None) -> Image.Image:
@@ -141,6 +152,40 @@ def pulso(mp4: str, wav: str, bpm: float, desde: float = 0.0) -> list[str]:
     return lineas
 
 
+def tramos_quietos(dif: np.ndarray, fps: float = FPS, umbral: float = QUIETO) -> list[tuple[float, float]]:
+    """Tramos (inicio, fin en s) en que el cambio entre fotogramas no pasa de `umbral`."""
+    tramos = []
+    inicio = None
+    for i, d in enumerate(list(dif) + [np.inf]):
+        if d < umbral and inicio is None:
+            inicio = i
+        elif d >= umbral and inicio is not None:
+            tramos.append(((inicio + 1) / fps, (i + 1) / fps))
+            inicio = None
+    return tramos
+
+
+def dinamismo(mp4: str, desde: float = 0.0) -> list[str]:
+    """¿Se queda la imagen quieta mucho rato? Fotogramas en movimiento y el tramo quieto más largo."""
+    w = h = 96
+    crudo = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", mp4, "-vf", f"scale={w}:{h},format=gray", "-f", "rawvideo", "-"],
+        capture_output=True, check=True,
+    ).stdout
+    fotos = np.frombuffer(crudo, np.uint8).reshape(-1, h, w).astype(np.float32)
+    if len(fotos) < 2:
+        return ["dinamismo: video demasiado corto"]
+    dif = np.abs(np.diff(fotos, axis=0)).mean(axis=(1, 2))
+    tramos = tramos_quietos(dif)
+    largo = max(tramos, key=lambda x: x[1] - x[0], default=(0.0, 0.0))
+    lineas = [f"dinamismo: {np.mean(dif > MOVIMIENTO):.0%} de fotogramas con cambio fuerte (referencias: 49–75 %) · {np.mean(dif < QUIETO):.0%} quietos"
+              f" · tramo quieto más largo {largo[1] - largo[0]:.1f} s (aviso desde {UMBRAL_QUIETO_S:.0f} s)"]
+    largos = [(a + desde, b + desde) for a, b in tramos if b - a > UMBRAL_QUIETO_S]
+    if largos:
+        lineas.append("  ⚠ IMAGEN QUIETA demasiado rato (s): " + " · ".join(f"{a:.1f}–{b:.1f}" for a, b in largos))
+    return lineas
+
+
 def fotogramas_extremos(mp4: str, w: int = 270, h: int = 480) -> tuple[np.ndarray, np.ndarray]:
     """Primer y último fotograma, reducidos (la reducción por área suaviza el punto de la trama)."""
     def leer(antes: list[str], despues: list[str]) -> np.ndarray:
@@ -161,7 +206,7 @@ def loop(mp4: str) -> list[str]:
     dif = np.abs(a - b).max(axis=2)
     distintos = float(np.mean(dif > UMBRAL_PIXEL))
     lineas = [f"loop: primer y último fotograma · diferencia media {dif.mean():.1f}/255 · {distintos:.0%} de píxeles"
-              f" distintos (el título de la portada ya pone ~7 %; aviso desde {UMBRAL_LOOP:.0%})"]
+              f" distintos (aviso desde {UMBRAL_LOOP:.0%}; con título fijo en el fotograma 0, ~7 % es normal)"]
     if distintos > UMBRAL_LOOP:
         lineas.append("  ⚠ EL LOOP NO CIERRA: el último fotograma no coincide con el primero. El sketch debe dibujar"
                       " en la portada el mismo estado que al final, y el panel bajar antes (`hasta`).")
@@ -196,6 +241,7 @@ def main() -> None:
     lineas += sonoridad(wav)
     if not args.sin_loop:
         lineas += loop(args.mp4)
+    lineas += dinamismo(args.mp4, args.desde)
     if args.pulso:
         lineas += pulso(args.mp4, wav, args.bpm, args.desde)
 

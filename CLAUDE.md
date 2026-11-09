@@ -55,6 +55,8 @@ Degradados suaves, glow, sombras proyectadas, bordes perfectos, blanco puro (#FF
   - El punto, solo para los cierres de verdad (la revelación, el remate).
   - Ejemplo de referencia: `episodios/nº00-prueba/guion.md`.
 - Música: **"misterio con guiño"**, marimba en arpegios sobre sub-grave, La menor, 92 BPM, en estéreo. **Va al ritmo de la animación**, estilo motion graphics: sube hacia la revelación, calla un tiempo justo antes y golpea en ella. Baja cuando entra el dato clave. Sustituye al lo-fi del plan original: el usuario la eligió el 2026-11-07, tras comparar bocetos con dos reels de referencia (pulso rápido, muchas notas cortas, energía que acompaña a la imagen).
+- Desde `nº04` (2026-11-08) la música es la **"viva"** (`audio.estilo: "viva"`): instrumentos grabados reales (VCSL, CC0: marimba, vibráfono, glockenspiel, caja, palmadas, hi-hat…) con batería y más energía; la sintetizada sonaba "a juguete". **Cada episodio suena distinto**: tonalidad menor, progresión, patrón y instrumento del gancho en `config.audio` (o por la semilla), y el gancho melódico sale de la semilla. Los efectos afinados del episodio suman `tono` (ver `docs/sonido.md`).
+- Golpes visuales y musicales solo en la revelación de verdad. Nada de zoom con rebote en cada golpe ni de destellos de color en momentos que no sorprenden (se probaron en `nº04` y se quitaron).
 - Firma sonora: traqueteo de impresora riso en cada transición; zumbido grave que crece antes de la revelación.
 
 ---
@@ -70,11 +72,12 @@ Degradados suaves, glow, sombras proyectadas, bordes perfectos, blanco puro (#FF
 - Impacto: Archivo Black ~120 px al centro, para el dato clave o el tema principal. Máximo 1–3 por video, marcados en el guion.
 
 ### Estructura temporal (30–45 s)
-0–3 s portada/gancho · 3–25 s misterio y explicación · 25–38 s revelación · 38–45 s remate. Procura que el último fotograma enlace con el primero (loop).
+0–3 s portada/gancho · 3–25 s misterio y explicación · 25–38 s revelación · 38–45 s remate. El último fotograma enlaza con el primero (loop): desde `nº04` son iguales, porque el título entra después del fotograma 0.
+- La imagen no se queda quieta: planos de cámara con la voz, acercamientos lentos y detalles (`camara.ts`, `detalles.ts`, ver `docs/kit.md`). El informe avisa si hay más de 4 s seguidos de imagen quieta. Con cámara, el dibujo se recorta al marco de visor (dentro de las zonas seguras y por encima de los subtítulos).
 Excepción aprobada por el usuario: un episodio puede durar más si lo pide el tema. `nº01` dura 71,6 s porque explica lo que se sabe y lo que no.
 
 ### Portada
-El primer fotograma es también la miniatura: "nº XX / tema" en Space Mono, título grande en Archivo Black y un fotograma clave de la animación. Todo lo importante dentro del recorte central 3:4 (1080×1440).
+Gancho de los primeros 2,6 s: "nº XX / tema" en Space Mono, título grande en Archivo Black y la animación detrás, con movimiento desde el primer instante. El fotograma 0 **ya no es la miniatura** (el usuario la elige al publicar, 2026-11-08): queda sin título, igual que el último, y el título se imprime palabra a palabra, una por corchea, con un golpe de sello cada una. Todo lo importante dentro del recorte central 3:4 (1080×1440), por si la miniatura sale de estos fotogramas. `nº01`–`nº03` ya están publicados con la portada fija: no se vuelven a renderizar.
 
 ---
 
@@ -90,7 +93,7 @@ Todo corre en Docker; `producir.py` es el único coordinador en Windows, con Pyt
 - El panel debe bajar antes del final (`hasta`, segundos o ancla) y el sketch repetir su estado de portada en el último fotograma para cerrar el loop. No hay subtítulos normales durante la portada (0–2,6 s).
 - Space Mono latino no incluye griego ni flechas; usar `t` y `:` en fórmulas y etiquetas.
 - Comprobar las afirmaciones con simulación propia o fuentes antes de grabar voz, y versionar `verificar.py`/`verificar.mjs` con el episodio. Rotular las metáforas visuales como «esquema».
-- El informe mide LUFS, pico y true peak del MP4, genera hoja de contactos y comprueba el loop con una heurística. `--pulso` compara ataques con el BPM configurado; no estima el tempo. Revisar siempre visualmente los stills y la hoja tras producir.
+- El informe mide LUFS, pico y true peak del MP4, genera hoja de contactos, comprueba el loop con una heurística y mide el dinamismo (aviso si la imagen está quieta más de 4 s). `--pulso` compara ataques con el BPM configurado; no estima el tempo. Revisar siempre visualmente los stills y la hoja tras producir.
 - Un informe fallido devuelve código 2: el MP4 puede ser nuevo y los archivos de `stills/` anteriores. Los tramos usan `hoja_tramo.png` e `informe_tramo.txt`.
 
 ### Reglas para sketches generativos (críticas)

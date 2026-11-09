@@ -58,6 +58,15 @@ export type ConfigEpisodio = {
      * redobles y stops; ver musicaViva). Por defecto, la música misterio original.
      */
     estilo?: 'misterio' | 'viva';
+    /**
+     * Variación de la música viva por episodio (si no se dice, sale de la semilla): tonalidad menor
+     * ('Re menor', 'Mi menor'…, ver TONOS en musica.ts), progresión ('misterio' | 'andaluza' | 'epica'
+     * | 'ola'), patrón del arpegio ('giro' | 'ola' | 'salto' | 'pulso') e instrumento del gancho.
+     */
+    tono?: string;
+    progresion?: string;
+    patron?: string;
+    lider?: 'glock' | 'vibrafono' | 'marimba';
     /** Golpes musicales extra (anclas o segundos), cada uno con un tiempo de silencio antes. */
     golpes?: (string | number)[];
   };

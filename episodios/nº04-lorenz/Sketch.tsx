@@ -256,6 +256,25 @@ function lecturas(c: Capas, e1: string, v1: string, e2: string, v2: string) {
   lectura(c.solido.k, e2, v2, 898, 345, {tam: 30, alinear: 'right'});
 }
 
+/** Marco de visor = zona útil con cámara (dentro de las zonas seguras y sobre los subtítulos). */
+const VISOR = {x: 70, y: 255, w: 870, h: 1110};
+
+/** Dibuja `fn` recortado al rectángulo en las seis capas. */
+function recortarA(c: Capas, r: {x: number; y: number; w: number; h: number}, fn: () => void) {
+  const lista = [c.a, c.b, c.k, c.solido.a, c.solido.b, c.solido.k];
+  for (const ctx of lista) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(r.x, r.y, r.w, r.h);
+    ctx.clip();
+  }
+  try {
+    fn();
+  } finally {
+    for (const ctx of lista) ctx.restore();
+  }
+}
+
 // ── Componente ────────────────────────────────────────────────────────────────────────────────
 
 const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
@@ -277,12 +296,16 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     // (el usuario, 2026-11-08). Quedan los planos, la deriva y los viajes de cámara.
     const tomaFinal: Toma = toma;
 
-    conCamara(c, tomaFinal, () => escena(c, rotuloHud, lecturasHud));
+    // Zonas seguras: con cámara, el dibujo queda dentro del marco de visor (a la derecha deja libres
+    // los 140 px de los botones de la app y abajo no baja hasta los subtítulos). En la portada y el
+    // final, sin recorte (la mariposa completa, igual en el primer y el último fotograma).
+    if (enPortada) conCamara(c, tomaFinal, () => escena(c, rotuloHud, lecturasHud));
+    else recortarA(c, VISOR, () => conCamara(c, tomaFinal, () => escena(c, rotuloHud, lecturasHud)));
 
     if (!enPortada) {
       // Marco de visor: se cierra de nuevo en cada corte de escena
       const corte = Math.max(DURACION_PORTADA, ...m.cortes.filter((x) => x <= t));
-      marcoEsquinas(c.solido.k, {x: 70, y: 255, w: 870, h: 1110}, fase(t, corte, corte + 0.45), {grosor: 4, largo: 40});
+      marcoEsquinas(c.solido.k, VISOR, fase(t, corte, corte + 0.45), {grosor: 4, largo: 40});
     }
     hud.forEach((f) => f());
     sacudirRegistro(c, t, [...m.cortes, m.casi, m.siquiera], 9, 0.1);
@@ -416,6 +439,11 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     // En la escena de la línea, estela larga: que se lea como una línea que recorre la figura
     curvas(c, indice, v, completa, t < l.rebobina ? 450 : 170);
     if (t >= l.abre + 2 && t < l.cierre) cometas(c, t - l.abre - 2, v);
+    // Portada: los dos cometas ya corren detrás del título (el gancho se mueve desde el primer instante;
+    // el fotograma 0 queda sin ellos, igual que el último)
+    if (t > 0.05 && t < DURACION_PORTADA) cometas(c, t, v);
+    // "Una vuelta más": los cometas dan literalmente una vuelta más y se van justo antes del final
+    if (t >= l.cierre && t < l.fin - 0.3) cometas(c, t - l.cierre + 7, v);
     const [rx, ry] = proyectar(datos.rosa[indice], v);
     const [ax, ay] = proyectar(datos.azul[indice], v);
     // "¡Mira la rosa!": una mira sobre la rosa; luego, sobre la azul. Sin destello ni estallido: ahí solo

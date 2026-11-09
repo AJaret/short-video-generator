@@ -126,6 +126,104 @@ function terminar(sr: number, plan: PlanMusical, base: Estereo, acentos: Estereo
   return {base, acentos};
 }
 
+// ── Variación por episodio (música viva) ──────────────────────────────────────────────────────
+// Cada episodio suena distinto: tonalidad, progresión, patrón del arpegio, instrumento que lleva el
+// gancho y el gancho mismo (generado con la semilla). Se eligen en config.audio o, si no se dicen,
+// salen de la semilla del episodio. Todo se escribe en La menor y se transpone `tono` semitonos.
+
+/** Tonalidades (menores) y su distancia a La menor, dentro del rango cómodo de las muestras. */
+export const TONOS: Record<string, number> = {
+  'La menor': 0, 'Si bemol menor': 1, 'Si menor': 2, 'Do menor': 3, 'Do sostenido menor': 4, 'Re menor': 5,
+  'Mi menor': -5, 'Fa menor': -4, 'Fa sostenido menor': -3, 'Sol menor': -2, 'Sol sostenido menor': -1,
+};
+
+/** Progresiones de 4 acordes: voces (semitonos respecto a la4) y raíz del bajo de cada uno. */
+export const PROGRESIONES: Record<string, {acordes: number[][]; raices: number[]}> = {
+  // i – VI7M – i – VII: la original "misterio con guiño"
+  misterio: {acordes: ACORDES, raices: RAICES},
+  // i – VII – VI – V (cadencia andaluza): baja y deja tensión
+  andaluza: {
+    acordes: [[-12, -9, -5, 0, 3], [-14, -10, -7, -2, 2], [-16, -9, -4, 0, 3], [-17, -13, -10, -5, -1]],
+    raices: [-36, -38, -40, -41],
+  },
+  // i – VI – III – VII: épica, abierta
+  epica: {
+    acordes: [[-12, -9, -5, 0, 3], [-16, -9, -4, 0, 3], [-9, -5, -2, 3, 7], [-14, -10, -7, -2, 2]],
+    raices: [-36, -40, -33, -38],
+  },
+  // i – iv – i – v: vaivén menor, más íntima
+  ola: {
+    acordes: [[-12, -9, -5, 0, 3], [-7, -4, 0, 5, 8], [-12, -9, -5, 0, 3], [-5, -2, 2, 7, 10]],
+    raices: [-36, -43, -36, -41],
+  },
+};
+
+/** Patrones del arpegio (índices del acorde en cada semicorchea). */
+export const PATRONES: Record<string, number[]> = {
+  giro: PATRON, // 3+3+2
+  ola: [0, 1, 2, 3, 4, 3, 2, 1],
+  salto: [0, 2, 1, 3, 2, 4, 3, 1],
+  pulso: [0, 4, 2, 4, 1, 4, 3, 4],
+};
+
+export type Lider = 'glock' | 'vibrafono' | 'marimba';
+
+export type VarianteMusical = {
+  tono: number;
+  acordes: number[][];
+  raices: number[];
+  patron: number[];
+  lider: Lider;
+  /** Gancho: 4 compases de 8 corcheas (semitonos respecto a la4, ya en su octava; null = silencio). */
+  gancho: (number | null)[][];
+  nombres: {tono: string; progresion: string; patron: string; lider: Lider};
+};
+
+/** Ritmos del gancho (8 corcheas; 1 = nota). */
+const RITMOS = [
+  [1, 0, 1, 0, 1, 1, 0, 1],
+  [1, 0, 0, 1, 0, 1, 1, 0],
+  [1, 1, 0, 1, 0, 0, 1, 0],
+  [1, 0, 1, 1, 0, 1, 0, 0],
+];
+
+/** Gancho de 4 compases: notas del acorde de cada compás, en un paseo que sube y baja (determinista). */
+function generarGancho(acordes: number[][], semilla: number, octava: number): (number | null)[][] {
+  const azar = mulberry32(semilla * 7 + 3);
+  const ritmoA = RITMOS[Math.floor(azar() * RITMOS.length)];
+  const ritmoB = RITMOS[Math.floor(azar() * RITMOS.length)];
+  let paso = 2 + Math.floor(azar() * 2);
+  return acordes.map((acorde, c) => {
+    const ritmo = c % 2 === 0 ? ritmoA : ritmoB;
+    return ritmo.map((hay, j) => {
+      if (!hay) return null;
+      if (j === 0) paso = Math.max(1, Math.min(4, paso)); // el primer tiempo cae en una nota del acorde
+      else paso = Math.max(0, Math.min(4, paso + (azar() < 0.5 ? -1 : 1) * (azar() < 0.3 ? 2 : 1)));
+      return acorde[paso] + octava;
+    });
+  });
+}
+
+/** Variante de la música viva para un episodio (config.audio + semilla). */
+export function varianteMusical(audio: {tono?: string; progresion?: string; patron?: string; lider?: Lider} | undefined, semilla: number): VarianteMusical {
+  const elegir = <T,>(lista: T[], k: number) => lista[Math.abs(Math.floor(semilla / k)) % lista.length];
+  const tono = audio?.tono && audio.tono in TONOS ? audio.tono : elegir(Object.keys(TONOS), 1);
+  const progresion = audio?.progresion && audio.progresion in PROGRESIONES ? audio.progresion : elegir(Object.keys(PROGRESIONES), 3);
+  const patron = audio?.patron && audio.patron in PATRONES ? audio.patron : elegir(Object.keys(PATRONES), 7);
+  const lider = audio?.lider ?? elegir<Lider>(['glock', 'vibrafono', 'marimba'], 11);
+  const {acordes, raices} = PROGRESIONES[progresion];
+  const octava = lider === 'glock' ? 24 : 12;
+  return {
+    tono: TONOS[tono],
+    acordes,
+    raices,
+    patron: PATRONES[patron],
+    lider,
+    gancho: generarGancho(acordes, semilla, octava),
+    nombres: {tono, progresion, patron, lider},
+  };
+}
+
 /**
  * Música "viva" (prueba de nº04, 2026-11-08). Misma armonía (Am – Fmaj7 – Am – G), arreglada como los
  * reels de referencia y con INSTRUMENTOS REALES grabados (VCSL, CC0; muestreo.ts): al usuario la
@@ -140,7 +238,14 @@ function terminar(sr: number, plan: PlanMusical, base: Estereo, acentos: Estereo
  *   · redoble que acelera en el compás antes de cada golpe (corcheas → semicorcheas → fusas).
  * Sin banco de muestras (pruebas), cae a los instrumentos sintetizados.
  */
-export function musicaViva(sr: number, plan: PlanMusical, semilla = 92, banco?: BancoMuestras): {base: Estereo; acentos: Estereo} {
+export function musicaViva(
+  sr: number,
+  plan: PlanMusical,
+  semilla = 92,
+  banco?: BancoMuestras,
+  variante: VarianteMusical = varianteMusical({tono: 'La menor', progresion: 'misterio', patron: 'giro', lider: 'glock'}, semilla),
+): {base: Estereo; acentos: Estereo} {
+  const {acordes: ACORDES, raices: RAICES, patron: PATRON, tono} = variante;
   const {pulso, duracion} = plan;
   const azar = mulberry32(semilla);
   const negra = pulso.negra;
@@ -150,7 +255,7 @@ export function musicaViva(sr: number, plan: PlanMusical, semilla = 92, banco?: 
   const enRedoble = (t: number) => plan.golpes.some((g) => t >= g - pulso.compas - negra - 1e-3 && t < g - negra - 1e-3);
   /** Nota real (o la sintetizada si no hay banco). `n` en semitonos respecto a la4. */
   const nota = (inst: string, n: number, fuerte: boolean, alt: () => Float32Array) =>
-    (banco && notaMuestreada(banco, inst, 69 + n, sr, fuerte)) || alt();
+    (banco && notaMuestreada(banco, inst, 69 + n + tono, sr, fuerte)) || alt();
   const golpeDe = (inst: string, i: number, alt: () => Float32Array) => (banco && golpeMuestreado(banco, inst, i, sr)) || alt();
   /** Copia corta con fundido (para golpes de vibráfono que no se encimen). */
   const corto = (x: Float32Array, segundos: number) => {
@@ -160,13 +265,8 @@ export function musicaViva(sr: number, plan: PlanMusical, semilla = 92, banco?: 
     for (let i = 0; i < f; i++) y[n - 1 - i] *= i / f;
     return y;
   };
-  // Gancho del glockenspiel (corcheas, semitonos respecto a la5; null = silencio), uno por acorde
-  const GANCHO: (number | null)[][] = [
-    [12, null, 7, null, 10, 12, null, 7],
-    [8, null, 7, null, 3, null, 5, null],
-    [12, null, 7, null, 10, 12, null, 15],
-    [14, null, 10, null, 7, null, 5, 2],
-  ];
+  /** Altura con la transposición del episodio (para los instrumentos sintetizados). */
+  const f = (n: number) => hz(n + tono);
   const caja = (i: number, g: number, s: number, pan = 0.05) => {
     sumarPaneado(base, golpeDe('caja', i, () => palmada(sr, i)), sr, s, g, pan);
   };
@@ -194,36 +294,37 @@ export function musicaViva(sr: number, plan: PlanMusical, semilla = 92, banco?: 
       const acento = k % 8 === 0 || k % 8 === 3 || k % 8 === 6;
       const n = acorde[PATRON[k % 8]] + (compas % 2 === 1 && k % 16 >= 8 ? 12 : 0);
       const vel = (acento ? 0.85 : 0.5) * (0.45 + 0.55 * I) * (0.85 + 0.15 * azar());
-      const x = nota('marimba', n, acento && I >= 0.6, () => marimba(sr, hz(n), 1));
+      const x = nota('marimba', n, acento && I >= 0.6, () => marimba(sr, f(n), 1));
       sumarPaneado(base, x, sr, t + j * (negra / porTiempo), 0.3 * vel, Math.sin(k * 0.9 + compas) * 0.8);
     }
     // Vibráfono: colchón (acorde entero en el 1) hasta 0,5; desde ahí, golpes a contratiempo
     if (enCompas === 0 && I < 0.5) {
-      acorde.slice(1).forEach((n, i) => sumarPaneado(base, nota('vibrafono', n, false, () => campanaFM(sr, hz(n), 0.6, 0.8)), sr, t + i * 0.012, 0.075, (i - 1.5) * 0.4));
+      acorde.slice(1).forEach((n, i) => sumarPaneado(base, nota('vibrafono', n, false, () => campanaFM(sr, f(n), 0.6, 0.8)), sr, t + i * 0.012, 0.075, (i - 1.5) * 0.4));
     }
     if (I >= 0.5 && (enCompas === 0 || enCompas === 2)) {
-      acorde.slice(1).forEach((n, i) => sumarPaneado(base, corto(nota('vibrafono', n, true, () => campanaFM(sr, hz(n), 0.6, 0.3)), negra * 0.85), sr, t + 0.5 * negra + i * 0.006, 0.07, (i - 1.5) * 0.45));
+      acorde.slice(1).forEach((n, i) => sumarPaneado(base, corto(nota('vibrafono', n, true, () => campanaFM(sr, f(n), 0.6, 0.3)), negra * 0.85), sr, t + 0.5 * negra + i * 0.006, 0.07, (i - 1.5) * 0.45));
     }
-    // Gancho de glockenspiel a tope
+    // Gancho a tope, en el instrumento líder del episodio
     if (I >= 0.75) {
       for (let j = 0; j < 2; j++) {
-        const n = GANCHO[compas % 4][enCompas * 2 + j];
+        const n = variante.gancho[compas % 4][enCompas * 2 + j];
         if (n === null) continue;
-        sumarPaneado(base, nota('glock', n + 12, false, () => campanaFM(sr, hz(n + 12), 0.5, 0.3)), sr, t + j * negra * 0.5, 0.14, 0.25);
+        const g = variante.lider === 'glock' ? 0.14 : variante.lider === 'vibrafono' ? 0.13 : 0.2;
+        sumarPaneado(base, nota(variante.lider, n, true, () => campanaFM(sr, f(n), 0.5, 0.3)), sr, t + j * negra * 0.5, g, 0.25);
       }
     }
     if (stop) continue; // el stop: un tiempo sin bajo ni batería (la marimba y el vibráfono siguen)
 
     // Bajo: sub-grave en el 1; desde 0,4, corcheas pulsadas + marimba grave doblando
-    if (I >= 0.3 && enCompas === 0) sumarPaneado(base, subBajo(sr, hz(raiz), negra * 1.2), sr, t, 0.4 * Math.min(1, I + 0.2));
+    if (I >= 0.3 && enCompas === 0) sumarPaneado(base, subBajo(sr, f(raiz), negra * 1.2), sr, t, 0.4 * Math.min(1, I + 0.2));
     if (I >= 0.4) {
       const figura = [0, null, 0, 12, null, 0, 12, 7];
       for (let j = 0; j < 2; j++) {
-        const f = figura[enCompas * 2 + j];
-        if (f === null) continue;
+        const fig = figura[enCompas * 2 + j];
+        if (fig === null) continue;
         const s = t + j * negra * 0.5;
-        sumarPaneado(base, bajoPulsado(sr, hz(raiz + 12 + f), negra * 0.45), sr, s, j ? 0.26 : 0.34);
-        sumarPaneado(base, nota('marimba', raiz + 24 + f, j === 0, () => marimba(sr, hz(raiz + 24 + f), 1)), sr, s, 0.2);
+        sumarPaneado(base, bajoPulsado(sr, f(raiz + 12 + fig), negra * 0.45), sr, s, j ? 0.26 : 0.34);
+        sumarPaneado(base, nota('marimba', raiz + 24 + fig, j === 0, () => marimba(sr, f(raiz + 24 + fig), 1)), sr, s, 0.2);
       }
     }
     // Batería
@@ -264,7 +365,7 @@ export function musicaViva(sr: number, plan: PlanMusical, semilla = 92, banco?: 
   }
   // Acorde final: marimba en arpegio rápido + vibráfono que se queda sonando (enlaza con el inicio)
   const final = ACORDES[Math.floor(plan.final / pulso.compas) % 4];
-  final.forEach((n, i) => sumarPaneado(base, nota('marimba', n, false, () => marimba(sr, hz(n), 0.7)), sr, plan.final + i * semi * 0.5, 0.22, (i - 2) * 0.35));
-  final.slice(1).forEach((n, i) => sumarPaneado(base, nota('vibrafono', n, false, () => campanaFM(sr, hz(n), 0.6, 0.8)), sr, plan.final, 0.08, (i - 1.5) * 0.4));
+  final.forEach((n, i) => sumarPaneado(base, nota('marimba', n, false, () => marimba(sr, f(n), 0.7)), sr, plan.final + i * semi * 0.5, 0.22, (i - 2) * 0.35));
+  final.slice(1).forEach((n, i) => sumarPaneado(base, nota('vibrafono', n, false, () => campanaFM(sr, f(n), 0.6, 0.8)), sr, plan.final, 0.08, (i - 1.5) * 0.4));
   return terminar(sr, plan, base, acentos);
 }
