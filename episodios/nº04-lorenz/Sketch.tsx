@@ -14,7 +14,6 @@ import {
   fondoTinta,
   fuente,
   golpe,
-  hash01,
   lectura,
   marcoEsquinas,
   mira,
@@ -200,14 +199,11 @@ function planosDe(l: Linea, m: Momentos): Plano[] {
     // El campo: entra cerca y se aleja mientras aparecen las flechas
     {desde: l.mapa, toma: {zoom: 1.4, px: 500, py: 850, giro: -0.05}, deriva: -0.26, giro: 0.08},
     // Las dos flechas: cerca cuando se juntan para compararlas
-    {desde: l.dos, toma: {zoom: 1, px: 480, py: 850}, deriva: 0.12, giro: 0.04},
+    {desde: l.dos, toma: {zoom: 1, px: 480, py: 850}, deriva: 0.08},
     {desde: m.casiApuntan, toma: {zoom: 1.45, px: 500, py: 720}, entrada: 'suave', viaje: 0.5, deriva: 0.05},
-    {desde: m.comoPuntos, toma: {zoom: 1, px: 480, py: 850}, entrada: 'suave', viaje: 0.6, deriva: 0.14, giro: -0.04},
-    {desde: m.cadaUno, toma: {zoom: 1.2, px: 480, py: 850, giro: 0.03}, deriva: 0.16, giro: -0.06},
-    // Los pasos: un corte por paso (azul, rosa, las dos)
-    {desde: m.avanzan, toma: {zoom: 1.25, px: 380, py: 830}, deriva: 0.1},
-    {desde: m.cambia, toma: {zoom: 1.25, px: 600, py: 830}, deriva: 0.1},
-    {desde: m.otraVez, toma: {zoom: 1, px: 480, py: 850}, deriva: 0.2, giro: 0.06},
+    // Desde aquí hasta las curvas, un solo acercamiento lento: los cortes de zoom en cada frase y en
+    // cada paso (acercar, alejar, volver a acercar) se veían como zoom con rebote (el usuario).
+    {desde: m.comoPuntos, toma: {zoom: 1, px: 480, py: 850}, entrada: 'suave', viaje: 0.6, deriva: 0.14},
     // Las curvas: la cámara va con los dos puntos; en la revelación, con la rosa y luego con la azul
     {desde: l.casi, toma: sigue([datos.rosa, datos.azul], 1.3, 0.75, 30), deriva: 0.1},
     {desde: m.rosaRev, toma: sigue([datos.rosa], 1.6, 0.8, 20), deriva: 0.08},
@@ -231,31 +227,6 @@ function numero(v: number, decimales: number): string {
   const [ent, dec] = v.toFixed(decimales).split('.');
   const miles = ent.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   return dec ? `${miles},${dec}` : miles;
-}
-
-/** Partículas que se dejan llevar por el campo (esquema): nacen, avanzan unas décimas y se apagan. */
-function particulasCampo(ctx: CanvasRenderingContext2D, tiempo: number) {
-  const VIDA = 1.6;
-  ctx.fillStyle = cobertura(1);
-  for (let k = 0; k < 70; k++) {
-    const desfase = hash01(k, 3) * VIDA;
-    const edad = (tiempo + desfase) % VIDA;
-    const ciclo = Math.floor((tiempo + desfase) / VIDA);
-    let x = -0.35 + hash01(k, ciclo, 1) * 2.7;
-    let z = -0.6 + hash01(k, ciclo, 2) * 3.2;
-    const pasos = Math.floor(edad * 60);
-    for (let j = 0; j < pasos; j++) {
-      const [vx, vz] = vector(x, z);
-      x += vx * 0.002;
-      z += vz * 0.002;
-    }
-    const [px, py] = aPantalla(x, z);
-    const r = 9 * Math.sin((Math.PI * edad) / VIDA);
-    if (r < 1.5) continue;
-    ctx.beginPath();
-    ctx.arc(px, py, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
 }
 
 /** En el atractor completo, un tramo de cada curva recorre la figura (la vuelta que no para). */
@@ -380,8 +351,6 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
             flecha(papel, 500 + i * 106, 850 - j * 118, dx * 4 * q * late, -dz * 4 * q * late);
           }
         }
-        // Partículas en azul que corren con el campo (entran cuando ya están las flechas)
-        if (t > l.mapa + 2 * pulso.negra) particulasCampo(c.solido.b, t - l.mapa);
         // Un punto rosa que se deja llevar por las flechas: va rápido donde son largas y frena donde son cortas
         const arranque = l.mapa + 7 * (pulso.negra / 4) + 0.3;
         if (t > arranque) {
