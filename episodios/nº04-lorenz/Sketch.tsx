@@ -9,7 +9,6 @@ import {useCurrentFrame, useVideoConfig} from 'remotion';
 import {
   cobertura,
   conCamara,
-  empujes,
   entradaSalidaCubica,
   estallido,
   fondoTinta,
@@ -305,8 +304,9 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     const lecturasHud = (...args: [string, string, string, string]) => hud.push(() => lecturas(c, ...args));
     const enPortada = t < DURACION_PORTADA || t >= l.cierre;
     const toma = tomaEn(t, planosDe(l, m));
-    const empuje = empujes(t, m.golpes, 0.07) * empujes(t, [m.rosaRev], 0.16, 0.3);
-    const tomaFinal: Toma = {...toma, zoom: toma.zoom * empuje};
+    // Sin empujones de zoom con rebote en los golpes: en un video que explica algo se veían mal
+    // (el usuario, 2026-11-08). Quedan los planos, la deriva y los viajes de cámara.
+    const tomaFinal: Toma = toma;
 
     // ¡Mira la rosa!: un tiempo de medio tono azul detrás de todo (el golpe de la revelación)
     if (t >= m.rosaRev && t < m.rosaRev + pulso.negra) fondoTinta(c, 'b', {trama: true, cobertura: 0.34});

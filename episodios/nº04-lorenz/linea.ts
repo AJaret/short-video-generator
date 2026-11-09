@@ -108,7 +108,6 @@ export function palabraFinal(tiempos: Tiempos | null, frase: string, defecto: nu
 
 /**
  * Momentos de la cámara y del sonido (prueba de dinamismo, 2026-11-08), en la rejilla de corcheas.
- *   · golpes: empujón de cámara + golpe corto en la música, en la palabra que pesa de cada frase
  *   · cortes: cambios de escena (barrido de aire que llega al corte, impresora y sacudida de registro)
  *   · el resto, con nombre, para los planos y los detalles del sketch
  */
@@ -155,12 +154,7 @@ export function momentosDe(tiempos: Tiempos | null, l: Linea, pulso: Pulso) {
     siquiera: p('ni siquiera', 71.76),
     lado: p('qué lado', 73.42),
   };
-  const golpes = [
-    m.rosa, m.azul, m.separan, m.punto, m.diminuto, m.espacio, m.punta, m.largo, m.casi,
-    m.avanzan, m.cambia, m.otraVez, m.curioso, m.acercarse, m.izquierda, m.derecha,
-    m.atractor, m.vuelta, m.error, m.siquiera,
-  ];
   const cortes = [l.inicio, l.rebobina, l.mapa, l.dos, l.casi, l.abre];
-  return {...m, golpes, cortes};
+  return {...m, cortes};
 }
 export type Momentos = ReturnType<typeof momentosDe>;

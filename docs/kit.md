@@ -23,7 +23,7 @@ Inspirado en los reels de referencia (cortes al ritmo, fondos de un solo color, 
   - `rotulo`: etiqueta Space Mono en tira de papel que entra con rebote.
 - `camara.ts` · **cámara 2D** (prueba de dinamismo de `nº04`, 2026-11-08):
   - `tomaEn(t, planos)`: cada `Plano` tiene `desde`, una `toma` (`zoom` alrededor de `px, py`, desplazamiento `dx, dy`, `giro`) o una función del tiempo para seguir algo, `deriva` (zoom que gana dentro del plano) y `giro` (órbita lenta). Entra con `corte` o `suave` (viaje de `viaje` s desde la toma anterior).
-  - `empujes(t, momentos, fuerza)`: zoom con rebote en los golpes (sube en 2 fotogramas y cae en ~0,2 s); multiplica el zoom de la toma.
+  - `empujes(t, momentos, fuerza)`: zoom con rebote en los golpes (sube en 2 fotogramas y cae en ~0,2 s); multiplica el zoom de la toma. Se probó en `nº04` en cada golpe y se quitó: en un video que explica algo se ve mal. Úsalo solo en portadas o remates muy cortos, si acaso.
   - `conCamara(capas, toma, fn)`: dibuja `fn` con la toma en las seis capas, antes del tramado. Lo que no se mueve con la cámara (rótulos, lecturas) se dibuja fuera.
   - `seguir`, `aPantallaCon`, `mezclarTomas`. Para el último fotograma (loop), la toma debe volver a la neutra.
 - `detalles.ts` · la capa técnica de las referencias:
