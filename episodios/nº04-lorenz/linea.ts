@@ -4,7 +4,7 @@
 //   portada (0–2,6 s)        la mariposa completa con los dos puntos en lóbulos opuestos (= último fotograma)
 //   línea (→ "vamos al principio")       las dos curvas van pegadas y cruzan de lóbulo; se abren al final
 //   rebobinado (→ "desde aquí")          la línea vuelve hasta el punto de partida
-//   esquema (→ "en algunas vueltas")     ampliación del inicio, campo de flechas y dos pasos
+//   esquema (→ "y cada punto sigue")     ampliación del inicio, campo de flechas y las dos flechas
 //   curvas (→ "alejemos la cámara")      el tramo en que se separan, se reacercan y cruzan de lado
 //   atractor (→ "una vuelta más")        la figura completa, girando
 //   final (→ fin)                        "una vuelta más": la cámara vuelve a la mariposa de la portada (loop)
@@ -40,12 +40,14 @@ export function linea(tiempos: Tiempos | null, fin: number): Linea {
   return {
     inicio: a('vamos al principio', 7.6),
     rebobina: a('desde aquí parecen', 9.04),
-    mapa: a('imagina que en cada lugar', 17.7),
-    dos: a('ahora mira las dos flechas', 25.1),
-    pasos: a('avanzan cambia la flecha', 36.8),
-    casi: a('en algunas vueltas', 42.6),
-    rosa: a('mira la rosa', 46.4),
-    abre: a('alejemos la cámara', 51.9),
+    mapa: a('en cada lugar hay', 16.08),
+    dos: a('mira las dos', 20.12),
+    // Guion corto (2026-11-09): sin los tres pasos. En "y cada punto sigue la suya" se corta directo a
+    // las curvas (cada una por su camino), así que la escena de pasos no se ve (pasos = casi).
+    pasos: a('y cada punto sigue', 24.56),
+    casi: a('y cada punto sigue', 24.56),
+    rosa: a('mira la rosa', 26.68),
+    abre: a('alejemos la cámara', 32.72),
     cierre: a('una vuelta más', fin - 4),
     fin,
   };
@@ -116,43 +118,33 @@ export function momentosDe(tiempos: Tiempos | null, l: Linea, pulso: Pulso) {
   const p = (frase: string, defecto: number) => q(palabraFinal(tiempos, frase, defecto));
   const a = (frase: string, defecto: number) => q(tiempoDeAncla(tiempos, frase) ?? defecto);
   const m = {
-    rosa: p('una rosa', 3.56),
-    azul: p('una azul', 4.42),
-    alcanzas: a('alcanzas a ver', 5.28),
-    separan: p('se separan', 6.62),
-    solo: a('un solo punto', 9.9),
-    punto: p('un solo punto', 10.42),
-    acercamos: a('nos acercamos', 11.8),
-    diminuto: p('espacio diminuto', 13.42),
-    entreLosDos: p('entre los dos', 14.66),
-    queImporta: a('por qué importa', 15.64),
-    espacio: p('ese espacio', 16.6),
-    punta: p('la punta', 20.58),
-    largo: p('el largo', 23.16),
-    flechas: p('las dos flechas', 26.12),
-    casiApuntan: a('casi apuntan', 27.3),
-    casi: p('verdad casi', 29.36),
-    comoPuntos: a('como los puntos', 30.32),
-    cadaUno: a('cada uno sigue', 33.48),
-    avanzan: a('avanzan cambia la flecha', 36.8),
-    cambia: p('avanzan cambia', 37.86),
-    otraVez: a('avanzan otra vez', 39.16),
-    curioso: p('detalle curioso', 41.58),
-    acercarse: p('a acercarse', 45.34),
+    rosa: p('una rosa', 3.72),
+    azul: p('una azul', 4.74),
+    alcanzas: a('alcanzas a ver', 5.58),
+    separan: p('se separan', 7.0),
+    solo: a('un solo punto', 10.36),
+    punto: p('un solo punto', 10.98),
+    acercamos: a('nos acercamos', 12.22),
+    diminuto: p('espacio diminuto', 13.96),
+    entreLosDos: p('entre los dos', 15.28),
+    // El marco se cierra sobre el hueco en cuanto la voz dice "entre los dos"
+    queImporta: a('entre los dos', 14.84),
+    flechas: p('mira las dos', 20.54),
+    casiApuntan: a('casi apuntan', 21.3),
+    casi: p('verdad casi', 23.62),
     rosaRev: q(l.rosa),
-    izquierda: p('cruzó a la izquierda', 48.26),
-    azulTodavia: a('la azul todavía', 49.34),
-    derecha: p('por la derecha', 51.46),
-    atractor: a('atractor de lorenz', 55.58),
-    reglas: a('las reglas', 57.28),
-    vuelta: p('cada vuelta', 58.92),
-    loQueCambia: a('lo que cambia', 59.78),
-    error: p('pequeño error', 62.3),
-    alPrincipio: a('al principio con', 65.52),
-    predecir: p('para predecir', 68.08),
-    varias: a('varias vueltas', 69.82),
-    siquiera: p('ni siquiera', 71.76),
-    lado: p('qué lado', 73.42),
+    izquierda: p('cruzó a la izquierda', 28.6),
+    azulTodavia: a('la azul todavía', 29.66),
+    derecha: p('por la derecha', 31.82),
+    atractor: a('atractor de lorenz', 34.8),
+    reglas: a('las reglas', 36.18),
+    loQueCambia: a('lo que cambia', 38.14),
+    error: a('aquel error diminuto', 40.04),
+    alPrincipio: a('al comienzo', 41.66),
+    predecir: p('puedes predecirlo', 42.64),
+    varias: a('unas vueltas', 43.86),
+    siquiera: p('ni siquiera', 45.56),
+    lado: p('qué lado', 46.58),
   };
   const cortes = [l.inicio, l.rebobina, l.mapa, l.dos, l.casi, l.abre];
   return {...m, cortes};

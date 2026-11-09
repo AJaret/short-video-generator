@@ -1,11 +1,9 @@
 // nº04 · Sonido propio, en el pulso. Las notas suman `tono` (la tonalidad de la música del episodio).
-//   · Esquema: dos notas (una por punto) en cada paso de "avanzan… cambia la flecha… avanzan otra vez".
 //   · Las flechas del campo entran con un tic por columna (semicorcheas).
 //   · Cada vez que un punto cambia de lóbulo, suena en ese lado: izquierda o derecha en el estéreo.
 //     La rosa, aguda; la azul, grave. Mientras van juntas suenan a la vez; al separarse, cada una a
 //     su aire: se oye el caos. Usa la misma línea de tiempo que la animación (linea.ts).
 import type {ContextoSonido, EventoSonoro} from '@sonido/banda';
-import {tiempoDeAncla} from '@canal/tiempos';
 import {cuantizar} from '@canal/pulso';
 import {hz} from '@sonido/sintesis';
 import {cambiosDeLobulo, linea, momentosDe} from './linea';
@@ -14,13 +12,6 @@ const FPS = 30;
 
 export function eventos({tiempos, duracion, pulso, tono}: ContextoSonido): EventoSonoro[] {
   const notas: EventoSonoro[] = [];
-  for (const palabra of ['avanzan', 'cambia la flecha', 'avanzan otra vez']) {
-    const ancla = tiempoDeAncla(tiempos, palabra);
-    if (ancla === null) continue;
-    const t = cuantizar(ancla, pulso, 0.25);
-    for (const lado of [-1, 1]) notas.push({t, pan: lado * 0.5, frecuencia: hz(-12 + tono), duracion: 0.23, volumenDb: -12, brillo: 0.4});
-  }
-
   const fin = (Math.ceil(duracion * FPS) - 1) / FPS;
   const l = linea(tiempos, fin);
   for (let i = 0; i < 7; i++) {

@@ -199,17 +199,13 @@ function planosDe(l: Linea, m: Momentos): Plano[] {
     // Las dos flechas: cerca cuando se juntan para compararlas
     {desde: l.dos, toma: {zoom: 1, px: 480, py: 850}, deriva: 0.08},
     {desde: m.casiApuntan, toma: {zoom: 1.45, px: 500, py: 720}, entrada: 'suave', viaje: 0.5, deriva: 0.05},
-    // Desde aquí hasta las curvas, un solo acercamiento lento: los cortes de zoom en cada frase y en
-    // cada paso (acercar, alejar, volver a acercar) se veían como zoom con rebote (el usuario).
-    {desde: m.comoPuntos, toma: {zoom: 1, px: 480, py: 850}, entrada: 'suave', viaje: 0.6, deriva: 0.14},
-    // Las curvas: la cámara va con los dos puntos; en la revelación, con la rosa y luego con la azul
+        // Las curvas: la cámara va con los dos puntos; en la revelación, con la rosa y luego con la azul
     {desde: l.casi, toma: sigue([datos.rosa, datos.azul], 1.3, 0.75, 30), deriva: 0.1},
     {desde: m.rosaRev, toma: sigue([datos.rosa], 1.6, 0.8, 20), deriva: 0.08},
     {desde: m.azulTodavia, toma: sigue([datos.azul], 1.6, 0.8, 20), entrada: 'suave', viaje: 0.6, deriva: 0.08},
     // El atractor: planos de cada lóbulo y de los puntos, con la voz
     {desde: l.abre, toma: neutra, entrada: 'suave', viaje: 1, deriva: 0.04},
     {desde: m.reglas, toma: lobulo(-1, 1.7), deriva: 0.08},
-    {desde: m.vuelta, toma: lobulo(1, 1.7), deriva: 0.08},
     {desde: m.loQueCambia, toma: neutra, entrada: 'suave', viaje: 0.7, deriva: 0.05},
     {desde: m.error, toma: sigue([datos.rosa, datos.azul], 2.2, 0.8, 0), entrada: 'suave', viaje: 0.6, deriva: 0.1},
     {desde: m.alPrincipio, toma: neutra, deriva: 0.16, giro: -0.08},
@@ -393,12 +389,13 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
         rotuloHud(c, 'esquema · campo en un corte x-z', 90, 465, 1, {tam: 32, tinta: 'b'});
         return;
       }
-      const marcas = [l.pasos, tiempoAncla(tiempos, 'cambia la flecha', l.pasos + 1), tiempoAncla(tiempos, 'avanzan otra vez', l.pasos + 2)];
+      // Escena de pasos (del guion largo): con el guion corto no se ve (pasos = casi); se deja por si vuelve
+      const marcas = [l.pasos, l.pasos + 1, l.pasos + 2];
       const paso = t < marcas[1] ? 0 : t < marcas[2] ? 1 : 2;
       const u = t < l.pasos ? 0 : paso + fase(t, marcas[paso], Math.min(marcas[paso] + 0.5, marcas[paso + 1] ?? l.casi));
       // "Casi apuntan al mismo sitio": las flechas se juntan en el centro para compararlas; vuelven en "como los puntos…"
       const tJuntas = tiempoAncla(tiempos, 'casi apuntan', l.dos + 1.5);
-      const tSeparan = tiempoAncla(tiempos, 'como los puntos', tJuntas + 3.7);
+      const tSeparan = tiempoAncla(tiempos, 'y cada punto sigue', tJuntas + 3.3);
       const juntas = t < l.pasos ? salidaCubica(fase(t, tJuntas, tJuntas + 0.5)) * (1 - salidaCubica(fase(t, tSeparan, tSeparan + 0.5))) : 0;
       const entra = t < l.pasos ? salidaCubica(fase(t, l.dos + 0.2, l.dos + 0.6)) : 1;
       for (const [j, ctx] of [c.solido.b, c.solido.a].entries()) {

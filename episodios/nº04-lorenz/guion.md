@@ -1,19 +1,13 @@
 # nº04 · ¿Cuándo se separan?
 
-Fíjate en esta línea. En realidad, son dos. Una rosa y una azul. ¿Alcanzas a ver cuándo se separan?
+Fíjate en esta línea. [en tono juguetón] En realidad, son dos: una rosa y una azul. ¿Alcanzas a ver cuándo se separan?
 
 Vamos al principio. Desde aquí parecen un solo punto... pero si nos acercamos, hay un espacio diminuto entre los dos.
 
-¿Y por qué importa ese espacio? Imagina que en cada lugar hay una flechita. La punta te dice hacia dónde moverte. Y el largo, qué tan rápido.
+En cada lugar hay una flecha que dice hacia dónde moverse. Mira las dos: casi apuntan al mismo sitio, ¿verdad? [riendo por lo bajo] Casi. Y cada punto sigue la suya.
 
-Ahora mira las dos flechas. Casi apuntan al mismo sitio, ¿verdad? Casi. Como los puntos arrancaron en lugares apenas distintos, cada uno sigue una flecha un poquito diferente.
+[en tono juguetón] ¡Mira la rosa! Ya cruzó a la izquierda... y la azul todavía da otra vuelta por la derecha.
 
-Avanzan... cambia la flecha... avanzan otra vez. Y aquí hay un detalle curioso. En algunas vueltas, los puntos hasta vuelven a acercarse.
+Alejemos la cámara. [con entusiasmo] Esto es el atractor de Lorenz. Las reglas nunca cambian; lo que cambia es cuánto pesa aquel error diminuto. Al comienzo puedes predecirlo. [suspirando] Unas vueltas después... ni siquiera sabes de qué lado va a estar.
 
-¡Mira la rosa! Ya cruzó a la izquierda... y la azul todavía da otra vuelta por la derecha.
-
-Alejemos la cámara. La figura completa que ves es el atractor de Lorenz. Las reglas son las mismas en cada vuelta. Lo que cambia es cuánto importa aquel pequeño error al medir dónde empezó cada punto.
-
-Al principio, con esa medida te alcanza para predecir el recorrido. Varias vueltas después... ya ni siquiera puedes asegurar de qué lado va a estar.
-
-Una vuelta más. ¿Le apuestas a la izquierda... o a la derecha?
+Una vuelta más. [en tono juguetón] ¿Le apuestas a la izquierda... o a la derecha? [riendo por lo bajo]
