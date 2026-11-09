@@ -46,6 +46,7 @@ Degradados suaves, glow, sombras proyectadas, bordes perfectos, blanco puro (#FF
 - Estructura de cada guion: misterio → explicación visual → revelación → remate con guiño o pregunta.
 - Humor seco 6/10. Sin saludos ni despedidas.
 - En los guiones: `[pausa]`, `[pausa larga]` y las indicaciones visuales `[Animación: ...]` (estas últimas NO se leen en voz alta).
+- **Etiquetas de ElevenLabs v3, siempre**, en español como las muestra su interfaz: `[en tono juguetón]`, `[con entusiasmo]`, `[riendo por lo bajo]`, `[suspirando]`, etc. Pocas por guion, al servicio del guiño. Van tal cual en `guion.md`: la alineación descarta cualquier `[marca]` que no sea pausa o animación.
 - Números y siglas escritos como se pronuncian ("veintitrés", "pe cinco jota ese").
 - **Puntuación para la voz** (decide cómo termina cada frase; con solo puntos, todos los cierres caen igual y suena a lectura):
   - `¿…?` para hablarle al espectador ("Parece quieto, ¿verdad?"). El tono sube o se queda abierto.

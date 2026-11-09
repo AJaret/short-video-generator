@@ -37,6 +37,7 @@
   - El resumen avisa de lo que Whisper oyó y **no está en el guion** (por ejemplo, una etiqueta de emoción leída en voz alta).
   - Para volver a Chatterbox, basta con borrar `voz_externa.*`.
   - El texto que se pega en ElevenLabs debe tener **las mismas palabras que `guion.md`**; las etiquetas `[curious]` y los `<break>` dan igual. Si cambian palabras, hay que actualizar el guion. Formato que funcionó en `nº01`: Eleven v3 con etiquetas en inglés (`[curious]`, `[mischievously]`, `[excited]`, `[serious]`) y puntos suspensivos para las pausas; el usuario evitó `[whispers]`/`[softly]` porque el cambio de volumen sonaba brusco.
+  - Desde `nº04` los guiones se escriben **con las etiquetas en español** de la interfaz de ElevenLabs (emociones: `[en tono juguetón]`, `[con entusiasmo]`, `[con voz cansada]`…; vocalizaciones: `[riendo por lo bajo]`, `[suspirando]`, `[carraspeando]`…). Se dejan en `guion.md`: `voz/nucleo.py` (`_OTRA_MARCA`) quita cualquier corchete que no sea `[pausa]` o `[Animación: …]` antes de alinear.
   - Licencia: el plan gratuito de ElevenLabs normalmente no permite uso comercial. Antes de publicar, el usuario debe confirmar que su plan lo permite.
 
 
