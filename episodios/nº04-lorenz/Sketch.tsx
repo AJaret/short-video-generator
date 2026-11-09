@@ -10,8 +10,6 @@ import {
   cobertura,
   conCamara,
   entradaSalidaCubica,
-  estallido,
-  fondoTinta,
   fuente,
   golpe,
   lectura,
@@ -279,9 +277,6 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     // (el usuario, 2026-11-08). Quedan los planos, la deriva y los viajes de cámara.
     const tomaFinal: Toma = toma;
 
-    // ¡Mira la rosa!: un tiempo de medio tono azul detrás de todo (el golpe de la revelación)
-    if (t >= m.rosaRev && t < m.rosaRev + pulso.negra) fondoTinta(c, 'b', {trama: true, cobertura: 0.34});
-
     conCamara(c, tomaFinal, () => escena(c, rotuloHud, lecturasHud));
 
     if (!enPortada) {
@@ -290,7 +285,7 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
       marcoEsquinas(c.solido.k, {x: 70, y: 255, w: 870, h: 1110}, fase(t, corte, corte + 0.45), {grosor: 4, largo: 40});
     }
     hud.forEach((f) => f());
-    sacudirRegistro(c, t, [...m.cortes, m.rosaRev, m.casi, m.siquiera], 9, 0.1);
+    sacudirRegistro(c, t, [...m.cortes, m.casi, m.siquiera], 9, 0.1);
   });
 
   function escena(c: Capas, rotuloHud: (...args: Parameters<typeof rotulo>) => void, lecturasHud: (...args: [string, string, string, string]) => void) {
@@ -423,9 +418,9 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     if (t >= l.abre + 2 && t < l.cierre) cometas(c, t - l.abre - 2, v);
     const [rx, ry] = proyectar(datos.rosa[indice], v);
     const [ax, ay] = proyectar(datos.azul[indice], v);
-    // La revelación: estallido y mira sobre la rosa; luego, mira sobre la azul
+    // "¡Mira la rosa!": una mira sobre la rosa; luego, sobre la azul. Sin destello ni estallido: ahí solo
+    // cruza una curva, no es para tanto (el usuario). El golpe musical está en "alejemos la cámara".
     if (t >= m.rosaRev && t < l.abre) {
-      estallido(c.solido.a, rx, ry, 150, fase(t, m.rosaRev, m.rosaRev + 0.55), {rayos: 14, semilla: 4});
       mira(c.solido.a, rx, ry, 40, fase(t, m.rosaRev, m.rosaRev + 0.4), t);
     }
     if (t >= m.azulTodavia && t < l.abre) mira(c.solido.b, ax, ay, 40, fase(t, m.azulTodavia, m.azulTodavia + 0.4), -t);
