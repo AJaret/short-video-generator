@@ -8,7 +8,7 @@ import type {ContextoSonido, EventoSonoro} from '@sonido/banda';
 import {tiempoDeAncla} from '@canal/tiempos';
 import {cuantizar} from '@canal/pulso';
 import {hz} from '@sonido/sintesis';
-import {cambiosDeLobulo, linea} from './linea';
+import {cambiosDeLobulo, linea, momentosDe} from './linea';
 
 const FPS = 30;
 
@@ -36,6 +36,15 @@ export function eventos({tiempos, duracion, pulso}: ContextoSonido): EventoSonor
     vistos.add(clave);
     const rosa = curva === 'rosa';
     notas.push({t: tq, frecuencia: hz(rosa ? (lado < 0 ? 7 : 12) : lado < 0 ? -5 : 0), volumenDb: rosa ? -8 : -9, duracion: 0.18, brillo: rosa ? 0.6 : 0.35, pan: lado * 0.7});
+  }
+
+  // Dinamismo (prueba 2026-11-08): un golpe corto en cada empujón de cámara; en cada corte de
+  // escena, aire que llega al corte y la impresora riso (la firma del canal en las transiciones)
+  const m = momentosDe(tiempos, l, pulso);
+  for (const t of m.golpes) notas.push({t, frecuencia: 0, volumenDb: -13, efecto: 'golpe'});
+  for (const t of m.cortes) {
+    notas.push({t, frecuencia: 0, volumenDb: -16, efecto: 'barrido', duracion: pulso.negra});
+    notas.push({t, frecuencia: 0, volumenDb: -14, efecto: 'impresora', pan: 0.3});
   }
   return notas;
 }

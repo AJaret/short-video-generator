@@ -105,6 +105,7 @@ export const RisoFilter: React.FC<PropsRisoFilter> = ({tintas, semilla, punto = 
       ctx.globalAlpha = 1;
       ctx.clearRect(0, 0, width, height);
     }
+    capas.golpeRegistro = 0;
     const entradas = [...registro.values()].sort((x, y) => x.orden - y.orden);
     for (const {fn} of entradas) {
       lista.forEach((ctx) => ctx.save());
@@ -114,7 +115,8 @@ export const RisoFilter: React.FC<PropsRisoFilter> = ({tintas, semilla, punto = 
 
     // 2. Tramado riso por CPU
     const leer = (ctx: CanvasRenderingContext2D) => ctx.getImageData(0, 0, width, height).data;
-    const empuje = EMPUJE_REGISTRO * latido;
+    // Golpe riso de cada tiempo + la sacudida que pida el sketch (sacudirRegistro, en los cortes)
+    const empuje = EMPUJE_REGISTRO * latido + (capas.golpeRegistro ?? 0);
     tramar({
       ancho: width,
       alto: height,

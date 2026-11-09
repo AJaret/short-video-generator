@@ -230,3 +230,73 @@ export function golpeGrave(sr: number): Float32Array {
   }
   return x;
 }
+
+// ───────────────── Batería y bajo de la música "viva" (motion graphics) ─────────────────
+
+/** Hi-hat cerrado: ruido brillante muy corto. */
+export function hatCerrado(sr: number, semilla: number): Float32Array {
+  const x = ruidoBlanco(Math.round(sr * 0.06), semilla);
+  pasaAltos1(pasaAltos1(x, sr, 6500), sr, 6500);
+  biquad(x, sr, 'pasabanda', 9500, 0.8);
+  return multiplicar(x, envolvente(x.length, sr, 0.0005, 0.014));
+}
+
+/** Hi-hat abierto: el mismo ruido con cola larga (en los contratiempos). */
+export function hatAbierto(sr: number, semilla: number): Float32Array {
+  const x = ruidoBlanco(Math.round(sr * 0.4), semilla);
+  pasaAltos1(pasaAltos1(x, sr, 6000), sr, 6000);
+  biquad(x, sr, 'pasabanda', 8500, 0.6);
+  return multiplicar(x, envolvente(x.length, sr, 0.001, 0.09));
+}
+
+/** Palmada de papel: tres ráfagas de ruido muy seguidas y una cola corta (el clap de la caja). */
+export function palmada(sr: number, semilla: number): Float32Array {
+  const x = silencio(sr, 0.3);
+  const azar = mulberry32(semilla);
+  for (const [t, g] of [[0, 0.8], [0.009, 0.65], [0.019, 1]] as const) {
+    const r = ruidoBlanco(Math.round(sr * 0.012), Math.floor(azar() * 1e9));
+    multiplicar(r, envolvente(r.length, sr, 0.0003, 0.003));
+    sumarEn(x, r, sr, t, g);
+  }
+  const cola = ruidoBlanco(Math.round(sr * 0.25), semilla + 1);
+  multiplicar(cola, envolvente(cola.length, sr, 0.001, 0.06));
+  sumarEn(x, cola, sr, 0.02, 0.55);
+  biquad(x, sr, 'pasabanda', 1350, 1.1);
+  pasaAltos1(x, sr, 500);
+  return normalizarPico(x, 0);
+}
+
+/** Bajo pulsado: fundamental + armónico que se apaga rápido, saturado (corcheas con rebote). */
+export function bajoPulsado(sr: number, f: number, duracion = 0.3): Float32Array {
+  const n = Math.round(sr * duracion);
+  const x = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    const e = Math.min(1, t / 0.003) * Math.exp(-t / (duracion * 0.45)) * Math.min(1, (duracion - t) / 0.02);
+    const s = Math.sin(2 * Math.PI * f * t) + 0.55 * Math.sin(2 * Math.PI * 2 * f * t) * Math.exp(-t / 0.04);
+    x[i] = Math.tanh(1.8 * s) * e * 0.75;
+  }
+  return x;
+}
+
+/** Barrido de aire hacia un corte: ruido que sube de tono y crece hasta el final (≈ un tiempo). */
+export function barrido(sr: number, duracion = 0.6, semilla = 23): Float32Array {
+  const n = Math.round(sr * duracion);
+  const x = ruidoBlanco(n, semilla);
+  biquad(x, sr, 'pasabanda', (i) => 500 + 6500 * (i / n) ** 2, 1.4);
+  multiplicar(x, (i) => (i / n) ** 2.2);
+  fundidos(x, sr, 0, 0.012);
+  return normalizarPico(x, 0);
+}
+
+/** Golpe corto de cámara: bombo con chasquido y una palmada (los "punch-in" de la imagen). */
+export function golpeCorto(sr: number, semilla = 29): Float32Array {
+  const x = silencio(sr, 0.45);
+  sumarEn(x, bombo(sr), sr, 0, 1);
+  sumarEn(x, palmada(sr, semilla), sr, 0, 0.45);
+  const chasquido = ruidoBlanco(Math.round(sr * 0.02), semilla + 3);
+  pasaAltos1(chasquido, sr, 3000);
+  multiplicar(chasquido, envolvente(chasquido.length, sr, 0.0002, 0.004));
+  sumarEn(x, chasquido, sr, 0, 0.5);
+  return normalizarPico(x, 0);
+}

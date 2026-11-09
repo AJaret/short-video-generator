@@ -14,6 +14,8 @@ export * from './transiciones';
 export * from './graficos';
 export * from './cinetica';
 export * from './tres';
+export * from './camara';
+export * from './detalles';
 export {Transiciones} from './CapaTransiciones';
 export {RisoFilter} from './RisoFilter';
 export {Portada} from './Portada';

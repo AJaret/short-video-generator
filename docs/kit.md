@@ -21,6 +21,15 @@ Inspirado en los reels de referencia (cortes al ritmo, fondos de un solo color, 
   - `textoLetras`: letra a letra, una por semicorchea; `momentosLetras` da los mismos instantes al sonido.
   - `textoBarrido`: una barra de tinta tapa el hueco y, al retirarse, deja el texto.
   - `rotulo`: etiqueta Space Mono en tira de papel que entra con rebote.
+- `camara.ts` · **cámara 2D** (prueba de dinamismo de `nº04`, 2026-11-08):
+  - `tomaEn(t, planos)`: cada `Plano` tiene `desde`, una `toma` (`zoom` alrededor de `px, py`, desplazamiento `dx, dy`, `giro`) o una función del tiempo para seguir algo, `deriva` (zoom que gana dentro del plano) y `giro` (órbita lenta). Entra con `corte` o `suave` (viaje de `viaje` s desde la toma anterior).
+  - `empujes(t, momentos, fuerza)`: zoom con rebote en los golpes (sube en 2 fotogramas y cae en ~0,2 s); multiplica el zoom de la toma.
+  - `conCamara(capas, toma, fn)`: dibuja `fn` con la toma en las seis capas, antes del tramado. Lo que no se mueve con la cámara (rótulos, lecturas) se dibuja fuera.
+  - `seguir`, `aPantallaCon`, `mezclarTomas`. Para el último fotograma (loop), la toma debe volver a la neutra.
+- `detalles.ts` · la capa técnica de las referencias:
+  - `cuadricula(ctx, toma)`: cruces en el mundo (dentro de `conCamara`); hacen legible el movimiento de cámara sobre líneas finas.
+  - `mira(ctx, x, y, r, p, giro)`, `marcoEsquinas(ctx, rect, p)` (visor que se cierra; en `nº04` vuelve a cerrarse en cada corte) y `lectura(ctx, etiqueta, valor, x, y)` para datos que cambian.
+  - `sacudirRegistro(capas, t, momentos, px)`: las tintas se separan unos px durante ~3 fotogramas (el glitch riso, en cortes y revelaciones).
 - `<DatoImpacto>`: `impacto.entrada` puede ser `'sello'` (por defecto), `'letras'` o `'barrido'`.
 - Reglas: el texto y las líneas finas van en capas sólidas; los volúmenes, tonos y orlas, en las tramadas. Nada de degradados: los medios tonos son la trama a 1/3 y 2/3.
 - `tres.ts` · **3D en riso**: un motor propio y ligero, sin Three.js ni WebGL. Proyecta a 2D y pinta con el algoritmo del pintor, así que es determinista y rápido en el render por CPU. El volumen sale de la trama: la luz de cada cara se convierte en cobertura de tinta.

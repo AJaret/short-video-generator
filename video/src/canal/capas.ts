@@ -23,6 +23,11 @@ export type Capas = {
   k: CanvasRenderingContext2D;
   /** Texto y líneas finas, sin trama (umbral al 50 %). */
   solido: {a: CanvasRenderingContext2D; b: CanvasRenderingContext2D; k: CanvasRenderingContext2D};
+  /**
+   * Desajuste de registro extra (px) de este fotograma, que pide el sketch con sacudirRegistro().
+   * <RisoFilter> lo pone a 0 antes de dibujar y lo suma al golpe riso después.
+   */
+  golpeRegistro?: number;
 };
 
 /** Las seis capas en una lista (tramadas y sólidas). */

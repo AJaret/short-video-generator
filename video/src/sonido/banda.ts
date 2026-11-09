@@ -14,8 +14,8 @@ import {DURACION_PORTADA} from '../canal/diseno';
 import {cuantizar, pulsoDe, type Pulso} from '../canal/pulso';
 import {anclasNoEncontradas, finImpacto, momentoImpacto, resolverPanel, tiempoDeAncla} from '../canal/tiempos';
 import type {ConfigEpisodio, Tiempos} from '../canal/tipos';
-import {impresora, papel, sello, tic, ticShepard, zumbido} from './instrumentos';
-import {musicaMisterio, type PlanMusical} from './musica';
+import {barrido, golpeCorto, impresora, papel, sello, tic, ticShepard, zumbido} from './instrumentos';
+import {musicaMisterio, musicaViva, type PlanMusical} from './musica';
 import {aDb, db, estereo, normalizarLufs, rms, sumarPaneado} from './sintesis';
 
 /** Efecto puntual que un episodio pide (sonido.ts): un tic afinado. */
@@ -31,8 +31,12 @@ export type EventoSonoro = {
   shepard?: boolean;
   /** Paneo (−1 izquierda … 1 derecha). */
   pan?: number;
-  /** En lugar de un tic, un efecto de la plantilla (p. ej. la impresora en un corte de escena). */
-  efecto?: 'impresora' | 'papel';
+  /**
+   * En lugar de un tic, un efecto de la plantilla: la impresora en un corte de escena, `golpe` (bombo +
+   * palmada, para los empujones de cámara), `barrido` (aire que sube y TERMINA en `t`, para llegar a
+   * un corte) o `parada` (la música calla desde `t` durante `duracion` s; no suena nada).
+   */
+  efecto?: 'impresora' | 'papel' | 'golpe' | 'barrido' | 'parada';
 };
 
 export type ContextoSonido = {config: ConfigEpisodio; tiempos: Tiempos; duracion: number; pulso: Pulso};
@@ -142,10 +146,14 @@ export function construirBanda({config, tiempos, voz, eventos}: EntradaBanda) {
   const revelacionBruta = anclaOSegundos(audio.revelacion, tiempos);
   const revelacion = revelacionBruta !== null ? cuantizar(revelacionBruta, pulso) : null;
 
+  const propios = eventos ? eventos({config, tiempos, duracion, pulso}) : [];
+
   // 3. Música compuesta para el episodio, con ducking
   if (audio.musica !== false) {
     const plan = planMusical(config, tiempos, duracion, pulso, revelacion);
-    const {base, acentos} = musicaMisterio(sr, plan, config.semilla);
+    for (const ev of propios) if (ev.efecto === 'parada') plan.caidas.push([ev.t, ev.t + (ev.duracion ?? pulso.negra)]);
+    const componer = audio.estilo === 'viva' ? musicaViva : musicaMisterio;
+    const {base, acentos} = componer(sr, plan, config.semilla);
     const musicaDb = audio.musicaDb ?? -18;
     const g = (db(nivelDb + musicaDb) / db(-20)) * CENTRO;
     const marco = Math.round(sr * 0.01);
@@ -199,10 +207,17 @@ export function construirBanda({config, tiempos, voz, eventos}: EntradaBanda) {
   }
 
   // 5. Efectos del episodio
-  const propios = eventos ? eventos({config, tiempos, duracion, pulso}) : [];
   for (const ev of propios) {
+    if (ev.efecto === 'parada') continue; // ya está en el plan musical
+    if (ev.efecto === 'barrido') {
+      const largo = ev.duracion ?? pulso.negra;
+      sumarPaneado(mezcla, barrido(sr, largo, Math.round(ev.t * 100)), sr, ev.t - largo, relativo(ev.volumenDb), ev.pan ?? 0);
+      continue;
+    }
     const sonido =
-      ev.efecto === 'impresora'
+      ev.efecto === 'golpe'
+        ? golpeCorto(sr, Math.round(ev.t * 100))
+        : ev.efecto === 'impresora'
         ? impresora(sr, 0.6, Math.round(ev.t * 100))
         : ev.efecto === 'papel'
           ? papel(sr, true, 0.45, Math.round(ev.t * 100))

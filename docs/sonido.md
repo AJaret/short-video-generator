@@ -17,6 +17,11 @@
     - más de 0,8: campanitas.
   - Dentro del plan: **caídas** (silencio), **golpes** (platillo + grave) y un **acorde final**.
   - Eco que rebota de lado a lado, en estéreo.
+- `musicaViva` (`audio.estilo: "viva"`, prueba en `nº04` desde el 2026-11-08): misma armonía y marimba, arreglada como los reels de referencia.
+  - Batería completa: bombo en 1 y 3, palmada de papel en 2 y 4, hi-hat en corcheas y luego semicorcheas, hi-hat abierto a tope. Bajo pulsado en corcheas y campanitas dos octavas arriba.
+  - La intensidad se lee al empezar cada compás (o en el golpe): las capas entran en la raya y cada sección suena distinta.
+  - Fin de cada frase de 4 compases: redoble de palmadas, o un stop cada 8. Redoble que acelera en el compás anterior a cada golpe.
+  - Efectos nuevos para `sonido.ts`: `golpe` (empujón de cámara), `barrido` (aire que termina en el corte) y `parada` (la música calla `duracion` s).
 - **Pulso (`video/src/canal/pulso.ts`):** el reloj que comparten animación, plantilla y sonido.
   - `pulsoDe(config)` (`ritmo.bpm`, 92 por defecto), `cuantizar(t, pulso, division, modo)`, `golpe(t, pulso)` (envolvente que late en cada tiempo) y `faseEn`.
   - A 92 BPM un compás dura 2,609 s, así que la salida de la portada (2,6 s) cae en el primer tiempo del compás 1.
