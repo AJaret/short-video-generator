@@ -1,0 +1,361 @@
+{
+ "fuente": "VCSL (Versilian Community Sample Library), CC0 1.0",
+ "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+ "sr": 44100,
+ "instrumentos": {
+  "marimba": [
+   {
+    "archivo": "marimba/F1_med.wav",
+    "midi": 41,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_F1_med_01.wav"
+   },
+   {
+    "archivo": "marimba/F1_loud.wav",
+    "midi": 41,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_F1_loud_01.wav"
+   },
+   {
+    "archivo": "marimba/C2_med.wav",
+    "midi": 48,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C2_med_01.wav"
+   },
+   {
+    "archivo": "marimba/C2_loud.wav",
+    "midi": 48,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C2_loud_01.wav"
+   },
+   {
+    "archivo": "marimba/G2_med.wav",
+    "midi": 55,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_G2_med_01.wav"
+   },
+   {
+    "archivo": "marimba/G2_loud.wav",
+    "midi": 55,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_G2_loud_01.wav"
+   },
+   {
+    "archivo": "marimba/B2_med.wav",
+    "midi": 59,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_B2_med_01.wav"
+   },
+   {
+    "archivo": "marimba/B2_loud.wav",
+    "midi": 59,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_B2_loud_01.wav"
+   },
+   {
+    "archivo": "marimba/F3_med.wav",
+    "midi": 65,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_F3_med_01.wav"
+   },
+   {
+    "archivo": "marimba/F3_loud.wav",
+    "midi": 65,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_F3_loud_01.wav"
+   },
+   {
+    "archivo": "marimba/C4_med.wav",
+    "midi": 72,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C4_med_01.wav"
+   },
+   {
+    "archivo": "marimba/C4_loud.wav",
+    "midi": 72,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C4_loud_01.wav"
+   },
+   {
+    "archivo": "marimba/G4_med.wav",
+    "midi": 79,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_G4_med_01.wav"
+   },
+   {
+    "archivo": "marimba/G4_loud.wav",
+    "midi": 79,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_G4_loud_01.wav"
+   },
+   {
+    "archivo": "marimba/B4_med.wav",
+    "midi": 83,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_B4_med_01.wav"
+   },
+   {
+    "archivo": "marimba/B4_loud.wav",
+    "midi": 83,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_B4_loud_01.wav"
+   },
+   {
+    "archivo": "marimba/F5_med.wav",
+    "midi": 89,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_F5_med_01.wav"
+   },
+   {
+    "archivo": "marimba/F5_loud.wav",
+    "midi": 89,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_F5_loud_01.wav"
+   },
+   {
+    "archivo": "marimba/C6_med.wav",
+    "midi": 96,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C6_med_01.wav"
+   },
+   {
+    "archivo": "marimba/C6_loud.wav",
+    "midi": 96,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C6_loud_01.wav"
+   }
+  ],
+  "vibrafono": [
+   {
+    "archivo": "vibrafono/F2_loud.wav",
+    "midi": 53,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_F2_v3_rr1_Main.wav"
+   },
+   {
+    "archivo": "vibrafono/A2_loud.wav",
+    "midi": 57,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_A2_v3_rr1_Main.wav"
+   },
+   {
+    "archivo": "vibrafono/C3_loud.wav",
+    "midi": 60,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_C3_v3_rr1_Main.wav"
+   },
+   {
+    "archivo": "vibrafono/E3_loud.wav",
+    "midi": 64,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_E3_v3_rr1_Main.wav"
+   },
+   {
+    "archivo": "vibrafono/G3_loud.wav",
+    "midi": 67,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_G3_v3_rr1_Main.wav"
+   },
+   {
+    "archivo": "vibrafono/B3_loud.wav",
+    "midi": 71,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_B3_v3_rr1_Main.wav"
+   },
+   {
+    "archivo": "vibrafono/D4_loud.wav",
+    "midi": 74,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_D4_v3_rr1_Main.wav"
+   },
+   {
+    "archivo": "vibrafono/F4_loud.wav",
+    "midi": 77,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_F4_v3_rr1_Main.wav"
+   },
+   {
+    "archivo": "vibrafono/A4_loud.wav",
+    "midi": 81,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_A4_v3_rr1_Main.wav"
+   },
+   {
+    "archivo": "vibrafono/C5_loud.wav",
+    "midi": 84,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_C5_v3_rr1_Main.wav"
+   },
+   {
+    "archivo": "vibrafono/E5_loud.wav",
+    "midi": 88,
+    "capa": "loud",
+    "origen": "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_E5_v3_rr1_Main.wav"
+   }
+  ],
+  "glock": [
+   {
+    "archivo": "glock/G4_med.wav",
+    "midi": 79,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Glockenspiel/glock_medium_G4_01.wav"
+   },
+   {
+    "archivo": "glock/C5_med.wav",
+    "midi": 84,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Glockenspiel/glock_medium_C5_01.wav"
+   },
+   {
+    "archivo": "glock/G5_med.wav",
+    "midi": 91,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Glockenspiel/glock_medium_G5_01.wav"
+   },
+   {
+    "archivo": "glock/C6_med.wav",
+    "midi": 96,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Glockenspiel/glock_medium_C6_01.wav"
+   },
+   {
+    "archivo": "glock/G6_med.wav",
+    "midi": 103,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Glockenspiel/glock_medium_G6_01.wav"
+   },
+   {
+    "archivo": "glock/C7_med.wav",
+    "midi": 108,
+    "capa": "med",
+    "origen": "Idiophones/Struck Idiophones/Glockenspiel/glock_medium_C7_01.wav"
+   }
+  ],
+  "palmada": [
+   {
+    "archivo": "palmada/golpe_rr1.wav",
+    "midi": null,
+    "capa": "rr1",
+    "origen": "Idiophones/Struck Idiophones/Claps/Clap_rr1.wav"
+   },
+   {
+    "archivo": "palmada/golpe_rr2.wav",
+    "midi": null,
+    "capa": "rr2",
+    "origen": "Idiophones/Struck Idiophones/Claps/Clap_rr2.wav"
+   },
+   {
+    "archivo": "palmada/golpe_rr3.wav",
+    "midi": null,
+    "capa": "rr3",
+    "origen": "Idiophones/Struck Idiophones/Claps/Clap_rr3.wav"
+   },
+   {
+    "archivo": "palmada/golpe_rr4.wav",
+    "midi": null,
+    "capa": "rr4",
+    "origen": "Idiophones/Struck Idiophones/Claps/Clap_rr4.wav"
+   }
+  ],
+  "hat": [
+   {
+    "archivo": "hat/golpe_v2rr1.wav",
+    "midi": null,
+    "capa": "v2rr1",
+    "origen": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr1_Mid.wav"
+   },
+   {
+    "archivo": "hat/golpe_v2rr2.wav",
+    "midi": null,
+    "capa": "v2rr2",
+    "origen": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr2_Mid.wav"
+   },
+   {
+    "archivo": "hat/golpe_v3rr1.wav",
+    "midi": null,
+    "capa": "v3rr1",
+    "origen": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v3_rr1_Mid.wav"
+   },
+   {
+    "archivo": "hat/golpe_v3rr2.wav",
+    "midi": null,
+    "capa": "v3rr2",
+    "origen": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v3_rr2_Mid.wav"
+   }
+  ],
+  "hatAbierto": [
+   {
+    "archivo": "hatAbierto/golpe_rr1.wav",
+    "midi": null,
+    "capa": "rr1",
+    "origen": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitO_rr1_Mid.wav"
+   }
+  ],
+  "caja": [
+   {
+    "archivo": "caja/golpe_v5rr1.wav",
+    "midi": null,
+    "capa": "v5rr1",
+    "origen": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr1_Mid.wav"
+   },
+   {
+    "archivo": "caja/golpe_v5rr2.wav",
+    "midi": null,
+    "capa": "v5rr2",
+    "origen": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr2_Mid.wav"
+   },
+   {
+    "archivo": "caja/golpe_v6rr1.wav",
+    "midi": null,
+    "capa": "v6rr1",
+    "origen": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v6_rr1_Mid.wav"
+   },
+   {
+    "archivo": "caja/golpe_v6rr2.wav",
+    "midi": null,
+    "capa": "v6rr2",
+    "origen": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v6_rr2_Mid.wav"
+   }
+  ],
+  "shaker": [
+   {
+    "archivo": "shaker/golpe_Down1.wav",
+    "midi": null,
+    "capa": "Down1",
+    "origen": "Idiophones/Struck Idiophones/Shaker, Small/Mid_ShakerHighFaster_Down_rr1.wav"
+   },
+   {
+    "archivo": "shaker/golpe_Down2.wav",
+    "midi": null,
+    "capa": "Down2",
+    "origen": "Idiophones/Struck Idiophones/Shaker, Small/Mid_ShakerHighFaster_Down_rr2.wav"
+   },
+   {
+    "archivo": "shaker/golpe_Up1.wav",
+    "midi": null,
+    "capa": "Up1",
+    "origen": "Idiophones/Struck Idiophones/Shaker, Small/Mid_ShakerHighFaster_Up_rr1.wav"
+   },
+   {
+    "archivo": "shaker/golpe_Up2.wav",
+    "midi": null,
+    "capa": "Up2",
+    "origen": "Idiophones/Struck Idiophones/Shaker, Small/Mid_ShakerHighFaster_Up_rr2.wav"
+   }
+  ],
+  "pandero": [
+   {
+    "archivo": "pandero/golpe_v1.wav",
+    "midi": null,
+    "capa": "v1",
+    "origen": "Idiophones/Struck Idiophones/Tambourine 1/Tamb1_Hit_v1_rr1_Mid.wav"
+   },
+   {
+    "archivo": "pandero/golpe_v2.wav",
+    "midi": null,
+    "capa": "v2",
+    "origen": "Idiophones/Struck Idiophones/Tambourine 1/Tamb1_Hit_v2_rr1_Mid.wav"
+   }
+  ]
+ }
+}

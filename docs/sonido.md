@@ -17,7 +17,8 @@
     - más de 0,8: campanitas.
   - Dentro del plan: **caídas** (silencio), **golpes** (platillo + grave) y un **acorde final**.
   - Eco que rebota de lado a lado, en estéreo.
-- `musicaViva` (`audio.estilo: "viva"`, prueba en `nº04` desde el 2026-11-08): misma armonía y marimba, arreglada como los reels de referencia.
+- **Instrumentos reales** (`muestreo.ts`): marimba, vibráfono, glockenspiel, caja, palmadas, hi-hat, shaker y pandero grabados de VCSL (Versilian Community Sample Library, CC0). `herramientas/muestras.py` los baja de una versión fija del banco, los recorta y los guarda en `video/src/sonido/muestras/` (versionados, 6,5 MB) con `muestras.json`. VCSL nombra esas notas una octava abajo de como suenan (su C4 da 523 Hz, medido): el manifiesto guarda la nota real. `sonido.mjs` los carga y `notaMuestreada` afina la muestra más cercana cambiando la velocidad de reproducción.
+- `musicaViva` (`audio.estilo: "viva"`, prueba en `nº04` desde el 2026-11-08): misma armonía, arreglada como los reels de referencia y tocada con los instrumentos reales (la versión sintetizada sonaba "a juguete" y sin energía). Bombo y bajo siguen sintetizados (estilo 808). Más energía: dos compases de entrada y enseguida batería; caja + palmadas en 2 y 4, hi-hat en semicorcheas, pandero, vibráfono a contratiempo y un gancho de glockenspiel a tope. La música baja 4,5 dB (no 3) mientras habla la voz.
   - Batería completa: bombo en 1 y 3, palmada de papel en 2 y 4, hi-hat en corcheas y luego semicorcheas, hi-hat abierto a tope. Bajo pulsado en corcheas y campanitas dos octavas arriba.
   - La intensidad se lee al empezar cada compás (o en el golpe): las capas entran en la raya y cada sección suena distinta.
   - Fin de cada frase de 4 compases: redoble de palmadas, o un stop cada 8. Redoble que acelera en el compás anterior a cada golpe.

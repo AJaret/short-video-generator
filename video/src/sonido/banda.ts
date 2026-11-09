@@ -16,6 +16,7 @@ import {anclasNoEncontradas, finImpacto, momentoImpacto, resolverPanel, tiempoDe
 import type {ConfigEpisodio, Tiempos} from '../canal/tipos';
 import {barrido, golpeCorto, impresora, papel, sello, tic, ticShepard, zumbido} from './instrumentos';
 import {musicaMisterio, musicaViva, type PlanMusical} from './musica';
+import type {BancoMuestras} from './muestreo';
 import {aDb, db, estereo, normalizarLufs, rms, sumarPaneado} from './sintesis';
 
 /** Efecto puntual que un episodio pide (sonido.ts): un tic afinado. */
@@ -47,6 +48,8 @@ export type EntradaBanda = {
   voz: {sr: number; datos: Float32Array};
   /** Efectos propios del episodio (función exportada por episodios/<ep>/sonido.ts). */
   eventos?: (contexto: ContextoSonido) => EventoSonoro[];
+  /** Instrumentos reales (VCSL) para la música viva; sonido.mjs los carga de video/src/sonido/muestras. */
+  muestras?: BancoMuestras;
 };
 
 const COLA_POR_DEFECTO = 1.5;
@@ -87,7 +90,7 @@ const anclaOSegundos = (valor: string | number | undefined, tiempos: Tiempos) =>
  * y luego intensidad media (0,65) mientras se explica, hasta el remate. Cada golpe (la revelación y
  * los de `audio.golpes`) lleva un tiempo de silencio justo antes.
  */
-function planMusical(config: ConfigEpisodio, tiempos: Tiempos, duracion: number, pulso: Pulso, revelacion: number | null): PlanMusical {
+function planMusical(config: ConfigEpisodio, tiempos: Tiempos, duracion: number, pulso: Pulso, revelacion: number | null, viva = false): PlanMusical {
   const extras = (config.audio?.golpes ?? [])
     .map((g) => anclaOSegundos(g, tiempos))
     .filter((g): g is number => g !== null)
@@ -108,15 +111,21 @@ function planMusical(config: ConfigEpisodio, tiempos: Tiempos, duracion: number,
     golpes,
     intensidad: (t) => {
       if (t < salida - 0.01) return 0.2;
+      // Viva: dos compases de entrada (marimba, hi-hat) y enseguida batería; sube hasta la revelación
+      if (viva && revelacion !== null && t < revelacion) {
+        if (t < salida + 2 * pulso.compas) return 0.35;
+        return 0.55 + 0.3 * Math.min(1, (t - salida - 2 * pulso.compas) / Math.max(1, revelacion - salida - 2 * pulso.compas));
+      }
+      if (viva && t >= remate && t < final) return 0.3;
       if (revelacion !== null && t < revelacion) return 0.3 + 0.55 * Math.min(1, (t - salida) / Math.max(1, revelacion - salida));
       if (revelacion === null && t < remate) return 0.35 + 0.5 * Math.min(1, (t - salida) / Math.max(1, remate - salida));
-      if (t < remate) return revelacion !== null && t < revelacion + 2 * pulso.compas ? 1 : 0.65;
+      if (t < remate) return revelacion !== null && t < revelacion + 2 * pulso.compas ? 1 : viva ? 0.7 : 0.65;
       return 0.25 * (1 - 0.6 * Math.min(1, (t - remate) / Math.max(1, final - remate)));
     },
   };
 }
 
-export function construirBanda({config, tiempos, voz, eventos}: EntradaBanda) {
+export function construirBanda({config, tiempos, voz, eventos, muestras}: EntradaBanda) {
   const sr = voz.sr;
   const pulso = pulsoDe(config);
   const duracion = tiempos.duracion + (config.cola ?? COLA_POR_DEFECTO);
@@ -150,10 +159,10 @@ export function construirBanda({config, tiempos, voz, eventos}: EntradaBanda) {
 
   // 3. Música compuesta para el episodio, con ducking
   if (audio.musica !== false) {
-    const plan = planMusical(config, tiempos, duracion, pulso, revelacion);
+    const viva = audio.estilo === 'viva';
+    const plan = planMusical(config, tiempos, duracion, pulso, revelacion, viva);
     for (const ev of propios) if (ev.efecto === 'parada') plan.caidas.push([ev.t, ev.t + (ev.duracion ?? pulso.negra)]);
-    const componer = audio.estilo === 'viva' ? musicaViva : musicaMisterio;
-    const {base, acentos} = componer(sr, plan, config.semilla);
+    const {base, acentos} = viva ? musicaViva(sr, plan, config.semilla, muestras) : musicaMisterio(sr, plan, config.semilla);
     const musicaDb = audio.musicaDb ?? -18;
     const g = (db(nivelDb + musicaDb) / db(-20)) * CENTRO;
     const marco = Math.round(sr * 0.01);
@@ -162,7 +171,7 @@ export function construirBanda({config, tiempos, voz, eventos}: EntradaBanda) {
     for (let i = 0; i < marcos; i++) {
       const t = i * 0.01;
       let k = 1;
-      if (habla[i]) k *= db(-3);
+      if (habla[i]) k *= db(viva ? -4.5 : -3); // la viva tiene más batería: deja más hueco a la voz
       if (impactos.some(({inicio, fin}) => t >= inicio - 0.1 && t <= fin + 0.2)) k *= db(-7);
       objetivo[i] = k;
     }

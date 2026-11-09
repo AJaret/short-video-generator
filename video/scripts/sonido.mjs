@@ -43,11 +43,21 @@ const leerJson = (archivo) => JSON.parse(fs.readFileSync(path.join(ep, archivo),
 const inicio = Date.now();
 m.anclasNoEncontradas.clear();
 const voz = m.leerWav(new Uint8Array(fs.readFileSync(path.join(ep, 'voz.wav'))));
+// Instrumentos reales (VCSL, CC0) para la música viva: herramientas/muestras.py los prepara
+const carpetaMuestras = path.resolve('src/sonido/muestras');
+const muestras = {};
+if (fs.existsSync(path.join(carpetaMuestras, 'muestras.json'))) {
+  const manifiesto = JSON.parse(fs.readFileSync(path.join(carpetaMuestras, 'muestras.json'), 'utf8'));
+  for (const [nombre, lista] of Object.entries(manifiesto.instrumentos)) {
+    muestras[nombre] = lista.map((e) => ({...m.leerWav(new Uint8Array(fs.readFileSync(path.join(carpetaMuestras, e.archivo)))), midi: e.midi, capa: e.capa}));
+  }
+}
 const {mezcla, sr, informe} = m.construirBanda({
   config: leerJson('config.json'),
   tiempos: leerJson('tiempos.json'),
   voz,
   eventos: m.eventos,
+  muestras,
 });
 fs.writeFileSync(path.join(ep, 'mezcla.wav'), m.escribirWav([mezcla.l, mezcla.r], sr));
 for (const aviso of informe.avisos ?? []) console.warn(`⚠ ${aviso}`);
