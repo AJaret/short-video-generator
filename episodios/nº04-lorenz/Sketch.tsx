@@ -25,6 +25,8 @@ import {
   tomaEn,
   useDibujo,
   type Capas,
+  recortarA,
+  VISOR,
   type Plano,
   type Toma,
   type PropsSketch,
@@ -250,25 +252,6 @@ function cometas(c: Capas, s: number, v: Vista) {
 function lecturas(c: Capas, e1: string, v1: string, e2: string, v2: string) {
   lectura(c.solido.k, e1, v1, 112, 345, {tam: 30});
   lectura(c.solido.k, e2, v2, 898, 345, {tam: 30, alinear: 'right'});
-}
-
-/** Marco de visor = zona útil con cámara (dentro de las zonas seguras y sobre los subtítulos). */
-const VISOR = {x: 70, y: 255, w: 870, h: 1110};
-
-/** Dibuja `fn` recortado al rectángulo en las seis capas. */
-function recortarA(c: Capas, r: {x: number; y: number; w: number; h: number}, fn: () => void) {
-  const lista = [c.a, c.b, c.k, c.solido.a, c.solido.b, c.solido.k];
-  for (const ctx of lista) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(r.x, r.y, r.w, r.h);
-    ctx.clip();
-  }
-  try {
-    fn();
-  } finally {
-    for (const ctx of lista) ctx.restore();
-  }
 }
 
 // ── Componente ────────────────────────────────────────────────────────────────────────────────

@@ -123,3 +123,26 @@ export function conCamara(capas: Capas, toma: Toma, fn: () => void): void {
     for (const ctx of lista) ctx.restore();
   }
 }
+
+/**
+ * Marco de visor: la zona útil con cámara (dentro de las zonas seguras: deja libres los 140 px de los
+ * botones de la app a la derecha y no baja hasta los subtítulos). Con cámara, el dibujo se recorta
+ * aquí (recortarA) y marcoEsquinas() lo señala.
+ */
+export const VISOR = {x: 70, y: 255, w: 870, h: 1110};
+
+/** Dibuja `fn` recortado al rectángulo en las seis capas. */
+export function recortarA(capas: Capas, r: {x: number; y: number; w: number; h: number}, fn: () => void): void {
+  const lista = todasLasCapas(capas);
+  for (const ctx of lista) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(r.x, r.y, r.w, r.h);
+    ctx.clip();
+  }
+  try {
+    fn();
+  } finally {
+    for (const ctx of lista) ctx.restore();
+  }
+}

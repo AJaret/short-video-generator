@@ -82,4 +82,14 @@ if __name__ == '__main__':
         print(f'   {alfa}° → {b} brazos')
         assert b == esperado
     print(f'   ángulo de oro → {brazos(ORO)} direcciones (nunca repite)')
+
+    # 5. El remate muestra un girasol "que no dio Fibonacci" con un patrón que el estudio de 2016 sí
+    #    encontró: espirales de Lucas (1, 3, 4, 7, 11, 18, 29, 47…). En el modelo salen con el ángulo de
+    #    Lucas, 360° / (3 + 1/φ) ≈ 99,502°.
+    LUCAS = [1, 3, 4, 7, 11, 18, 29, 47, 76, 123]
+    angulo_lucas = 360 / (3 + 1 / PHI)  # = 99,5016°
+    p = semillas(angulo_lucas, 400)
+    comunes = sorted(d for d, _ in vecinos(p, int(400 * 0.85), k=2).most_common(2))
+    print(f'5. Ángulo de Lucas {angulo_lucas:.3f}° con 400 semillas → espirales {comunes} (Lucas: {all(d in LUCAS for d in comunes)})')
+    assert all(d in LUCAS for d in comunes)
     print('OK')
