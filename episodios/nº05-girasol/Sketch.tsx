@@ -17,7 +17,6 @@ import {
   pulsoDe,
   recortarA,
   recortarPapel,
-  trazarCirculoIrregular,
   hash01,
   rotulo,
   sacudirRegistro,
@@ -98,8 +97,8 @@ function semillas(
  * El girasol "impreso" (el usuario lo veía plano, 2026-11-10): cada semilla es una gota orientada
  * hacia el centro, con cuerpo a 2/3 de trama, sombra abajo a la derecha a tinta llena, un brillo de
  * papel arriba a la izquierda y un contorno de papel que la separa del disco. Más pequeñas en el
- * centro y grandes afuera, como en un girasol de verdad. Debajo, el disco a 1/3 de trama, y alrededor
- * una corona de 34 pétalos rosas en dos capas (1/3 detrás, 2/3 delante) que se mecen un poco.
+ * centro y grandes afuera, como en un girasol de verdad. Sin disco de fondo (el gris no convenció
+ * al usuario): las semillas van sobre el papel. Alrededor, una corona de 34 pétalos rosas en dos capas (1/3 detrás, 2/3 delante) que se mecen un poco.
  * Nada de degradados: los tonos son los niveles de la trama.
  */
 function girasol(
@@ -108,9 +107,8 @@ function girasol(
   angulo: number,
   v: Vista,
   t: number,
-  op: {escala?: (n: number) => number; barrido?: number | null; petalos?: (i: number) => number; fondo?: boolean; vaiven?: number} = {},
+  op: {escala?: (n: number) => number; barrido?: number | null; petalos?: (i: number) => number; vaiven?: number} = {},
 ) {
-  const R = v.c * Math.sqrt(Math.max(1, N));
   const vaiven = op.vaiven ?? 1;
   // Pétalos: dos coronas de 34 (un número de Fibonacci), la de atrás girada media posición
   if (op.petalos) {
@@ -135,12 +133,6 @@ function girasol(
       }
       ctx.fill();
     }
-  }
-  // Disco de fondo a 1/3 (crece con las semillas)
-  if (op.fondo) {
-    c.k.fillStyle = cobertura(0.34);
-    trazarCirculoIrregular(c.k, v.cx, v.cy, R + v.c * 0.9, 5);
-    c.k.fill();
   }
   // Semillas
   type S = {x: number; y: number; a: number; s: number; rosa: boolean};
@@ -270,7 +262,7 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     const barrido = t > 0.05 && t < DURACION_PORTADA ? t * 2.4 : t >= l.equivocaron && t < l.fin - 0.3 ? (t - l.equivocaron) * 2.4 + 1 : null;
     // El vaivén de los pétalos empieza y termina en cero: el primer y el último fotograma son iguales
     const vaiven = Math.min(1, t / 0.6, Math.max(0, l.fin - t) / 0.6);
-    girasol(c, SEMILLAS, anguloEn(0, l), VISTA_PORTADA, t, {barrido, petalos: () => 1, fondo: true, vaiven});
+    girasol(c, SEMILLAS, anguloEn(0, l), VISTA_PORTADA, t, {barrido, petalos: () => 1, vaiven});
   }
 
   function escena(c: Capas, toma: Toma, hud: (() => void)[]) {
@@ -323,9 +315,7 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
         : t >= esp.otraVez
           ? (i: number) => salidaCubica(fase(t, esp.otraVez + i * esp.fusa * 0.5, esp.otraVez + i * esp.fusa * 0.5 + 0.4))
           : undefined;
-    // Disco de fondo: con el girasol entero y mientras crece (en la prueba de ángulos, los huecos son papel)
-    const fondo = t < l.nadie + 0.45 || (t >= cr.inicio && t < l.redondo) || t >= esp.otraVez;
-    girasol(c, N, angulo, VISTA, t, {escala, petalos, fondo});
+    girasol(c, N, angulo, VISTA, t, {escala, petalos});
 
     // ── Las espirales: 34 rosas y 55 azules, una por fusa; vuelven "solas" con el ángulo de oro ──
     if (t < l.nadie) {
