@@ -35,6 +35,13 @@ def mulberry32(a):
     return siguiente
 
 
+def campo(semilla, ancho=ANCHO, alto=ALTO):
+    """El azar de cada casilla (0…9999): hay árbol si campo < p·10000. Con el mismo campo, subir p solo
+    añade árboles: el final del video barre la densidad sobre el mismo bosque."""
+    azar = mulberry32(semilla)
+    return [[int(azar() * 10000) for _ in range(ancho)] for _ in range(alto)]
+
+
 def bosque(p, semilla, ancho=ANCHO, alto=ALTO):
     azar = mulberry32(semilla)
     return [[azar() < p for _ in range(ancho)] for _ in range(alto)]
@@ -103,10 +110,18 @@ if __name__ == '__main__':
                 continue  # que la densidad real sea la que dice la voz
             elegidos[nombre] = dict(p=p, semilla=semilla, densidad=round(densidad, 4), cruza=cruza, pasos=ultimo,
                                     quemados=quemados, arboles=arboles,
-                                    filas=[''.join('1' if c else '0' for c in fila) for fila in b])
+                                    filas=[''.join('1' if c else '0' for c in fila) for fila in b],
+                                    campo=[v for fila in campo(semilla) for v in fila])
+            assert all((v < p * 10000) == c for v, c in zip(elegidos[nombre]['campo'], (c for fila in b for c in fila)))
             print(f'   {nombre} %: semilla {semilla} · densidad {densidad:.1%} · cruza {cruza} · {ultimo} pasos ·'
                   f' {quemados}/{arboles} árboles quemados · llega a la fila {ALTO - alcanzado} de {ALTO}')
             break
         assert nombre in elegidos, nombre
-    Path(__file__).with_name('bosques.json').write_text(json.dumps(dict(ancho=ANCHO, alto=ALTO, **elegidos), separators=(',', ':')))
+    # 4. Curvas medidas para la gráfica del video (probabilidad de cruzar de 50 % a 70 %)
+    print('4. Curvas de 50 % a 70 % (para la gráfica):')
+    curvas = {}
+    for nombre, (ancho, alto, pruebas) in (('video', (ANCHO, ALTO, 300)), ('grande', (200, 200, 80))):
+        curvas[nombre] = [round(probabilidad(k / 100, ancho, alto, pruebas), 3) for k in range(50, 71)]
+        print(f'   {nombre}: ' + ' '.join(f'{v:.0%}' for v in curvas[nombre]))
+    Path(__file__).with_name('bosques.json').write_text(json.dumps(dict(ancho=ANCHO, alto=ALTO, curvas=curvas, **elegidos), separators=(',', ':')))
     print('OK')

@@ -18,4 +18,8 @@ Comprobación: `python "episodios/nº06-bosque/verificar.py"` (Python estándar,
   - 59 % (semilla 29, 58,8 %): cruza en 138 pasos quemando 1299 de 2370, es decir, deja en pie el 45 % («casi la mitad del bosque en pie»).
 - «Transición de fase»: la percolación es el ejemplo de libro de una transición de fase continua. El guion no la compara con el agua que se congela (esa es de otro tipo).
 - Música: Sol menor, progresión andaluza (i–VII–VI–V), arpegio «pulso», gancho en marimba (distinta de nº04 y nº05).
-- Guion: 123 palabras, ~49 s, con etiquetas de ElevenLabs en español.
+- Guion: 123 palabras, con etiquetas de ElevenLabs en español. Toma del 2026-11-11: 50,4 s de voz, 51,8 s de video; Whisper empató el 87 % de las palabras.
+- Gráfica: las curvas son las medidas por `verificar.py` (bosques.json → curvas), de 50 % a 70 %: el bosque del video (300 bosques por punto) y uno de 200×200 (80 por punto). Las marcas dicen 1 % en 57 % y 96 % en 61 % (bosque grande). Se rotula «medido», no «esquema».
+- Los gemelos del final son el mismo campo de azar de 100×100 con 57 % y 61 % (el segundo solo añade árboles); `gemelos()` en `linea.ts` busca, determinista, la primera semilla en la que el de 57 % se apaga y el de 61 % cruza. Se rotulan «esquema».
+- El sello «59 %» y el golpe musical caen en «cincuenta y nueve». En el bosque de 59 % el fuego cruza justo en «estrechito» y después se dibuja en rosa el camino por el que cruzó (de arriba hacia abajo por pasos decrecientes).
+- Portada y final: el bosque de 59 % intacto (chispas abajo en la portada). En «¿cuántos árboles plantarías tú?» la densidad sube y baja sobre el mismo campo y vuelve al 59 % en el último fotograma: loop exacto (0 %).
