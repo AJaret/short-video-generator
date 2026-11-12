@@ -11,18 +11,16 @@ import {
   fuente,
   hash01,
   lectura,
-  marcoEsquinas,
   mira,
   MONO,
   ORDEN,
   pulsoDe,
-  recortarA,
+  recortarPapel,
   rotulo,
   sacudirRegistro,
   salidaCubica,
   tomaEn,
   useDibujo,
-  VISOR,
   type Capas,
   type Plano,
   type PropsSketch,
@@ -48,10 +46,14 @@ import {
 // ── Geometría ─────────────────────────────────────────────────────────────────────────────────
 
 type Vista = {x0: number; y0: number; cel: number};
-/** El bosque dentro del visor: 56×72 casillas de 15 px. */
-const VISTA: Vista = {x0: 85, y0: 270, cel: 15};
+/**
+ * Sin recuadro de visor (el usuario, 2026-11-11): el bosque centrado en la pantalla (x = 540) y lo más
+ * grande que cabe sobre los subtítulos: 56×72 casillas de 16 px (896×1152). La esquina de abajo a la
+ * derecha roza la columna de botones de la app, pero ahí solo hay árboles, nada que leer.
+ */
+const VISTA: Vista = {x0: 540 - (ANCHO * 16) / 2, y0: 230, cel: 16};
 /** Portada y final: más pequeño y más arriba, por encima del título. */
-const VISTA_PORTADA: Vista = {x0: 505 - (ANCHO * 10) / 2, y0: 200, cel: 10};
+const VISTA_PORTADA: Vista = {x0: 540 - (ANCHO * 10) / 2, y0: 200, cel: 10};
 
 /** Llamas que siguen ardiendo (pasos) detrás del frente. */
 const ARDE = 4;
@@ -145,14 +147,14 @@ function planosDe(l: Linea): Plano[] {
   const neutra = {zoom: 1};
   return [
     {desde: DURACION_PORTADA, toma: neutra, deriva: 0.04},
-    {desde: l.incendio, toma: {zoom: 1.15, px: 505, py: 1250}, entrada: 'suave', viaje: 0.9, deriva: 0.05},
+    {desde: l.incendio, toma: {zoom: 1.15, px: 540, py: 1300}, entrada: 'suave', viaje: 0.9, deriva: 0.05},
     // De cerca: el fuego salta de vecino en vecino (la fila de abajo, a media pantalla)
-    {desde: l.vecino, toma: {zoom: 3, px: 505, py: 1250, dy: -350}, entrada: 'suave', viaje: 0.8, deriva: 0.06},
+    {desde: l.vecino, toma: {zoom: 3, px: 540, py: 1300, dy: -350}, entrada: 'suave', viaje: 0.8, deriva: 0.06},
     {desde: l.con55, toma: neutra, entrada: 'suave', viaje: 1.4, deriva: 0.05},
     {desde: l.con65, toma: neutra, deriva: 0.08},
     {desde: l.medio, toma: neutra, deriva: 0.05},
     {desde: l.justo, toma: neutra, deriva: 0.06},
-    {desde: l.enPie - 0.6, toma: {zoom: 1.2, px: 505, py: 800}, entrada: 'suave', viaje: 0.8, deriva: 0.04},
+    {desde: l.enPie - 0.6, toma: {zoom: 1.2, px: 540, py: 800}, entrada: 'suave', viaje: 0.8, deriva: 0.04},
     {desde: l.fisicos, toma: neutra, deriva: 0.05},
     {desde: l.entonces, toma: neutra, deriva: 0},
   ];
@@ -160,7 +162,7 @@ function planosDe(l: Linea): Plano[] {
 
 // ── Gráfica ───────────────────────────────────────────────────────────────────────────────────
 
-const G = {x0: 170, x1: 880, y0: 1130, y1: 560};
+const G = {x0: 170, x1: 940, y0: 1300, y1: 620};
 const gx = (p: number) => G.x0 + ((p - 0.5) / 0.2) * (G.x1 - G.x0);
 const gy = (q: number) => G.y0 + q * (G.y1 - G.y0);
 
@@ -179,11 +181,8 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     const hud: (() => void)[] = [];
     const enPortada = enPortadaEn(t, l);
     if (enPortada) escenaPortada(c);
-    else recortarA(c, VISOR, () => conCamara(c, tomaEn(t, planosDe(l)), () => escena(c, hud)));
-    if (!enPortada) {
-      const corte = Math.max(DURACION_PORTADA, ...listaCortes.filter((x) => x <= t));
-      marcoEsquinas(c.solido.k, VISOR, fase(t, corte, corte + 0.45), {grosor: 4, largo: 40});
-    }
+    // Sin recorte ni marco: la animación usa toda la pantalla
+    else conCamara(c, tomaEn(t, planosDe(l)), () => escena(c, hud));
     hud.forEach((h) => h());
     sacudirRegistro(c, t, listaCortes, 8, 0.1);
   });
@@ -202,7 +201,7 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
       k.fillStyle = cobertura(1);
       k.font = fuente(MONO, 54, 700);
       k.textAlign = 'center';
-      k.fillText(`${Math.round(p * 100)} % árboles`, 505, 1030);
+      k.fillText(`${Math.round(p * 100)} % árboles`, 540, 1030);
       k.textAlign = 'left';
     }
   }
@@ -210,8 +209,14 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
   function escena(c: Capas, hud: (() => void)[]) {
     const lecturas = (e1: string, v1: string, e2: string, v2: string) =>
       hud.push(() => {
-        lectura(c.solido.k, e1, v1, 112, 345, {tam: 30});
-        lectura(c.solido.k, e2, v2, 898, 345, {tam: 30, alinear: 'right'});
+        // Sobre el bosque: cada lectura en su tira de papel
+        recortarPapel(c, (ctx) => {
+          ctx.beginPath();
+          ctx.rect(96, 300, 250, 62);
+          ctx.rect(734, 300, 250, 62);
+        });
+        lectura(c.solido.k, e1, v1, 112, 350, {tam: 30});
+        lectura(c.solido.k, e2, v2, 968, 350, {tam: 30, alinear: 'right'});
       });
     const quemados = (b: Bosque, paso: number) => {
       let n = 0;
@@ -223,9 +228,9 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     // ── 57 % y 61 %: el mismo bosque, cuatro árboles más de cada cien ──
     if (t >= l.fisicos) {
       const paso = pasoGemelos(t, l, gem.b61.total);
-      const cel = 4;
-      ([[gem.b57, 85, '57 %'], [gem.b61, 525, '61 %']] as const).forEach(([b, x0, nombre]) => {
-        const y0 = 560;
+      const cel = 4.7;
+      ([[gem.b57, 60, '57 %'], [gem.b61, 550, '61 %']] as const).forEach(([b, x0, nombre]) => {
+        const y0 = 620;
         const capas = {pino: c.solido.b, llama: c.solido.a, ceniza: c.k};
         capas.pino.fillStyle = capas.llama.fillStyle = cobertura(1);
         capas.ceniza.fillStyle = cobertura(0.5);
@@ -243,13 +248,13 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
         k.fillStyle = cobertura(1);
         k.font = fuente(MONO, 44, 700);
         k.textAlign = 'center';
-        k.fillText(nombre, x0 + 200, y0 - 30);
+        k.fillText(nombre, x0 + 235, y0 - 30);
         if (paso >= b.total && paso >= 0) {
           const ctx = b.cruza ? c.solido.a : c.solido.k;
           ctx.fillStyle = cobertura(1);
           ctx.font = fuente(MONO, 36, 700);
           ctx.textAlign = 'center';
-          ctx.fillText(b.cruza ? 'cruza' : 'se apaga', x0 + 200, y0 + 460);
+          ctx.fillText(b.cruza ? 'cruza' : 'se apaga', x0 + 235, y0 + 530);
           ctx.textAlign = 'left';
         }
         k.textAlign = 'left';
@@ -300,7 +305,7 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
       linea2(c.solido.b, curvas.video, l.medio, 4);
       linea2(c.solido.a, curvas.grande, l.grande, 6);
       // Leyenda
-      for (const [ctx, texto, y, desde] of [[c.solido.b, 'el bosque del video', 600, l.medio], [c.solido.a, 'un bosque grande (200×200)', 650, l.grande]] as const) {
+      for (const [ctx, texto, y, desde] of [[c.solido.b, 'el bosque del video', 660, l.medio], [c.solido.a, 'un bosque grande (200×200)', 710, l.grande]] as const) {
         if (t < desde) continue;
         ctx.fillStyle = cobertura(1);
         ctx.font = fuente(MONO, 26, 700);
@@ -341,7 +346,7 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
         const x = (j % ANCHO) + dx;
         return y < 0 || x < 0 || x >= ANCHO || !b.arbol[y * ANCHO + x];
       }));
-      if (i >= 0) mira(c.solido.k, VISTA.x0 + (i % ANCHO) * VISTA.cel + 7.5, VISTA.y0 + Math.floor(i / ANCHO) * VISTA.cel + 7.5, 18, fase(t, l.noHay, l.noHay + 0.4), t);
+      if (i >= 0) mira(c.solido.k, VISTA.x0 + (i % ANCHO) * VISTA.cel + VISTA.cel / 2, VISTA.y0 + Math.floor(i / ANCHO) * VISTA.cel + VISTA.cel / 2, 18, fase(t, l.noHay, l.noHay + 0.4), t);
     }
     if (nombre === '59' && paso >= b.total) {
       // El camino estrecho por el que cruzó, en rosa
@@ -354,8 +359,8 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
       a.beginPath();
       const hasta = Math.max(2, Math.ceil(ruta.length * e));
       ruta.slice(ruta.length - hasta).reverse().forEach((i, k) => {
-        const x = VISTA.x0 + (i % ANCHO) * VISTA.cel + 7.5;
-        const y = VISTA.y0 + Math.floor(i / ANCHO) * VISTA.cel + 7.5;
+        const x = VISTA.x0 + (i % ANCHO) * VISTA.cel + VISTA.cel / 2;
+        const y = VISTA.y0 + Math.floor(i / ANCHO) * VISTA.cel + VISTA.cel / 2;
         if (k) a.lineTo(x, y);
         else a.moveTo(x, y);
       });

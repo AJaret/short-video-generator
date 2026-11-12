@@ -25,7 +25,8 @@ Inspirado en los reels de referencia (cortes al ritmo, fondos de un solo color, 
   - `tomaEn(t, planos)`: cada `Plano` tiene `desde`, una `toma` (`zoom` alrededor de `px, py`, desplazamiento `dx, dy`, `giro`) o una función del tiempo para seguir algo, `deriva` (zoom que gana dentro del plano) y `giro` (órbita lenta). Entra con `corte` o `suave` (viaje de `viaje` s desde la toma anterior).
   - `empujes(t, momentos, fuerza)`: zoom con rebote en los golpes (sube en 2 fotogramas y cae en ~0,2 s); multiplica el zoom de la toma. Se probó en `nº04` en cada golpe y se quitó: en un video que explica algo se ve mal. Úsalo solo en portadas o remates muy cortos, si acaso.
   - `conCamara(capas, toma, fn)`: dibuja `fn` con la toma en las seis capas, antes del tramado. Lo que no se mueve con la cámara (rótulos, lecturas) se dibuja fuera.
-  - `seguir`, `aPantallaCon`, `mezclarTomas`. Para el último fotograma (loop), la toma debe volver a la neutra.
+  - `seguir`, `aPantallaCon`, `mezclarTomas`.
+  - `VISOR` y `recortarA`: el marco de visor de `nº04` y `nº05`. Desde `nº06` no se usa: la animación va centrada (x = 540) y a pantalla casi completa, y los datos van en tiras de papel. Para el último fotograma (loop), la toma debe volver a la neutra.
 - `detalles.ts` · la capa técnica de las referencias:
   - `cuadricula(ctx, toma)`: cruces en el mundo (dentro de `conCamara`); hacen legible el movimiento de cámara sobre líneas finas.
   - `mira(ctx, x, y, r, p, giro)`, `marcoEsquinas(ctx, rect, p)` (visor que se cierra; en `nº04` vuelve a cerrarse en cada corte) y `lectura(ctx, etiqueta, valor, x, y)` para datos que cambian.

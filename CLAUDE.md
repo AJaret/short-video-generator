@@ -74,7 +74,7 @@ Degradados suaves, glow, sombras proyectadas, bordes perfectos, blanco puro (#FF
 
 ### Estructura temporal (30–45 s)
 0–3 s portada/gancho · 3–25 s misterio y explicación · 25–38 s revelación · 38–45 s remate. El último fotograma enlaza con el primero (loop): desde `nº04` son iguales, porque el título entra después del fotograma 0.
-- La imagen no se queda quieta: planos de cámara con la voz, acercamientos lentos y detalles (`camara.ts`, `detalles.ts`, ver `docs/kit.md`). El informe avisa si hay más de 4 s seguidos de imagen quieta. Con cámara, el dibujo se recorta al marco de visor (dentro de las zonas seguras y por encima de los subtítulos).
+- La imagen no se queda quieta: planos de cámara con la voz, acercamientos lentos y detalles (`camara.ts`, `detalles.ts`, ver `docs/kit.md`). El informe avisa si hay más de 4 s seguidos de imagen quieta. Desde `nº06` **sin recuadro de visor** (el usuario, 2026-11-11): la animación va centrada en la pantalla (x = 540) y ocupa casi todo el alto; los subtítulos y rótulos llevan su tira de papel encima. Solo lo importante (texto, datos, el foco de la escena) evita las zonas seguras; el fondo de la animación puede pasar por debajo. `nº04` y `nº05` conservan el visor.
 Excepción aprobada por el usuario: un episodio puede durar más si lo pide el tema. `nº01` dura 71,6 s porque explica lo que se sabe y lo que no.
 
 ### Portada
