@@ -3,13 +3,16 @@
 //   · El fuego de cerca: una nota por paso (corcheas), subiendo.
 //   · El fuego rápido: una escalera de Shepard en semicorcheas mientras avanza (la tensión sube sin
 //     volverse chillona); si se ahoga, una nota grave; si cruza, un acorde arriba.
-//   · Gráfica: una nota en 57 % (grave) y otra en 61 % (aguda).
+//   · Portada: el fuego ya sube (gancho), con su escalera de Shepard.
+//   · Gráfica: una nota en 57 % (grave) y otra en 61 % (aguda); al terminar de arder cada fila de
+//     bosques miniatura, grave (57 %: casi todos se apagan) o acorde (61 %: casi todos cruzan).
 //   · Los gemelos: el de 57 % se apaga (grave) y el de 61 % cruza (acorde) en "todo cambia de golpe".
 //   · Cortes de escena: aire que llega al corte e impresora riso.
 import type {ContextoSonido, EventoSonoro} from '@sonido/banda';
 import {cuantizar} from '@canal/pulso';
 import {hz} from '@sonido/sintesis';
-import {cortes, gemelos, linea, pasoEn} from './linea';
+import {ARDOR_MINIS, cortes, gemelos, linea, pasoEn} from './linea';
+import {DURACION_PORTADA} from '@canal/diseno';
 
 const FPS = 30;
 const PENTA = [0, 3, 5, 7, 10];
@@ -22,6 +25,11 @@ export function eventos({tiempos, duracion, pulso, tono}: ContextoSonido): Event
   const semi = pulso.negra / 4;
   const acorde = (t: number) => [12, 15, 19].forEach((n, i) => notas.push({t: t + i * 0.03, frecuencia: hz(tono + n), volumenDb: -12, duracion: 0.35, brillo: 0.55, pan: (i - 1) * 0.4}));
   const apagado = (t: number) => notas.push({t, frecuencia: hz(tono - 24), volumenDb: -9, duracion: 0.5, brillo: 0.2});
+
+  // Portada: el fuego sube a toda velocidad
+  for (let k = 0, s = cuantizar(0.12, pulso, 0.25, 'siguiente'); s < DURACION_PORTADA - 0.2; k++, s += semi) {
+    notas.push({t: s, frecuencia: tono + penta(k), shepard: true, volumenDb: -19, duracion: 0.07});
+  }
 
   // Chispas: empieza el incendio
   notas.push({t: l.incendio, frecuencia: 0, volumenDb: -15, efecto: 'papel'});
@@ -47,6 +55,8 @@ export function eventos({tiempos, duracion, pulso, tono}: ContextoSonido): Event
   // Gráfica
   notas.push({t: cuantizar(l.c57, pulso, 0.5), frecuencia: hz(tono - 12), volumenDb: -12, duracion: 0.25, brillo: 0.3});
   notas.push({t: cuantizar(l.c61, pulso, 0.5), frecuencia: hz(tono + 12), volumenDb: -12, duracion: 0.25, brillo: 0.6});
+  apagado(cuantizar(l.c57 + ARDOR_MINIS, pulso, 0.5));
+  acorde(cuantizar(l.c61 + ARDOR_MINIS, pulso, 0.5));
 
   // 59 %: cruza por un camino estrecho
   shepard(l.justo + 0.1, l.estrechito + 0.4);

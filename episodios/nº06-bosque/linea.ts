@@ -1,10 +1,12 @@
 // nº06 · Línea de tiempo y modelo del bosque. Módulo PURO (sin React): lo usan la animación
 // (Sketch.tsx) y el sonido (sonido.ts), así el fuego suena cuando avanza.
 //
-//   portada (0–2,6 s)            el bosque de 59 % intacto; chispas abajo (= último fotograma, sin chispas)
+//   portada (0–2,6 s)            el gancho: el fuego sube a toda velocidad por el bosque de 59 % (el
+//                                fotograma 0 lo muestra intacto, igual que el último)
 //   55 % (→ "con sesenta y…")    el fuego empieza abajo, de cerca salta vecino a vecino, y se ahoga
 //   65 % (→ "y en medio")        cruza todo, rápido
-//   gráfica (→ "justo ahí")      probabilidad de cruzar medida (video y grande); el salto en 59 %
+//   gráfica (→ "justo ahí")      probabilidad de cruzar medida (video y grande); bosques miniatura que
+//                                arden en 57 % y en 61 %; el salto en 59 %
 //   59 % (→ "los físicos")       cruza por un camino estrecho y deja casi la mitad en pie
 //   57 % vs 61 % (→ "entonces")  el mismo bosque con 4 árboles más de cada 100: uno se apaga, el otro cruza
 //   final (→ fin)                el bosque de la portada; la densidad sube y baja ("¿cuántos plantarías?")
@@ -180,6 +182,36 @@ export function densidadFinal(t: number, l: Linea): number {
   const x = fase(t, l.entonces + 0.3, l.fin - 0.4);
   return 0.59 + 0.13 * Math.sin(x * Math.PI * 2) * Math.sin(x * Math.PI);
 }
+
+/** Portada: el fuego sube a toda velocidad por el bosque de 59 % (−1 en el fotograma 0). */
+export function pasoPortada(t: number): number {
+  return t < 0.12 ? -1 : bosqueDe('59').total * fase(t, 0.12, DURACION_PORTADA - 0.15);
+}
+
+/**
+ * Bosques miniatura de la gráfica: seis campos de 100×100 con 57 % y los MISMOS con 61 % (deterministas).
+ * Arden a la vez cuando la voz dice cada número; casi todos los de 57 % se apagan y los de 61 % cruzan.
+ */
+export function minis(): {b57: Bosque[]; b61: Bosque[]} {
+  const n = 100;
+  const b57: Bosque[] = [];
+  const b61: Bosque[] = [];
+  for (let k = 0; k < 6; k++) {
+    const azar = mulberry32(9001 + k * 131);
+    const a = new Uint8Array(n * n);
+    const b = new Uint8Array(n * n);
+    for (let i = 0; i < n * n; i++) {
+      const v = azar();
+      a[i] = v < 0.57 ? 1 : 0;
+      b[i] = v < 0.61 ? 1 : 0;
+    }
+    b57.push(quemar(a, n, n));
+    b61.push(quemar(b, n, n));
+  }
+  return {b57, b61};
+}
+/** Duración del ardor de cada fila de miniaturas (s). */
+export const ARDOR_MINIS = 1.4;
 
 export const enPortadaEn = (t: number, l: Linea) => t < DURACION_PORTADA || t >= l.entonces;
 export const cortes = (l: Linea) => [l.con65, l.medio, l.justo, l.fisicos, l.entonces];
