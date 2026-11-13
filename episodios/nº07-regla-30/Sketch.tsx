@@ -296,24 +296,20 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     // ── Desde un punto: fila a fila, y la cámara se aleja ──
     if (t < l.columna) {
       const z = zoomPunto(t, l);
-      // "Como los de la concha": el campo gira 90° (en la concha el tiempo avanza de lado, hacia la
-      // abertura) y se lleva su parte ancha al centro; luego se recorta con la silueta
-      const e = salidaCubica(fase(t, l.conchaDos, l.conchaDos + 0.5));
-      const toma: Toma = {zoom: z, px: 540, py: Y_PUNTO, dx: -720 * e, dy: 420 * e, giro: (-Math.PI / 2) * e};
-      const filas = e > 0 ? punto.alto : Math.floor(filasPunto(t, l, pulso));
-      conCamara(c, toma, () => campo(c, punto, 0, filas, CEL, Y_PUNTO, toma));
-      if (t >= l.conchaDos + 0.55) {
-        recortarPapel(c, (ctx) => {
-          ctx.beginPath();
-          ctx.rect(-10, -10, 1100, 1940);
-          trazarConcha(ctx);
-        }, 1, 'evenodd');
-        c.solido.k.strokeStyle = cobertura(1);
-        c.solido.k.lineWidth = 5;
-        c.solido.k.beginPath();
-        trazarConcha(c.solido.k);
-        c.solido.k.stroke();
+      // "Como los de la concha": corte directo a la concha con tres triángulos marcados. (Se probó girar
+      // el campo 90° para que coincidiera con la orientación de la concha y no se entendía: el usuario.)
+      if (t >= l.conchaDos) {
+        conCamara(c, {zoom: 1.1, px: 540, py: 850, dx: 0, dy: 0, giro: 0}, () => {
+          concha(c, patron);
+          for (const [k, [x, y]] of ([[0, [420, 700]], [1, [600, 880]], [2, [470, 1010]]] as const)) {
+            mira(c.solido.k, x, y, 34, fase(t, l.conchaDos + k * 0.15, l.conchaDos + k * 0.15 + 0.35), t * (k % 2 ? -0.8 : 0.8));
+          }
+        });
+        return;
       }
+      const toma: Toma = {zoom: z, px: 540, py: Y_PUNTO, dx: 0, dy: 0, giro: 0};
+      const filas = Math.floor(filasPunto(t, l, pulso));
+      conCamara(c, toma, () => campo(c, punto, 0, filas, CEL, Y_PUNTO, toma));
       hud.push(() => {
         recortarPapel(c, (ctx) => {
           ctx.beginPath();
