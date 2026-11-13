@@ -68,8 +68,15 @@ function trazarConcha(ctx: CanvasRenderingContext2D) {
 }
 const CONCHA = {x0: 226, y0: 320, cel: 9, cols: 72, filas: 120};
 
-/** La concha con su patrón hasta la fila `filas` (todas por defecto) y, si hay, una línea rosa en `linea` (0…1). */
-function concha(c: Capas, patron: Campo, op: {filas?: number; linea?: number | null} = {}) {
+/**
+ * La concha con su patrón. En un cono la abertura (el borde que crece, donde se deposita el pigmento)
+ * va de arriba abajo, y la concha crece girando alrededor de su eje (Fowler, Meinhardt y
+ * Prusinkiewicz, 1992: el patrón es el registro del borde a lo largo del tiempo). Así que cada "fila"
+ * de la regla es una línea VERTICAL y el tiempo avanza de lado, hacia la abertura (a la derecha):
+ * los triángulos apuntan de lado. `columnas`: hasta dónde está pintada (todas por defecto); `linea`
+ * (0…1): una línea rosa vertical, el borde.
+ */
+function concha(c: Capas, patron: Campo, op: {columnas?: number; linea?: number | null} = {}) {
   const lista = [c.a, c.b, c.k, c.solido.a, c.solido.b, c.solido.k];
   for (const ctx of lista) {
     ctx.save();
@@ -77,27 +84,28 @@ function concha(c: Capas, patron: Campo, op: {filas?: number; linea?: number | n
     trazarConcha(ctx);
     ctx.clip();
   }
-  const hasta = op.filas ?? CONCHA.filas;
+  const hasta = op.columnas ?? CONCHA.cols;
   // Fondo de la concha: rosa a 1/3 (lo ya pintado) y una banda de sombra a la derecha
-  const yHasta = CONCHA.y0 + hasta * CONCHA.cel;
+  const xHasta = CONCHA.x0 + hasta * CONCHA.cel;
   c.a.fillStyle = cobertura(0.34);
-  c.a.fillRect(CONCHA.x0, CONCHA.y0, CONCHA.cols * CONCHA.cel, yHasta - CONCHA.y0);
+  c.a.fillRect(CONCHA.x0, CONCHA.y0, xHasta - CONCHA.x0, CONCHA.filas * CONCHA.cel);
   c.k.fillStyle = cobertura(0.34);
-  c.k.fillRect(700, CONCHA.y0, 160, yHasta - CONCHA.y0);
-  // Pigmento: las casillas negras de la Regla 30 (desde una fila al azar)
+  c.k.fillRect(700, CONCHA.y0, Math.max(0, Math.min(160, xHasta - 700)), CONCHA.filas * CONCHA.cel);
+  // Pigmento: la Regla 30 desde una línea al azar; cada paso de tiempo es una columna (el patrón
+  // viene con ancho = CONCHA.filas y alto = CONCHA.cols: se dibuja traspuesto)
   c.solido.b.fillStyle = cobertura(1);
   c.solido.b.beginPath();
-  for (let y = 0; y < Math.min(hasta, patron.alto); y++) {
-    for (let x = 0; x < patron.ancho; x++) {
-      if (patron.celdas[y * patron.ancho + x]) c.solido.b.rect(CONCHA.x0 + x * CONCHA.cel, CONCHA.y0 + y * CONCHA.cel, CONCHA.cel, CONCHA.cel);
+  for (let x = 0; x < Math.min(hasta, patron.alto); x++) {
+    for (let y = 0; y < patron.ancho; y++) {
+      if (patron.celdas[x * patron.ancho + y]) c.solido.b.rect(CONCHA.x0 + x * CONCHA.cel, CONCHA.y0 + y * CONCHA.cel, CONCHA.cel, CONCHA.cel);
     }
   }
   c.solido.b.fill();
-  // El borde que crece: una línea rosa
-  const pos = op.linea ?? (op.filas !== undefined && op.filas < CONCHA.filas ? op.filas / CONCHA.filas : null);
+  // El borde que crece: una línea rosa vertical
+  const pos = op.linea ?? (op.columnas !== undefined && op.columnas < CONCHA.cols ? op.columnas / CONCHA.cols : null);
   if (pos !== null && pos !== undefined) {
     c.solido.a.fillStyle = cobertura(1);
-    c.solido.a.fillRect(CONCHA.x0, CONCHA.y0 + pos * CONCHA.filas * CONCHA.cel - 5, CONCHA.cols * CONCHA.cel, 10);
+    c.solido.a.fillRect(CONCHA.x0 + pos * CONCHA.cols * CONCHA.cel - 5, CONCHA.y0, 10, CONCHA.filas * CONCHA.cel);
   }
   for (const ctx of lista) ctx.restore();
   c.solido.k.strokeStyle = cobertura(1);
@@ -128,15 +136,17 @@ function casilla(c: Capas, x: number, y: number, s: number, negra: number, rosa 
  */
 function campo(c: Capas, cmp: Campo, desde: number, hasta: number, cel: number, y0: number, toma: Toma, op: {centroRosa?: boolean} = {}) {
   const centro = Math.floor(cmp.ancho / 2);
-  const medio = 540 / (cel * toma.zoom) + 2;
+  // Con la cámara girada no se recorta por pantalla: se dibuja todo el campo
+  const girada = Math.abs(toma.giro) > 1e-3;
+  const medio = girada ? cmp.ancho : 540 / (cel * toma.zoom) + 2;
   const x0 = Math.max(0, Math.floor(centro - medio));
   const x1 = Math.min(cmp.ancho, Math.ceil(centro + medio));
   // Filas visibles con esta toma
   const yPant = (y: number) => toma.py + toma.dy + (y - toma.py) * toma.zoom;
   let f0 = desde;
   let f1 = hasta;
-  while (f0 < f1 && yPant(y0 + (f0 + 1) * cel) < 0) f0++;
-  while (f1 > f0 && yPant(y0 + (f1 - 1) * cel) > 1920) f1--;
+  while (!girada && f0 < f1 && yPant(y0 + (f0 + 1) * cel) < 0) f0++;
+  while (!girada && f1 > f0 && yPant(y0 + (f1 - 1) * cel) > 1920) f1--;
   const b = c.solido.b;
   const a = c.solido.a;
   b.fillStyle = a.fillStyle = cobertura(1);
@@ -180,7 +190,7 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
   const t = f / fps;
   const l = linea(tiempos, (durationInFrames - 1) / fps);
   const pulso = pulsoDe(config);
-  const patron = useMemo(() => patronConcha(CONCHA.cols, CONCHA.filas, config.semilla), [config.semilla]);
+  const patron = useMemo(() => patronConcha(CONCHA.filas, CONCHA.cols, config.semilla), [config.semilla]);
   const punto = useMemo(() => desdePunto(FILAS_PUNTO + 20), []);
   const grande = useMemo(() => desdePunto(FILAS_BAJADA), []);
   const bits = useMemo(() => columnaCentral(grande, 200), [grande]);
@@ -203,9 +213,9 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     // ── La concha y el borde que crece ──
     if (t < l.otra) {
       const toma = tomaEn(t, planosDe(l));
-      const filas = t >= l.borde ? Math.floor(CONCHA.filas * fase(t, l.borde + 0.2, l.otra - 0.4)) : undefined;
+      const columnas = t >= l.borde ? Math.floor(CONCHA.cols * fase(t, l.borde + 0.2, l.otra - 0.4)) : undefined;
       conCamara(c, toma, () => {
-        concha(c, patron, {filas});
+        concha(c, patron, {columnas});
         // "Sus triángulos parecen puestos al azar": miras sobre tres triángulos blancos
         if (t >= l.triangulos && t < l.borde) {
           for (const [k, [x, y]] of ([[0, [420, 700]], [1, [600, 880]], [2, [470, 1010]]] as const)) {
@@ -213,7 +223,7 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
           }
         }
       });
-      hud.push(() => rotulo(c, 'esquema · caracol cono textil', 90, 1450 - 1040, fase(t, DURACION_PORTADA, DURACION_PORTADA + 0.4), {tam: 28, tinta: 'b'}));
+      hud.push(() => rotulo(c, 'esquema · Conus textile', 90, 1450 - 1040, fase(t, DURACION_PORTADA, DURACION_PORTADA + 0.4), {tam: 28, tinta: 'b'}));
       return;
     }
 
@@ -286,14 +296,16 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     // ── Desde un punto: fila a fila, y la cámara se aleja ──
     if (t < l.columna) {
       const z = zoomPunto(t, l);
-      const toma: Toma = {zoom: z, px: 540, py: Y_PUNTO, dx: 0, dy: 0, giro: 0};
-      const filas = Math.floor(filasPunto(t, l, pulso));
+      // "Como los de la concha": el campo gira 90° (en la concha el tiempo avanza de lado, hacia la
+      // abertura) y se lleva su parte ancha al centro; luego se recorta con la silueta
+      const e = salidaCubica(fase(t, l.conchaDos, l.conchaDos + 0.5));
+      const toma: Toma = {zoom: z, px: 540, py: Y_PUNTO, dx: -720 * e, dy: 420 * e, giro: (-Math.PI / 2) * e};
+      const filas = e > 0 ? punto.alto : Math.floor(filasPunto(t, l, pulso));
       conCamara(c, toma, () => campo(c, punto, 0, filas, CEL, Y_PUNTO, toma));
-      // "Como los de la concha": el campo se recorta con la silueta de la concha
-      if (t >= l.conchaDos + 0.25) {
+      if (t >= l.conchaDos + 0.55) {
         recortarPapel(c, (ctx) => {
           ctx.beginPath();
-          ctx.rect(-10, 300, 1100, 1300);
+          ctx.rect(-10, -10, 1100, 1940);
           trazarConcha(ctx);
         }, 1, 'evenodd');
         c.solido.k.strokeStyle = cobertura(1);
