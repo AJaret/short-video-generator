@@ -13,9 +13,9 @@ Comprobación del esquema: `docker compose run --rm -w /repo/video video node ".
 - «El tubo que lleva mucho flujo se engrosa... y el que no, desaparece»: el modelo matemático del artículo (flujo de Hagen-Poiseuille por cada tubo y dD/dt = f(|Q|) − D, con γ = 1,8).
 
 ## El esquema del video (`simulacion.ts`)
-- Es ese mismo modelo, resuelto con una malla propia: rejilla triangular de 673 nodos y 1802 tubos sobre el terreno alrededor de las ciudades (cierre convexo ensanchado), sin cruzar la bahía de Tokio. En cada paso una ciudad al azar es la fuente y las demás se reparten el flujo (I0 = 0,6, dt = 0,25, 500 pasos).
+- Es ese mismo modelo, resuelto con una malla propia: rejilla triangular de 671 nodos y 1805 tubos sobre el terreno alrededor de las ciudades (cierre convexo ensanchado), sin cruzar la bahía de Tokio. En cada paso una ciudad al azar es la fuente y las demás se reparten el flujo (I0 = 0,6, dt = 0,25, 500 pasos).
 - Posiciones de las 36 ciudades: aproximadas (latitud y longitud de ciudades reales de Kanto). La plantilla exacta del artículo no se reproduce: se rotula «esquema».
-- `verificar.mjs`: la malla se poda de 1802 a 247 tubos y la red final sigue uniendo las 36 ciudades; su largo es 2,1 veces el árbol mínimo (dato de nuestro esquema, no se dice en el video).
+- `verificar.mjs`: la malla se poda de 1805 a 250 tubos y la red final sigue uniendo las 36 ciudades; su largo es 2,1 veces el árbol mínimo (dato de nuestro esquema, no se dice en el video).
 - El video NO dibuja la red de trenes real (no tenemos sus datos con rigor): la comparación se cuenta con las cifras del artículo.
 - Música: Fa menor, progresión épica, arpegio «ola», gancho en vibráfono.
 - Guion: 122 palabras, con etiquetas de ElevenLabs. Toma generada con el conector (2026-11-13, 751 créditos): 49,2 s de voz, 50,6 s de video; Whisper empató el 93 %.
