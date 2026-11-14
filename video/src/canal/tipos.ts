@@ -27,11 +27,6 @@ export type ConfigEpisodio = {
   /** Título de portada (se muestra en mayúsculas). */
   titulo: string;
   semilla: number;
-  /**
-   * 'edicion' = color directo, sin filtro riso ni plantilla: el sketch dibuja el fotograma entero en un
-   * <LienzoEdicion> (ver canal/edicion). Por defecto, el estilo riso del canal.
-   */
-  estilo?: 'riso' | 'edicion';
   tintas?: Partial<Tintas>;
   impactos?: Impacto[];
   /**

@@ -166,7 +166,7 @@ export function construirBanda({config, tiempos, voz, eventos, muestras, partitu
   const revelacion = revelacionBruta !== null ? cuantizar(revelacionBruta, pulso) : null;
 
   const variante = audio.estilo === 'viva' ? varianteMusical(audio, config.semilla) : null;
-  // Estilo "edición": la música sale de la partitura del episodio, y la plantilla no pone sus efectos riso
+  // Música "edición": sale de la partitura del episodio (los efectos riso de la plantilla siguen)
   const edicion = audio.estilo === 'edicion' && Boolean(partitura);
   const tonoEdicion = audio.estilo === 'edicion' ? (TONOS[audio.tono ?? ''] ?? 0) : 0;
   const contexto: ContextoSonido = {config, tiempos, duracion, pulso, tono: variante?.tono ?? tonoEdicion};
@@ -221,13 +221,11 @@ export function construirBanda({config, tiempos, voz, eventos, muestras, partitu
 
   // 4. Efectos de la plantilla (en el pulso)
   const efectos: string[] = [];
-  if (!edicion) {
-    sumarPaneado(mezcla, impresora(sr, 0.9, config.semilla), sr, DURACION_PORTADA - 0.35, relativo(-6));
-    efectos.push(`impresora ${(DURACION_PORTADA - 0.35).toFixed(2)} s`);
-    // Cada palabra del título de la portada cae con un golpe de sello (en corcheas, ver <Portada>)
-    for (const t of momentosPortada(config.titulo, pulso.negra)) {
-      sumarPaneado(mezcla, sello(sr, Math.round(t * 1000) + 5), sr, t, relativo(-11));
-    }
+  sumarPaneado(mezcla, impresora(sr, 0.9, config.semilla), sr, DURACION_PORTADA - 0.35, relativo(-6));
+  efectos.push(`impresora ${(DURACION_PORTADA - 0.35).toFixed(2)} s`);
+  // Cada palabra del título de la portada cae con un golpe de sello (en corcheas, ver <Portada>)
+  for (const t of momentosPortada(config.titulo, pulso.negra)) {
+    sumarPaneado(mezcla, sello(sr, Math.round(t * 1000) + 5), sr, t, relativo(-11));
   }
   const panel = resolverPanel(config.panel, tiempos, pulso);
   if (panel) {
@@ -243,7 +241,7 @@ export function construirBanda({config, tiempos, voz, eventos, muestras, partitu
     sumarPaneado(mezcla, impresora(sr, 0.35, Math.round(inicio * 10)), sr, inicio + 0.05, relativo(-14), 0.3);
     efectos.push(`sello ${inicio.toFixed(2)} s`);
   }
-  if (revelacion !== null && !edicion) {
+  if (revelacion !== null) {
     const largo = Math.min(DURACION_ZUMBIDO, revelacion - DURACION_PORTADA);
     if (largo > 0.5) {
       sumarPaneado(mezcla, zumbido(sr, largo, config.semilla), sr, revelacion - largo, relativo(-7));

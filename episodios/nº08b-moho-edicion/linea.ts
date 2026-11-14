@@ -1,28 +1,26 @@
 // nº08b · Línea de tiempo. Módulo PURO (sin React): lo usan la animación (Sketch.tsx) y la música
-// (sonido.ts → partitura). Es el mismo guion y la misma voz que nº08; cambia el montaje.
+// (sonido.ts → partitura). Es el mismo guion y la misma voz que nº08.
 //
-// Cada corte de escena y cada gesto cae en una CORCHEA de la música (92 BPM): la música se compone a
-// partir de esta misma lista, así que imagen y sonido no pueden desajustarse.
+// Los momentos están en CORCHEAS de la música (92 BPM) y la música se compone con esta misma lista:
+// así, lo poco que va al ritmo (los cortes y los gestos) no puede desajustarse.
 //
-//   portada   0 → 2,6          plancha azul, la red final desde arriba y el título palabra a palabra
-//   mapa      → "en dos mil"   las 36 ciudades (dos por fusa); "¿cómo las unirías?": el mapa se inclina a 3D
-//   avena     → "y en Tokio"   plancha blanca: caen los 36 copos de avena
-//   moho      → "sin cerebro"  plancha negra, de cerca: el moho cae en Tokio; "una sola célula"
-//   sin ×3    → "primero"      tres carteles: sin cerebro / sin planos / sin ingenieros
-//   cubre     → "después"      plancha azul: la malla crece desde Tokio
-//   poda      → "y su red"     plancha blanca: el modelo de tubos la poda; un tiempo de silencio antes de…
-//   cifras    → "el truco"     …la revelación: las cifras del artículo; "si se rompe una vía"
-//   truco     → "los ingen."   plancha negra, a ras de suelo: el flujo engrosa unos tubos y los demás desaparecen
-//   décadas   → "el moho"      cartel blanco
-//   día       → cierre         "26 HORAS"; el último compás vuelve a la portada (loop)
+//   portada   0 → 2,6          la red final desde arriba y el título (plantilla)
+//   mapa      → "en dos mil"   las 36 ciudades; "¿cómo las unirías?": el mapa se inclina a maqueta
+//   avena     → "y en Tokio"   caen los 36 copos de avena
+//   moho      → "primero"      de cerca: el moho cae en Tokio; "una sola célula"; sin cerebro, planos ni ingenieros
+//   cubre     → "después"      la malla crece desde Tokio
+//   poda      → "y su red"     el modelo de tubos la poda; un tiempo de silencio antes de…
+//   revela    → "casi el"      …la revelación: plancha azul con la red en papel
+//   cifras    → "el truco"     las cifras del artículo; "si se rompe una vía"
+//   truco     → "los ingen."   a ras de suelo: el flujo engrosa unos tubos y los demás desaparecen
+//   décadas   → "el moho"      cartel sobre papel
+//   día       → cierre         "26 HORAS" en plancha rosa; el último compás vuelve a la portada (loop)
 import {DURACION_PORTADA} from '@canal/diseno';
 import {cuantizar, type Pulso} from '@canal/pulso';
 import {tiempoDeAncla} from '@canal/tiempos';
 import type {Tiempos} from '@canal/tipos';
 
 export const fase = (t: number, a: number, b: number) => Math.max(0, Math.min(1, (t - a) / Math.max(0.01, b - a)));
-
-export const CARTELES = ['CEREBRO', 'PLANOS', 'INGENIEROS'] as const;
 
 export type Linea = {
   negra: number;
@@ -91,8 +89,11 @@ export function linea(tiempos: Tiempos | null, fin: number, pulso: Pulso): Linea
   };
 }
 
-/** Cortes de escena (cambio de plancha): cada uno lleva golpe en la música y glitch en la imagen. */
-export const cortes = (l: Linea) => [l.mapa, l.avena, l.moho, ...l.sin, l.cubre, l.poda, l.revelacion, l.truco, l.decadas, l.dia, l.loop];
+/**
+ * Cortes de verdad (cambia el fondo o el plano de golpe): llevan golpe en la música. El resto de los
+ * cambios de escena son viajes de cámara, sin corte.
+ */
+export const cortes = (l: Linea) => [l.mapa, l.revelacion, l.costo, l.decadas, l.dia, l.loop];
 
 /** Las 36 ciudades: Tokio en el corte y las demás de dos en dos, una pareja por fusa. */
 export function momentosCiudades(l: Linea): number[] {
