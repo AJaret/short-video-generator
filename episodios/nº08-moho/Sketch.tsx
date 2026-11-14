@@ -288,6 +288,11 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
       ctx.rect(50, 1120, 980, 300);
     });
     const k = c.solido.k;
+    // Alineación explícita: no depender de lo que dejó otra función en la capa
+    for (const ctx of [k, c.solido.a, c.solido.b]) {
+      ctx.textBaseline = 'alphabetic';
+      ctx.textAlign = 'left';
+    }
     k.fillStyle = cobertura(1);
     k.font = fuente(MONO, 28, 700);
     k.fillText('moho', 660, 1160);

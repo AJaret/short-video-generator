@@ -132,6 +132,11 @@ export function sacudirRegistro(capas: Capas, t: number, momentos: number[], px 
 export function fuenteEnPantalla(capas: Capas, texto: string, p: number): void {
   if (p <= 0) return;
   const k = capas.solido.k;
+  const a = capas.solido.a;
+  // Guarda y restaura el estado del texto: si no, el textBaseline 'top' se queda puesto y desplaza
+  // todo el texto que se dibuje después en esas capas (pasó en las cifras de nº08)
+  k.save();
+  a.save();
   const tam = 24;
   k.font = fuente(MONO, tam, 700);
   const etiqueta = 'fuente ';
@@ -147,9 +152,10 @@ export function fuenteEnPantalla(capas: Capas, texto: string, p: number): void {
   k.fillStyle = cobertura(1);
   k.textBaseline = 'top';
   k.fillText(texto, x + anchoEtiqueta + dx, y);
-  const a = capas.solido.a;
   a.font = fuente(MONO, tam, 700);
   a.fillStyle = cobertura(1);
   a.textBaseline = 'top';
   a.fillText(etiqueta, x + dx, y);
+  k.restore();
+  a.restore();
 }
