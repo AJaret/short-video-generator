@@ -26,7 +26,7 @@ export const CIUDADES: [string, number, number][] = [
 ];
 
 /** De latitud/longitud a px de pantalla (1 grado de latitud ≈ 1,23 de longitud a 35,7° N). */
-export const aPantalla = (lat: number, lon: number): [number, number] => [70 + (lon - 139.12) * 730, 330 + (36.2 - lat) * 898];
+export const aPantalla = (lat: number, lon: number): [number, number] => [88 + (lon - 139.12) * 730, 330 + (36.2 - lat) * 898];
 
 /** Bahía de Tokio (aproximada): agua. */
 export const BAHIA: [number, number][] = [

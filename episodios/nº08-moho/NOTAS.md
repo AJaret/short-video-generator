@@ -18,4 +18,5 @@ Comprobación del esquema: `docker compose run --rm -w /repo/video video node ".
 - `verificar.mjs`: la malla se poda de 1802 a 247 tubos y la red final sigue uniendo las 36 ciudades; su largo es 2,1 veces el árbol mínimo (dato de nuestro esquema, no se dice en el video).
 - El video NO dibuja la red de trenes real (no tenemos sus datos con rigor): la comparación se cuenta con las cifras del artículo.
 - Música: Fa menor, progresión épica, arpegio «ola», gancho en vibráfono.
-- Guion: 122 palabras, ~48 s, con etiquetas de ElevenLabs.
+- Guion: 122 palabras, con etiquetas de ElevenLabs. Toma generada con el conector (2026-11-13, 751 créditos): 49,2 s de voz, 50,6 s de video; Whisper empató el 93 %.
+- Escenas: las 36 ciudades aparecen una por fusa; «¿cómo las unirías?», trazos desde Tokio; avena en cada ciudad (rótulo «Tero y otros, Science, 2010»); el moho en Tokio con una mira («una sola célula») y «sin cerebro / sin planos / sin ingenieros»; la malla crece desde Tokio por saltos («lo cubrió todo»); el modelo de tubos la poda; las cifras del artículo en barras (moho rosa, trenes azul; rotuladas «medido»); «si se rompe una vía»: se corta el tubo de la red final cuya rotura aísla más ciudades (hasta 6) y se marcan las aisladas; «el truco»: de cerca, la poda otra vez con puntos que corren por los tubos gruesos; «26 HORAS» y la portada (loop 0 %).
