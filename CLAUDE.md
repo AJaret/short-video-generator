@@ -106,6 +106,53 @@ Todo corre en Docker; `producir.py` es el único coordinador en Windows, con Pyt
 - Los sketches dibujan en escala de grises o con máscaras por tinta. El color final lo pone `<RisoFilter>`.
 
 
+## Receta: cómo se hace un episodio de principio a fin
+
+Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodios/nº08-moho/` (mapa 2D) y `episodios/nº08b-moho-edicion/` (maqueta 3D, planchas de tinta y música `edicion`). Estado al 2026-11-14: `nº09-luciernagas` tiene guion, verificación y notas; falta la aprobación del usuario para grabar la voz y montar el video.
+
+### 0 · Elegir el tema
+- El video que más gustó al público fue el del moho (`nº08`). Su fórmula: **un experimento real** + **un ser vivo o sistema sin jefe que iguala a los ingenieros en algo cotidiano** + **cifras de un artículo** + **se puede simular con código**.
+- Proponer 3–4 temas con esa fórmula (con `AskUserQuestion`, el recomendado primero) y que no repitan los ya hechos. El tema lo elige el usuario.
+
+### 1 · Rigor antes que nada
+- Buscar cada afirmación en su fuente (artículo, con revista, volumen, página y año). Anotar en `NOTAS.md` qué dice la voz y de dónde sale, y si se comprobó en la fuente original o en una secundaria.
+- Descartar lo dudoso y dejar escrito por qué (en `nº09` se quitó un dato de un artículo con nota editorial de preocupación).
+- Escribir la simulación en `simulacion.ts` (módulo puro, determinista con `mulberry32`) y su `verificar.mjs`, y correrlo: `docker compose run --rm video node "../episodios/<ep>/verificar.mjs"`. Las cifras de la verificación van a `NOTAS.md`.
+
+### 2 · Guion y parada para aprobar
+- `guion.md`: 110–125 palabras (≈ 45–50 s), con la estructura, las etiquetas de ElevenLabs y la puntuación de la sección 2. Solo afirmaciones comprobadas; si el modelo simplifica, la voz usa el verbo que también vale para lo real (en `nº09`: «ajusta», no «adelanta»).
+- `config.json` mínimo: `numero`, `tema`, `titulo`, `semilla`, `impactos: []`, `cola` y `audio`.
+- **Parar aquí**: presentar el guion y el plan visual y sonoro, y esperar el visto bueno. La voz cuesta créditos y no se regenera.
+
+### 3 · Voz
+- Con el guion aprobado, generar la toma con el conector de ElevenLabs (`creative_generate_speech`, modelo `eleven_v4`, la voz del canal; detalles en la memoria `elevenlabs-mcp` y en `docs/voz.md`). Estimar primero con `estimate_only` y no reintentar: cada llamada cobra.
+- Guardar el MP3 y pasarlo por `python producir.py <ep> --voz-externa toma.mp3`: lo copia a `voz_externa.mp3` (se versiona), lo alinea con Whisper y deja `voz.wav` y `tiempos.json`.
+
+### 4 · Línea de tiempo, imagen y sonido
+- `linea.ts` (puro): cada momento es un ancla del guion (`tiempoDeAncla`, con un valor de reserva) llevada a la rejilla de corcheas. Exporta también la lista de cortes de verdad. La comparten el sketch y el sonido.
+- `Sketch.tsx`, siempre en riso:
+  - Un plano continuo; la cámara viaja con la voz (viajes de 1,4–1,8 s) y entre medias deriva muy poco. Pocos cortes de verdad.
+  - 3D con `tres.ts` cuando el tema lo pida: `dibujar3D` para los sólidos (tapan lo de detrás) y `proyectar` para trazar líneas en las capas sólidas.
+  - Planchas de tinta a sangre (`fondoTinta` + `enNegativo`) solo en la revelación y el remate.
+  - Siempre: fuente en pantalla, rótulos «esquema», lecturas con `lectura`, zonas seguras y el estado de portada repetido en el último fotograma.
+  - `sacudirRegistro` solo en la revelación. Nada salta ni late al ritmo porque sí.
+- `sonido.ts`: `partitura()` si la música es `edicion`, o `eventos()` con la música `viva` (ver `docs/sonido.md`). Solo suena lo que pasa en pantalla.
+
+### 5 · Iterar y producir
+- Tipos: `docker compose run --rm video npx tsc --noEmit -p .`
+- Fotogramas sueltos mientras se ajusta (más rápido que el render): `docker compose run --rm video npx remotion still <id> out/f.png --frame=<n> --log=error`, y mirarlos antes de seguir.
+- Render completo (unos 5 min para 50 s): `python producir.py <ep> --solo-video --stills --pulso`. Después, leer `stills/informe.txt` y mirar `stills/hoja.png`.
+- Valores de referencia de un episodio sano: −14,0 LUFS, pico real ≤ −1 dB, loop con 0 % de píxeles distintos, ningún tramo quieto de más de 4 s y alrededor del 15 % de fotogramas con cambio fuerte (el nivel de `nº08`; el 30 % ya molestó al usuario).
+- Si se tocó código común de sonido, regenerar la mezcla de otro episodio y comprobar que sale idéntica (`sha1sum episodios/<otro>/mezcla.wav` antes y después de `node scripts/sonido.mjs <otro>`).
+- Auditoría y pruebas (los dos comandos del final de «Comandos habituales»), `NOTAS.md` al día, y commit + push.
+
+### Tropiezos conocidos
+- **Docker cerrado**: si `docker info` falla, abrir Docker Desktop (`Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"`) y esperar a que responda.
+- **Git Bash cambia las rutas**: `-w /repo/video` llega roto a Docker. No hace falta: el servicio `video` ya trabaja en `/repo/video`. `producir.py` se lanza desde PowerShell.
+- **Finales de línea**: varios archivos están en CRLF. Al editar con un script, leer y escribir bytes para no cambiar el archivo entero.
+- **La sesión no oye**: la música se comprueba midiendo (tempo, tonalidad, reparto de frecuencias, LUFS) y se le dice al usuario que el timbre lo juzgue él.
+- **Las referencias del usuario son para basarse, no para copiar**: ante un permiso para saltarse una regla, tomar la lectura estrecha o preguntar.
+
 ## Documentación según la tarea
 
 - [Producción](docs/produccion.md): estructura del repo y episodios, opciones de `producir.py`, config, capas y anclas.
@@ -113,7 +160,7 @@ Todo corre en Docker; `producir.py` es el único coordinador en Windows, con Pyt
 - [Kit](docs/kit.md): herramientas de motion graphics y motor 3D; leer antes de crear un sketch.
 - [Sonido](docs/sonido.md): instrumentos, composición, mezcla, limitador y sincronía.
 - [Render](docs/render.md): CPU, rendimiento e interpretación de los informes.
-- [nº01](episodios/nº01-hormiga-de-langton/NOTAS.md), [nº02](episodios/nº02-juego-del-caos/NOTAS.md), [nº03](episodios/nº03-bandada/NOTAS.md), [nº04](episodios/nº04-lorenz/NOTAS.md) y [nº08b](episodios/nº08b-moho-edicion/NOTAS.md): rigor y decisiones de cada episodio.
+- [nº01](episodios/nº01-hormiga-de-langton/NOTAS.md), [nº02](episodios/nº02-juego-del-caos/NOTAS.md), [nº03](episodios/nº03-bandada/NOTAS.md), [nº04](episodios/nº04-lorenz/NOTAS.md), [nº08](episodios/nº08-moho/NOTAS.md), [nº08b](episodios/nº08b-moho-edicion/NOTAS.md) y [nº09](episodios/nº09-luciernagas/NOTAS.md): rigor y decisiones de cada episodio.
 
 ## Comandos habituales (PowerShell, raíz del repo)
 
