@@ -94,6 +94,7 @@ Todo corre en Docker; `producir.py` es el único coordinador en Windows, con Pyt
 - El panel debe bajar antes del final (`hasta`, segundos o ancla) y el sketch repetir su estado de portada en el último fotograma para cerrar el loop. No hay subtítulos normales durante la portada (0–2,6 s).
 - Space Mono latino no incluye griego ni flechas; usar `t` y `:` en fórmulas y etiquetas.
 - Comprobar las afirmaciones con simulación propia o fuentes antes de grabar voz, y versionar `verificar.py`/`verificar.mjs` con el episodio. Rotular las metáforas visuales como «esquema».
+- **Fuente en pantalla** (desde `nº08`, pedido del usuario): mientras la voz cuenta lo que hicieron, descubrieron o concluyeron unos científicos (o da un dato con fuente), la fuente oficial va en pantalla con `fuenteEnPantalla()` (`detalles.ts`): «fuente Autor y otros, Revista volumen, página (año)», arriba bajo la numeración, aunque la voz no la diga.
 - El informe mide LUFS, pico y true peak del MP4, genera hoja de contactos, comprueba el loop con una heurística y mide el dinamismo (aviso si la imagen está quieta más de 4 s). `--pulso` compara ataques con el BPM configurado; no estima el tempo. Revisar siempre visualmente los stills y la hoja tras producir.
 - Un informe fallido devuelve código 2: el MP4 puede ser nuevo y los archivos de `stills/` anteriores. Los tramos usan `hoja_tramo.png` e `informe_tramo.txt`.
 

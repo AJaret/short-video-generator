@@ -30,6 +30,7 @@ Inspirado en los reels de referencia (cortes al ritmo, fondos de un solo color, 
 - `detalles.ts` · la capa técnica de las referencias:
   - `cuadricula(ctx, toma)`: cruces en el mundo (dentro de `conCamara`); hacen legible el movimiento de cámara sobre líneas finas.
   - `mira(ctx, x, y, r, p, giro)`, `marcoEsquinas(ctx, rect, p)` (visor que se cierra; en `nº04` vuelve a cerrarse en cada corte) y `lectura(ctx, etiqueta, valor, x, y)` para datos que cambian.
+  - `fuenteEnPantalla(capas, texto, p)`: la fuente oficial de lo que cuenta la voz (estudio, dato, premio), en Space Mono 24 sobre una tira de papel, arriba a la izquierda bajo la numeración; entra deslizándose (`p` 0…1). Obligatoria desde `nº08` cuando la voz habla de lo que encontraron unos científicos.
   - `sacudirRegistro(capas, t, momentos, px)`: las tintas se separan unos px durante ~3 fotogramas (el glitch riso, en cortes y revelaciones).
 - `<DatoImpacto>`: `impacto.entrada` puede ser `'sello'` (por defecto), `'letras'` o `'barrido'`.
 - Reglas: el texto y las líneas finas van en capas sólidas; los volúmenes, tonos y orlas, en las tramadas. Nada de degradados: los medios tonos son la trama a 1/3 y 2/3.

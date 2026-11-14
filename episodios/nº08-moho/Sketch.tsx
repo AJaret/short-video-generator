@@ -10,6 +10,7 @@ import {
   cobertura,
   conCamara,
   fuente,
+  fuenteEnPantalla,
   hash01,
   mira,
   MONO,
@@ -165,6 +166,7 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
         k.font = fuente(MONO, 26, 700);
         k.fillText('la red del moho, en el artículo', 540, 1110);
         k.textAlign = 'left';
+        fuenteEnPantalla(c, 'Scientific American (2010): la red a las 26 horas', fase(t, l.dia, l.dia + 0.4));
       }
     } else {
       conCamara(c, tomaEn(t, planosDe(l, red)), () => escena(c, hud));
@@ -265,7 +267,10 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
 
     // ── Rótulos y cifras ──
     hud.push(() => {
-      if (t >= l.dosMil && t < l.primero) rotulo(c, 'Tero y otros, Science, 2010', 90, 400, fase(t, l.dosMil, l.dosMil + 0.4), {tam: 28, tinta: 'b'});
+      // Fuente en pantalla mientras la voz cuenta el experimento, sus resultados y su modelo
+      const FUENTE = 'Tero y otros, Science 327, 439 (2010)';
+      if (t >= l.dosMil && t < l.primero) fuenteEnPantalla(c, FUENTE, fase(t, l.dosMil, l.dosMil + 0.4));
+      if (t >= l.parecia && t < l.decadas) fuenteEnPantalla(c, FUENTE, fase(t, l.parecia, l.parecia + 0.4));
       if (t >= l.sinCerebro && t < l.primero) {
         ([['sin cerebro', l.sinCerebro], ['sin planos', l.sinPlanos], ['sin ingenieros', l.sinIngenieros]] as const).forEach(([texto, desde], i) => {
           if (t >= desde) rotulo(c, texto, 600, 1180 + i * 70, fase(t, desde, desde + 0.3), {tam: 34, tinta: 'a', desde: 'derecha'});
@@ -309,7 +314,7 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
       k.fillText(tm, 400 + vm * escala * e, y + 9);
       k.fillText(tt, 400 + vt * escala * e, y + 33);
     });
-    rotulo(c, 'Tero y otros, Science, 2010 · medido', 90, 400, fase(t, l.parecia, l.parecia + 0.4), {tam: 26, tinta: 'b'});
+    rotulo(c, 'medido en el artículo', 90, 400, fase(t, l.parecia, l.parecia + 0.4), {tam: 26, tinta: 'b'});
   }
 
   return null;

@@ -8,8 +8,9 @@
 //   · marcoEsquinas(): las cuatro esquinas de un visor que se cierran sobre lo importante.
 //   · lectura():     un dato en Space Mono (etiqueta + valor) para contadores que no paran.
 //   · sacudirRegistro(): desajuste exagerado de las tintas durante ~3 fotogramas (el "glitch" riso).
-import {cobertura, type Capas} from './capas';
-import {limitar01, salidaRebote} from './curvas';
+//   · fuenteEnPantalla(): la fuente oficial de lo que cuenta la voz (un estudio, un dato), arriba.
+import {cobertura, recortarPapel, type Capas} from './capas';
+import {limitar01, salidaCubica, salidaRebote} from './curvas';
 import {ANCHO, ALTO, type Rect} from './diseno';
 import {MONO, fuente} from './fuentes';
 import type {Toma} from './camara';
@@ -119,4 +120,36 @@ export function sacudirRegistro(capas: Capas, t: number, momentos: number[], px 
     const d = t - m;
     if (d >= 0 && d < duracion) capas.golpeRegistro = Math.max(capas.golpeRegistro ?? 0, px * (1 - d / duracion));
   }
+}
+
+/**
+ * La fuente oficial de lo que cuenta la voz ("unos investigadores…", un dato, un premio), en pantalla
+ * aunque la voz no la diga (pedido del usuario, 2026-11-13). Una línea en Space Mono sobre una tira de
+ * papel, arriba a la izquierda, justo debajo de la numeración ("nº XX"), dentro de las zonas seguras.
+ * `p` (0…1) es su entrada: se desliza desde la izquierda. Ejemplo:
+ *   fuenteEnPantalla(capas, 'Tero y otros, Science 327, 439 (2010)', fase(t, desde, desde + 0.4))
+ */
+export function fuenteEnPantalla(capas: Capas, texto: string, p: number): void {
+  if (p <= 0) return;
+  const k = capas.solido.k;
+  const tam = 24;
+  k.font = fuente(MONO, tam, 700);
+  const etiqueta = 'fuente ';
+  const anchoEtiqueta = k.measureText(etiqueta).width;
+  const ancho = anchoEtiqueta + k.measureText(texto).width;
+  const x = 60;
+  const y = 284;
+  const dx = -(1 - salidaCubica(p)) * (x + ancho + 40);
+  recortarPapel(capas, (ctx) => {
+    ctx.beginPath();
+    ctx.rect(x - 12 + dx, y - 8, ancho + 24, tam + 18);
+  });
+  k.fillStyle = cobertura(1);
+  k.textBaseline = 'top';
+  k.fillText(texto, x + anchoEtiqueta + dx, y);
+  const a = capas.solido.a;
+  a.font = fuente(MONO, tam, 700);
+  a.fillStyle = cobertura(1);
+  a.textBaseline = 'top';
+  a.fillText(etiqueta, x + dx, y);
 }
