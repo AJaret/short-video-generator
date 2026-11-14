@@ -27,6 +27,11 @@ export type ConfigEpisodio = {
   /** Título de portada (se muestra en mayúsculas). */
   titulo: string;
   semilla: number;
+  /**
+   * 'edicion' = color directo, sin filtro riso ni plantilla: el sketch dibuja el fotograma entero en un
+   * <LienzoEdicion> (ver canal/edicion). Por defecto, el estilo riso del canal.
+   */
+  estilo?: 'riso' | 'edicion';
   tintas?: Partial<Tintas>;
   impactos?: Impacto[];
   /**
@@ -55,9 +60,11 @@ export type ConfigEpisodio = {
     remate?: string | number;
     /**
      * 'viva' = arreglo motion graphics (batería completa, bajo pulsado, brillo, secciones por compás,
-     * redobles y stops; ver musicaViva). Por defecto, la música misterio original.
+     * redobles y stops; ver musicaViva). 'edicion' = electrónica compuesta a partir de la partitura
+     * del episodio (sonido.ts → partitura(); ver sonido/edicion.ts): cada corte y cada gesto de la
+     * imagen tiene su sonido. Por defecto, la música misterio original.
      */
-    estilo?: 'misterio' | 'viva';
+    estilo?: 'misterio' | 'viva' | 'edicion';
     /**
      * Variación de la música viva por episodio (si no se dice, sale de la semilla): tonalidad menor
      * ('Re menor', 'Mi menor'…, ver TONOS en musica.ts), progresión ('misterio' | 'andaluza' | 'epica'

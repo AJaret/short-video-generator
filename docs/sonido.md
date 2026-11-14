@@ -66,3 +66,13 @@ Sin revelación, el remate empieza por defecto dos compases antes del final. El 
 El detector de pico real usa interpolación sinc con ventana Hann a 4×. El techo incluye un margen de 0,05 dB y una comprobación tras aplicar la envolvente. El informe mide de forma independiente el MP4 con ffmpeg: la codificación AAC puede modificar los picos.
 
 Regresiones de audio, anclas y sincronía: `docker compose run --rm video node scripts/verificar_auditoria.mjs`.
+
+### Música "edición" (`audio.estilo: "edicion"`, `video/src/sonido/edicion.ts`, prueba de `nº08b`)
+Electrónica compuesta **a partir de la imagen**. `episodios/<ep>/sonido.ts` exporta `partitura(contexto)`, que sale de la misma `linea.ts` que el sketch, y `musicaEdicion` la toca:
+- `secciones` (nivel 0…3): qué capas del ritmo suenan entre cortes. 1 = sub largo, colchón oscuro, arpegio en corcheas y hi-hat suave; 2 = batería a medio tiempo (bombo en el 1, caja y palmada en el 3), arpegio en semicorcheas; 3 = gancho de vibráfono, hi-hat abierto y más bombo.
+- `cortes`: bombo + sub + palmada + acorde corto en cada corte de escena, con un hueco de silencio (una semicorchea por defecto) y aire que sube justo antes.
+- `golpes` (la revelación), `paradas` (silencios de la base), `subidas` (redoble que acelera + aire), `notas` (un gesto de la imagen: `pluck`, `campana`, `clic` o `grave`), `glitches` (ráfaga de ruido digital) y `final` (acorde del loop).
+- Armonía i – VI – III – VII en la tonalidad de `audio.tono`. El colchón y el arpegio bombean con el bombo. Usa los instrumentos reales de VCSL para caja, palmada, hi-hat, vibráfono y glockenspiel.
+- Con este estilo la plantilla no añade sus efectos riso (impresora, sellos de la portada, zumbido). La voz baja la base 5 dB; cortes, golpes y gestos no bajan.
+- `sonido.mjs` pasa `partitura` a `construirBanda` y el informe de la mezcla lista los cortes, golpes y paradas.
+- Mediciones de `nº08b` (música sola): 92,3 BPM, Fa menor, reparto sub/grave/medio/medio-agudo/agudo ≈ 38/31/22/8/1 % (la referencia: 49/26/16/6/2 %). El timbre no se ha comprobado de oído.

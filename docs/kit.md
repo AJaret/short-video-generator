@@ -49,3 +49,11 @@ Inspirado en los reels de referencia (cortes al ritmo, fondos de un solo color, 
   - Uso: en las partes de un episodio que lo pidan (atractores, bandadas en 3D, superficies). No hace falta en todo el video.
   - Para nubes de decenas de miles de puntos (como el tetraedro de `nº02`), proyecta con `proyectar` y escribe los puntos directamente en un `ImageData`: es mucho más rápido que un `arc` por punto.
 
+### Estilo "edición" (`video/src/canal/edicion/`, prueba de `nº08b`, 2026-11-14)
+Color directo, **sin filtro riso**. Es una excepción que pidió el usuario para recrear `nº08` con el estilo de dos ediciones de referencia; no sustituye a la estética del canal. Se activa con `"estilo": "edicion"` en `config.json`: `Episodio.tsx` deja de montar `<RisoFilter>` y la plantilla (portada, panel, impactos, subtítulos), y el sketch dibuja el fotograma entero.
+- `LienzoEdicion.tsx`: `<LienzoEdicion dibujar={(ctx, info) => post} />`. Un Canvas 2D a color; si `dibujar` devuelve un `Post`, se aplica a los píxeles ya dibujados.
+- `paleta.ts`: azul `#0A4AFF`, blanco, negro y ámbar `#F5B000` (medidos en la referencia) y los `TEMAS` (`azul`, `blanco`, `negro`): un fondo a sangre y los colores que se leen sobre él. Cada corte cambia de tema.
+- `glitch.ts`: `aplicarPost` (mosaico `pixel`, canales separados `rgb`, franjas `bandas`, `invertir`) y `glitchDeCorte(desde, frame)` para los 2–3 fotogramas de un corte. Determinista.
+- `tres.ts`: 3D de caras planas a color. Reutiliza las mallas y `transformar` de `../tres.ts`; `Camara3` lleva `escala` (px por unidad en el objetivo), así que la perspectiva se regula con `distancia` sin cambiar el tamaño. `carasDe` + `pintarCaras` (algoritmo del pintor); cada cara lleva su índice `i` para recolorear una (la tapa de un cilindro).
+- `graficos.ts`: `fondoRejilla` (plano técnico), `destello`, `marco` (selección con asas), `etiqueta` (caja que se descubre), `textoContorno` (numerales grandes), `subtituloEdicion` (mismos grupos que el subtítulo riso, banda negra y palabra activa en ámbar) y `cabecera` (numeración + fuente en pantalla).
+- El sketch respeta lo demás: determinista por fotograma, zonas seguras, loop (último fotograma = primero), fuente en pantalla y rótulos «esquema».

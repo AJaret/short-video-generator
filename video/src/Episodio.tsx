@@ -32,6 +32,19 @@ export const ComposicionEpisodio: React.FC<PropsEpisodio> = ({carpeta, guias}) =
   const progreso = progresoPanel(frame, fps, panel);
   const area = areaSketch(progreso);
   const Sketch = sketch.default;
+  const audio = ep.mezcla ?? ep.voz ? <Html5Audio src={(ep.mezcla ?? ep.voz) as string} /> : null;
+
+  // Estilo "edición" (color directo): el sketch dibuja el fotograma entero, subtítulos incluidos, en
+  // su propio <LienzoEdicion>. No pasa por el filtro riso ni por la plantilla (portada, panel, impactos).
+  if (config.estilo === 'edicion') {
+    return (
+      <AbsoluteFill>
+        <Sketch config={config} area={area} tiempos={tiempos} />
+        <GuiaZonasSeguras visible={guias} />
+        {audio}
+      </AbsoluteFill>
+    );
+  }
 
   return (
     <AbsoluteFill>
@@ -54,7 +67,7 @@ export const ComposicionEpisodio: React.FC<PropsEpisodio> = ({carpeta, guias}) =
       </RisoFilter>
       <GuiaZonasSeguras visible={guias} />
       {/* Mezcla final (voz + música + efectos) si existe; si no, solo la voz */}
-      {ep.mezcla ?? ep.voz ? <Html5Audio src={(ep.mezcla ?? ep.voz) as string} /> : null}
+      {audio}
     </AbsoluteFill>
   );
 };

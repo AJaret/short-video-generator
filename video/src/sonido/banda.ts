@@ -15,7 +15,8 @@ import {cuantizar, pulsoDe, type Pulso} from '../canal/pulso';
 import {anclasNoEncontradas, finImpacto, momentoImpacto, momentosPortada, resolverPanel, tiempoDeAncla} from '../canal/tiempos';
 import type {ConfigEpisodio, Tiempos} from '../canal/tipos';
 import {barrido, golpeCorto, impresora, papel, sello, tic, ticShepard, zumbido} from './instrumentos';
-import {musicaMisterio, musicaViva, varianteMusical, type PlanMusical} from './musica';
+import {musicaEdicion, type Partitura} from './edicion';
+import {musicaMisterio, musicaViva, TONOS, varianteMusical, type PlanMusical} from './musica';
 import type {BancoMuestras} from './muestreo';
 import {aDb, db, estereo, normalizarLufs, rms, sumarPaneado} from './sintesis';
 
@@ -54,6 +55,11 @@ export type EntradaBanda = {
   eventos?: (contexto: ContextoSonido) => EventoSonoro[];
   /** Instrumentos reales (VCSL) para la música viva; sonido.mjs los carga de video/src/sonido/muestras. */
   muestras?: BancoMuestras;
+  /**
+   * Partitura del episodio (función exportada por episodios/<ep>/sonido.ts) para `audio.estilo:
+   * "edicion"`: la música se compone a partir de los cortes y gestos de la imagen (edicion.ts).
+   */
+  partitura?: (contexto: ContextoSonido) => Partitura;
 };
 
 const COLA_POR_DEFECTO = 1.5;
@@ -129,7 +135,7 @@ function planMusical(config: ConfigEpisodio, tiempos: Tiempos, duracion: number,
   };
 }
 
-export function construirBanda({config, tiempos, voz, eventos, muestras}: EntradaBanda) {
+export function construirBanda({config, tiempos, voz, eventos, muestras, partitura}: EntradaBanda) {
   const sr = voz.sr;
   const pulso = pulsoDe(config);
   const duracion = tiempos.duracion + (config.cola ?? COLA_POR_DEFECTO);
@@ -160,14 +166,21 @@ export function construirBanda({config, tiempos, voz, eventos, muestras}: Entrad
   const revelacion = revelacionBruta !== null ? cuantizar(revelacionBruta, pulso) : null;
 
   const variante = audio.estilo === 'viva' ? varianteMusical(audio, config.semilla) : null;
-  const propios = eventos ? eventos({config, tiempos, duracion, pulso, tono: variante?.tono ?? 0}) : [];
+  // Estilo "edición": la música sale de la partitura del episodio, y la plantilla no pone sus efectos riso
+  const edicion = audio.estilo === 'edicion' && Boolean(partitura);
+  const tonoEdicion = audio.estilo === 'edicion' ? (TONOS[audio.tono ?? ''] ?? 0) : 0;
+  const contexto: ContextoSonido = {config, tiempos, duracion, pulso, tono: variante?.tono ?? tonoEdicion};
+  const propios = eventos ? eventos(contexto) : [];
 
   // 3. Música compuesta para el episodio, con ducking
   if (audio.musica !== false) {
     const viva = audio.estilo === 'viva';
     const plan = planMusical(config, tiempos, duracion, pulso, revelacion, viva);
     for (const ev of propios) if (ev.efecto === 'parada') plan.caidas.push([ev.t, ev.t + (ev.duracion ?? pulso.negra)]);
-    const {base, acentos} = variante ? musicaViva(sr, plan, config.semilla, muestras, variante) : musicaMisterio(sr, plan, config.semilla);
+    const hoja = edicion && partitura ? partitura(contexto) : null;
+    const {base, acentos} = hoja
+      ? musicaEdicion(sr, duracion, pulso, hoja, tonoEdicion, config.semilla, muestras)
+      : variante ? musicaViva(sr, plan, config.semilla, muestras, variante) : musicaMisterio(sr, plan, config.semilla);
     const musicaDb = audio.musicaDb ?? -18;
     const g = (db(nivelDb + musicaDb) / db(-20)) * CENTRO;
     const marco = Math.round(sr * 0.01);
@@ -176,7 +189,7 @@ export function construirBanda({config, tiempos, voz, eventos, muestras}: Entrad
     for (let i = 0; i < marcos; i++) {
       const t = i * 0.01;
       let k = 1;
-      if (habla[i]) k *= db(viva ? -4.5 : -3); // la viva tiene más batería: deja más hueco a la voz
+      if (habla[i]) k *= db(hoja ? -5 : viva ? -4.5 : -3); // la viva y la edición tienen más batería: dejan más hueco a la voz
       if (impactos.some(({inicio, fin}) => t >= inicio - 0.1 && t <= fin + 0.2)) k *= db(-7);
       objetivo[i] = k;
     }
@@ -186,22 +199,35 @@ export function construirBanda({config, tiempos, voz, eventos, muestras}: Entrad
       mezcla.l[i] += (base.l[i] * d + acentos.l[i]) * g;
       mezcla.r[i] += (base.r[i] * d + acentos.r[i]) * g;
     }
-    informe.musica = {
-      db_respecto_voz: musicaDb,
-      caida: plan.caidas.map(([a, b]) => `${a.toFixed(2)}–${b.toFixed(2)} s`),
-      golpes: plan.golpes.map((t) => `${t.toFixed(2)} s`),
-      acorde_final: `${plan.final.toFixed(2)} s`,
-      ...(variante ? {variante: variante.nombres} : {}),
-    };
+    informe.musica = hoja
+      ? {
+          db_respecto_voz: musicaDb,
+          estilo: 'edicion',
+          tono: audio.tono ?? 'La menor',
+          cortes: hoja.cortes.map((c) => `${c.t.toFixed(2)} s`),
+          golpes: hoja.golpes.map((t) => `${t.toFixed(2)} s`),
+          paradas: hoja.paradas.map(([a, b]) => `${a.toFixed(2)}–${b.toFixed(2)} s`),
+          notas: hoja.notas.length,
+          acorde_final: `${hoja.final.toFixed(2)} s`,
+        }
+      : {
+          db_respecto_voz: musicaDb,
+          caida: plan.caidas.map(([a, b]) => `${a.toFixed(2)}–${b.toFixed(2)} s`),
+          golpes: plan.golpes.map((t) => `${t.toFixed(2)} s`),
+          acorde_final: `${plan.final.toFixed(2)} s`,
+          ...(variante ? {variante: variante.nombres} : {}),
+        };
   }
 
   // 4. Efectos de la plantilla (en el pulso)
   const efectos: string[] = [];
-  sumarPaneado(mezcla, impresora(sr, 0.9, config.semilla), sr, DURACION_PORTADA - 0.35, relativo(-6));
-  efectos.push(`impresora ${(DURACION_PORTADA - 0.35).toFixed(2)} s`);
-  // Cada palabra del título de la portada cae con un golpe de sello (en corcheas, ver <Portada>)
-  for (const t of momentosPortada(config.titulo, pulso.negra)) {
-    sumarPaneado(mezcla, sello(sr, Math.round(t * 1000) + 5), sr, t, relativo(-11));
+  if (!edicion) {
+    sumarPaneado(mezcla, impresora(sr, 0.9, config.semilla), sr, DURACION_PORTADA - 0.35, relativo(-6));
+    efectos.push(`impresora ${(DURACION_PORTADA - 0.35).toFixed(2)} s`);
+    // Cada palabra del título de la portada cae con un golpe de sello (en corcheas, ver <Portada>)
+    for (const t of momentosPortada(config.titulo, pulso.negra)) {
+      sumarPaneado(mezcla, sello(sr, Math.round(t * 1000) + 5), sr, t, relativo(-11));
+    }
   }
   const panel = resolverPanel(config.panel, tiempos, pulso);
   if (panel) {
@@ -217,7 +243,7 @@ export function construirBanda({config, tiempos, voz, eventos, muestras}: Entrad
     sumarPaneado(mezcla, impresora(sr, 0.35, Math.round(inicio * 10)), sr, inicio + 0.05, relativo(-14), 0.3);
     efectos.push(`sello ${inicio.toFixed(2)} s`);
   }
-  if (revelacion !== null) {
+  if (revelacion !== null && !edicion) {
     const largo = Math.min(DURACION_ZUMBIDO, revelacion - DURACION_PORTADA);
     if (largo > 0.5) {
       sumarPaneado(mezcla, zumbido(sr, largo, config.semilla), sr, revelacion - largo, relativo(-7));

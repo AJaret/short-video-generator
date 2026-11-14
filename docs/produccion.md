@@ -123,3 +123,5 @@ Los impactos con entrada `letras` se alargan para que la última letra se asient
 Antes de producir se avisa de anclas de configuración ausentes. Los tramos se redondean a fotogramas y se recortan al final real; si empiezan fuera o no abarcan un fotograma se rechazan antes de mezclar. Un fallo de informe devuelve código 2 y no anuncia sus archivos como nuevos.
 
 En `nº00`, la toma actual dura 12,31 s y `cola: 2.69` completa los 15 s que dice el guion. El panel baja en «A ninguna parte». La fase usa la duración real para repetir el dibujo en el último fotograma. Si cambia la toma, revisar esa cola.
+
+`config.estilo: "edicion"` (prueba de `nº08b`): color directo sin filtro riso ni plantilla; ver [Kit](kit.md) y [Sonido](sonido.md). Un episodio puede importar la simulación de otro (`nº08b` usa `../nº08-moho/simulacion.ts`).

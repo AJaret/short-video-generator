@@ -26,7 +26,10 @@ const entrada = [
   `export {construirBanda} from ${JSON.stringify(path.resolve('src/sonido/banda.ts'))};`,
   `export {leerWav, escribirWav} from ${JSON.stringify(path.resolve('src/sonido/sintesis.ts'))};`,
   `export {anclasNoEncontradas} from ${JSON.stringify(path.resolve('src/canal/tiempos.ts'))};`,
-  fs.existsSync(propio) ? `export {eventos} from ${JSON.stringify(propio)};` : 'export const eventos = undefined;',
+  // eventos() y, para la música "edición", partitura(): cualquiera de las dos puede faltar
+  fs.existsSync(propio)
+    ? `import * as propio from ${JSON.stringify(propio)};\nconst p = propio;\nexport const eventos = p['eventos'];\nexport const partitura = p['partitura'];`
+    : 'export const eventos = undefined;\nexport const partitura = undefined;',
 ].join('\n');
 const compilado = await build({
   stdin: {contents: entrada, resolveDir: process.cwd(), sourcefile: 'entrada.ts', loader: 'ts'},
@@ -57,9 +60,10 @@ const {mezcla, sr, informe} = m.construirBanda({
   tiempos: leerJson('tiempos.json'),
   voz,
   eventos: m.eventos,
+  partitura: m.partitura,
   muestras,
 });
 fs.writeFileSync(path.join(ep, 'mezcla.wav'), m.escribirWav([mezcla.l, mezcla.r], sr));
 for (const aviso of informe.avisos ?? []) console.warn(`⚠ ${aviso}`);
-console.log(JSON.stringify({...informe, efectos_propios: Boolean(m.eventos), tiempo_s: (Date.now() - inicio) / 1000}, null, 2));
+console.log(JSON.stringify({...informe, efectos_propios: Boolean(m.eventos), partitura: Boolean(m.partitura), tiempo_s: (Date.now() - inicio) / 1000}, null, 2));
 console.log(`Listo: episodios/${carpeta}/mezcla.wav`);

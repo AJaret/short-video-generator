@@ -76,6 +76,7 @@ Degradados suaves, glow, sombras proyectadas, bordes perfectos, blanco puro (#FF
 0–3 s portada/gancho · 3–25 s misterio y explicación · 25–38 s revelación · 38–45 s remate. El último fotograma enlaza con el primero (loop): desde `nº04` son iguales, porque el título entra después del fotograma 0.
 - La imagen no se queda quieta: planos de cámara con la voz, acercamientos lentos y detalles (`camara.ts`, `detalles.ts`, ver `docs/kit.md`). El informe avisa si hay más de 4 s seguidos de imagen quieta. Desde `nº06` **sin recuadro de visor** (el usuario, 2026-11-11): la animación va centrada en la pantalla (x = 540) y ocupa casi todo el alto; los subtítulos y rótulos llevan su tira de papel encima. Solo lo importante (texto, datos, el foco de la escena) evita las zonas seguras; el fondo de la animación puede pasar por debajo. `nº04` y `nº05` conservan el visor.
 Excepción aprobada por el usuario: un episodio puede durar más si lo pide el tema. `nº01` dura 71,6 s porque explica lo que se sabe y lo que no.
+Otra excepción (2026-11-14): `nº08b-moho-edicion` recrea `nº08` en estilo **"edición"** (`config.estilo: "edicion"`: color directo sin filtro riso, 3D, glitch en los cortes y música compuesta desde la imagen), a partir de dos ediciones de referencia. Es una prueba pedida para ese episodio: no cambia la estética riso del canal. Ver `docs/kit.md` y `docs/sonido.md`.
 
 ### Portada
 Gancho de los primeros 2,6 s: "nº XX / tema" en Space Mono, título grande en Archivo Black y la animación detrás, con movimiento desde el primer instante. El fotograma 0 **ya no es la miniatura** (el usuario la elige al publicar, 2026-11-08): queda sin título, igual que el último, y el título se imprime palabra a palabra, una por corchea, con un golpe de sello cada una. Todo lo importante dentro del recorte central 3:4 (1080×1440), por si la miniatura sale de estos fotogramas. `nº01`–`nº03` ya están publicados con la portada fija: no se vuelven a renderizar.
@@ -112,7 +113,7 @@ Todo corre en Docker; `producir.py` es el único coordinador en Windows, con Pyt
 - [Kit](docs/kit.md): herramientas de motion graphics y motor 3D; leer antes de crear un sketch.
 - [Sonido](docs/sonido.md): instrumentos, composición, mezcla, limitador y sincronía.
 - [Render](docs/render.md): CPU, rendimiento e interpretación de los informes.
-- [nº01](episodios/nº01-hormiga-de-langton/NOTAS.md), [nº02](episodios/nº02-juego-del-caos/NOTAS.md), [nº03](episodios/nº03-bandada/NOTAS.md) y [nº04](episodios/nº04-lorenz/NOTAS.md): rigor y decisiones de cada episodio.
+- [nº01](episodios/nº01-hormiga-de-langton/NOTAS.md), [nº02](episodios/nº02-juego-del-caos/NOTAS.md), [nº03](episodios/nº03-bandada/NOTAS.md), [nº04](episodios/nº04-lorenz/NOTAS.md) y [nº08b](episodios/nº08b-moho-edicion/NOTAS.md): rigor y decisiones de cada episodio.
 
 ## Comandos habituales (PowerShell, raíz del repo)
 
