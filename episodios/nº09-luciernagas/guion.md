@@ -10,4 +10,4 @@ No eran los párpados. En Tailandia hay árboles enteros que laten como un solo 
 
 [con entusiasmo] ¡Y dos matemáticos demostraron que, con esa regla, tarde o temprano terminan todas juntas!
 
-[riendo por lo bajo] Con ese truco ya se ponen en hora redes de sensores. Lo inventó un bicho con una linterna en la cola.
+Con ese truco ya se ponen en hora redes de sensores. Lo inventó un bicho con una linterna en la cola.

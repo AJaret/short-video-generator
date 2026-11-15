@@ -46,7 +46,7 @@ Degradados suaves, glow, sombras proyectadas, bordes perfectos, blanco puro (#FF
 - Estructura de cada guion: misterio → explicación visual → revelación → remate con guiño o pregunta.
 - Humor seco 6/10. Sin saludos ni despedidas.
 - En los guiones: `[pausa]`, `[pausa larga]` y las indicaciones visuales `[Animación: ...]` (estas últimas NO se leen en voz alta).
-- **Etiquetas de ElevenLabs v3, siempre**, en español como las muestra su interfaz: `[en tono juguetón]`, `[con entusiasmo]`, `[riendo por lo bajo]`, `[suspirando]`, etc. Pocas por guion, al servicio del guiño. Van tal cual en `guion.md`: la alineación descarta cualquier `[marca]` que no sea pausa o animación.
+- **Etiquetas de ElevenLabs v3, siempre**, en español como las muestra su interfaz: `[en tono juguetón]`, `[con entusiasmo]`, etc. Pocas por guion, al servicio del guiño. **Solo etiquetas de emoción; nada de vocalizaciones** (`[riendo por lo bajo]`, `[suspirando]`, `[carraspeando]`…): el usuario oye un cambio de voz brusco que delata a la IA (2026-11-14). El remate va sin etiqueta. Van tal cual en `guion.md`: la alineación descarta cualquier `[marca]` que no sea pausa o animación.
 - Números y siglas escritos como se pronuncian ("veintitrés", "pe cinco jota ese").
 - **Puntuación para la voz** (decide cómo termina cada frase; con solo puntos, todos los cierres caen igual y suena a lectura):
   - `¿…?` para hablarle al espectador ("Parece quieto, ¿verdad?"). El tono sube o se queda abierto.
@@ -108,7 +108,7 @@ Todo corre en Docker; `producir.py` es el único coordinador en Windows, con Pyt
 
 ## Receta: cómo se hace un episodio de principio a fin
 
-Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodios/nº08-moho/` (mapa 2D) y `episodios/nº08b-moho-edicion/` (maqueta 3D, planchas de tinta y música `edicion`). Estado al 2026-11-14: `nº09-luciernagas` tiene guion, verificación y notas; falta la aprobación del usuario para grabar la voz y montar el video.
+Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodios/nº08-moho/` (mapa 2D) y `episodios/nº08b-moho-edicion/` (maqueta 3D, planchas de tinta y música `edicion`). Estado al 2026-11-14: `nº09-luciernagas` está producido (noche como panel de tinta azul, tres sincronías simuladas y música `edicion`); falta que el usuario lo vea y lo oiga.
 
 ### 0 · Elegir el tema
 - El video que más gustó al público fue el del moho (`nº08`). Su fórmula: **un experimento real** + **un ser vivo o sistema sin jefe que iguala a los ingenieros en algo cotidiano** + **cifras de un artículo** + **se puede simular con código**.
@@ -126,6 +126,7 @@ Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodio
 
 ### 3 · Voz
 - Con el guion aprobado, generar la toma con el conector de ElevenLabs (`creative_generate_speech`, modelo `eleven_v4`, la voz del canal; detalles en la memoria `elevenlabs-mcp` y en `docs/voz.md`). Estimar primero con `estimate_only` y no reintentar: cada llamada cobra.
+- Si hay que corregir una frase, se regraba solo ese párrafo y se empalma en una pausa (más barato que otra toma entera; así se quitó una etiqueta del final de `nº09`).
 - Guardar el MP3 y pasarlo por `python producir.py <ep> --voz-externa toma.mp3`: lo copia a `voz_externa.mp3` (se versiona), lo alinea con Whisper y deja `voz.wav` y `tiempos.json`.
 
 ### 4 · Línea de tiempo, imagen y sonido
@@ -136,6 +137,8 @@ Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodio
   - Planchas de tinta a sangre (`fondoTinta` + `enNegativo`) solo en la revelación y el remate.
   - Siempre: fuente en pantalla, rótulos «esquema», lecturas con `lectura`, zonas seguras y el estado de portada repetido en el último fotograma.
   - `sacudirRegistro` solo en la revelación. Nada salta ni late al ritmo porque sí.
+  - Si el tema es el ritmo (el parpadeo de `nº09`), entonces sí va al pulso, pero lento: un destello cada dos tiempos.
+  - Fondos oscuros: un panel de tinta tramada (`fondoTinta` con `trama: true` y `rect`) que deja papel abajo para el título de la portada; la luz se hace recortando papel con `recortarPapel` a distintas fuerzas (anillos de trama).
 - `sonido.ts`: `partitura()` si la música es `edicion`, o `eventos()` con la música `viva` (ver `docs/sonido.md`). Solo suena lo que pasa en pantalla.
 
 ### 5 · Iterar y producir

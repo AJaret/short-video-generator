@@ -1,7 +1,5 @@
 # Verificación y decisiones de nº09
 
-Borrador: guion y verificación hechos; falta la aprobación del usuario para grabar la voz y montar el video.
-
 Comprobación del esquema: `docker compose run --rm video node "../episodios/nº09-luciernagas/verificar.mjs"` (~2 s).
 
 ## Lo que dice la voz y de dónde sale
@@ -18,4 +16,21 @@ Comprobación del esquema: `docker compose run --rm video node "../episodios/nº
 ## El esquema del video (`simulacion.ts`)
 - El modelo de Mirollo y Strogatz, simulado por eventos (exacto): 120 relojes idénticos, carga cóncava (b = 3) y empujón ε = 0,001 por destello.
 - `verificar.mjs`: sin empujón, tras 60 ciclos siguen 120 destellos distintos por ciclo; con la regla, 300 de 300 arranques al azar acaban en un solo destello por ciclo (mínimo 7,4 ciclos, mediana 11,4, máximo 23,7). Después, todas disparan juntas una vez por ciclo.
-- El ciclo del video será de 1,3 s (dos tiempos a 92 BPM), más lento que el real (0,56 s), para que el parpadeo no moleste.
+- En el video el ciclo dura 1,3 s (dos tiempos a 92 BPM), más lento que el real (0,56 s), para que el parpadeo no moleste. Va rotulado.
+- El video usa tres simulaciones de ese modelo, con parámetros distintos para que cada una dure lo que su escena (`linea.ts` elige el arranque al azar que más se acerca):
+  - los dos relojes: n = 2, ε = 0,12;
+  - el enjambre: n = 120, ε = 0,002 (con 0,001 tardaría ~11 ciclos; la escena dura 5);
+  - los sensores: n = 20, ε = 0,008.
+
+## Voz
+- Toma generada con el conector de ElevenLabs el 2026-11-14 (698 créditos): 44,7 s.
+- El usuario oyó la etiqueta `[riendo por lo bajo]` del último párrafo como un cambio de voz artificial. Se regrabó solo ese párrafo sin etiqueta (101 créditos) y se empalmó en la pausa de 38,4 s (corte en 38,45 s, 0,35 s de silencio y −1 dB para igualar el volumen). El empalme no se ha comprobado de oído.
+- Toma final: 45,0 s; Whisper empató el 97 %.
+
+## Imagen y sonido
+- **Noche en riso, sin colores nuevos**: un panel de tinta azul tramada sobre el papel. La luz de cada luciérnaga es el papel que asoma: un punto limpio con dos anillos de trama. El rosa queda para la regla (la carga de los relojes, el empujón, los sensores).
+- **Escenas**: el árbol sincronizado (portada incluida) → los párpados de 1917, dos parpadeos de papel → «En Tailandia…», con el dato real (un destello cada 0,56 s) → sobre papel, un reloj que se carga y destella, y luego dos con el empujón a la vista → el enjambre desordenado que se junta, con la lectura de destellos distintos por ciclo de 120 a 1 → revelación en «todas juntas» → sobre papel, una red de 20 sensores que se pone en hora sola → el árbol, sincronizado.
+- **Loop**: el primer y el último fotograma son un destello del árbol. `cola: 1.28` hace que el último fotograma caiga justo en un destello de la rejilla que empezó en la revelación; si cambia la voz, hay que recalcularla.
+- **Movimiento**: la cámara gira muy poco y vuelve a su sitio. El árbol baja y crece una vez tras la portada y vuelve en el cierre. Cinco cortes de verdad. Lo que se mueve es el tema: el parpadeo.
+- **Música `edicion` en Re menor**: aquí la sincronía se oye. Dos campanas en cada destello conjunto; A y B en tónica y quinta; cada grupo del enjambre es una nota (como mucho una por fusa), así que empieza como lluvia de clics y termina en un pulso.
+- Fuente en pantalla: Laurent (1917), Buck y Buck (1968), Mirollo y Strogatz (1990) y Werner-Allen y otros (2005), cada una mientras la voz habla de ello.

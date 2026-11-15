@@ -43,25 +43,28 @@ export type Historia = {
   sincronia: number | null;
 };
 
+type Opciones = {b?: number; eps?: number};
+
 /**
- * Simula `ciclos` ciclos desde las fases `fases0`. Con `eps` = 0 no hay empujón: cada una sigue a
- * su ritmo para siempre. Tras la sincronía, todas disparan juntas una vez por ciclo, exacto.
+ * Núcleo: avanza los relojes desde `fases0` hasta el instante `hasta` (en ciclos) y devuelve sus
+ * fases en ese instante. Llama a `alDisparar` en cada destello. Con `eps` = 0 no hay empujón.
  */
-export function simular(fases0: number[], ciclos: number, op: {b?: number; eps?: number} = {}): Historia {
+function correr(fases0: ArrayLike<number>, hasta: number, op: Opciones, alDisparar?: (t: number, quienes: number[]) => void): Float64Array {
   const b = op.b ?? PARAMS.b;
   const eps = op.eps ?? PARAMS.eps;
   const n = fases0.length;
   const fase = Float64Array.from(fases0);
-  const destellos: Destello[] = [];
-  let sincronia: number | null = null;
   let t = 0;
-  while (t < ciclos) {
+  for (;;) {
     // Avanzar hasta que dispare la más adelantada
     let max = 0;
     for (let i = 0; i < n; i++) if (fase[i] > max) max = fase[i];
     const dt = 1 - max;
+    if (t + dt > hasta) {
+      for (let i = 0; i < n; i++) fase[i] += hasta - t;
+      return fase;
+    }
     t += dt;
-    if (t > ciclos) break;
     const disparada = new Uint8Array(n);
     const cola: number[] = [];
     for (let i = 0; i < n; i++) {
@@ -72,7 +75,7 @@ export function simular(fases0: number[], ciclos: number, op: {b?: number; eps?:
       }
     }
     // Cada disparo empuja a las que aún no han disparado; las que llegan a 1 disparan también
-    for (let k = 0; k < cola.length && eps > 0; k++) {
+    for (let k = 0; k < cola.length && eps > 0 && cola.length < n; k++) {
       for (let j = 0; j < n; j++) {
         if (disparada[j]) continue;
         const x = carga(fase[j], b) + eps;
@@ -83,15 +86,32 @@ export function simular(fases0: number[], ciclos: number, op: {b?: number; eps?:
       }
     }
     for (const i of cola) fase[i] = 0;
-    destellos.push({t, quienes: cola.slice().sort((p, q) => p - q)});
-    if (cola.length === n) {
-      if (sincronia === null) sincronia = t;
-      // Ya van todas juntas: el resto son destellos idénticos, uno por ciclo
-      for (let s = t + 1; s <= ciclos; s += 1) destellos.push({t: s, quienes: cola.slice().sort((p, q) => p - q)});
-      break;
-    }
+    alDisparar?.(t, cola.slice().sort((p, q) => p - q));
   }
+}
+
+/**
+ * Simula `ciclos` ciclos desde las fases `fases0`. Con `eps` = 0 no hay empujón: cada una sigue a
+ * su ritmo para siempre. Tras la sincronía, todas disparan juntas una vez por ciclo, exacto.
+ */
+export function simular(fases0: ArrayLike<number>, ciclos: number, op: Opciones = {}): Historia {
+  const destellos: Destello[] = [];
+  let sincronia: number | null = null;
+  correr(fases0, ciclos, op, (t, quienes) => {
+    destellos.push({t, quienes});
+    if (sincronia === null && quienes.length === fases0.length) sincronia = t;
+  });
   return {destellos, sincronia};
+}
+
+/** Fases de todos los relojes en el instante `t` (≥ 0, en ciclos). */
+export const fasesEn = (fases0: ArrayLike<number>, t: number, op: Opciones = {}): Float64Array => correr(fases0, Math.max(0, t), op);
+
+/** Instantes (en ciclos) en que dispara cada reloj, en orden. */
+export function destellosPorReloj(h: Historia, n: number): number[][] {
+  const lista: number[][] = Array.from({length: n}, () => []);
+  for (const d of h.destellos) for (const i of d.quienes) lista[i].push(d.t);
+  return lista;
 }
 
 /** Grupos distintos que disparan durante el ciclo que termina en `t` (n al principio, 1 al final). */
