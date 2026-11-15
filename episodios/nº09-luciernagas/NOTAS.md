@@ -27,9 +27,13 @@ Comprobación del esquema: `docker compose run --rm video node "../episodios/nº
 - Toma definitiva: completa y sin esa etiqueta (677 créditos), 44,0 s; Whisper empató el 97 %. Lección: si hay que cambiar una frase, mejor regrabar la toma entera.
 
 ## Imagen y sonido
-- **Noche en riso, sin colores nuevos**: un panel de tinta azul tramada sobre el papel. La luz de cada luciérnaga es el papel que asoma: un punto limpio con dos anillos de trama. El rosa queda para la regla (la carga de los relojes, el empujón, los sensores).
-- **Escenas**: el árbol sincronizado (portada incluida) → los párpados de 1917, dos parpadeos de papel → «En Tailandia…», con el dato real (un destello cada 0,56 s) → sobre papel, un reloj que se carga y destella, y luego dos con el empujón a la vista → el enjambre desordenado que se junta, con la lectura de destellos distintos por ciclo de 120 a 1 → revelación en «todas juntas» → sobre papel, una red de 20 sensores que se pone en hora sola → el árbol, sincronizado.
-- **Loop**: el primer y el último fotograma son un destello del árbol. `cola: 1.69` hace que el último fotograma caiga justo en un destello de la rejilla que empezó en la revelación; si cambia la voz, hay que recalcularla.
-- **Movimiento**: la cámara gira muy poco y vuelve a su sitio. El árbol baja y crece una vez tras la portada y vuelve en el cierre. Cinco cortes de verdad. Lo que se mueve es el tema: el parpadeo.
-- **Música `edicion` en Re menor**: aquí la sincronía se oye. Dos campanas en cada destello conjunto; A y B en tónica y quinta; cada grupo del enjambre es una nota (como mucho una por fusa), así que empieza como lluvia de clics y termina en un pulso.
+Segunda versión (2026-11-14). El usuario vio la primera «meh, casi sin colores y con animaciones muy simples» frente a nº08b, y oyó brusco el cambio de la música en el segundo 35. Se rehízo con nº08b como estándar:
+- **Bosque en maqueta 3D**: árboles con volumen tramado en negro dentro de un panel de noche de tinta azul, que deja papel abajo para el título y los subtítulos. Todo el 3D se recorta al panel, así que nada asoma sobre el papel. La cámara viaja con la voz: portada → el árbol → el bosque («en Tailandia…») → … → vuelta exacta a la portada (loop).
+- **Luz con color**: cada luciérnaga es un núcleo de papel con un halo rosa tramado; sobre el azul sale morado.
+- **Gráfico de destellos** bajo el enjambre: cada fila es una luciérnaga y cada punto un destello. Las columnas rosas marcan los destellos en que dispara al menos la mitad. Sale de la misma simulación.
+- **Relojes**: las dos luciérnagas en 3D (cuerpo negro, élitros azules, linterna rosa que se enciende), con su reloj debajo y el empujón en rosa.
+- **Revelación**: plancha rosa a sangre con el bosque en papel, un marco con dos estrellas y «1 destello por ciclo».
+- **Sensores**: maqueta de 20 nodos con volumen, enlaces de radio en azul punteado y LED rosas.
+- **Música `edicion` en Re menor**: sin redoble ni aire antes de la revelación; la batería sube un escalón en «sin jefe», así que la revelación ya no salta de golpe. Cada grupo del enjambre es una nota, y dos campanas suenan en cada destello conjunto.
+- **Loop**: el primer y el último fotograma son el mismo destello de la portada. `cola: 1.69` lo ajusta; si cambia la voz, hay que recalcularla.
 - Fuente en pantalla: Laurent (1917), Buck y Buck (1968), Mirollo y Strogatz (1990) y Werner-Allen y otros (2005), cada una mientras la voz habla de ello.

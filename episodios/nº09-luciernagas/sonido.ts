@@ -68,6 +68,8 @@ export function partitura({config, tiempos, duracion, pulso}: ContextoSonido): P
       {desde: l.mapa, nivel: 1},
       {desde: l.tailandia, nivel: 2},
       {desde: l.truco, nivel: 1},
+      // El enjambre sube un escalón antes: la revelación ya no salta de 1 a 3
+      {desde: l.sinJefe, nivel: 2},
       {desde: l.revelacion, nivel: 3},
       {desde: l.sensores, nivel: 2},
       {desde: l.bicho, nivel: 1},
@@ -75,7 +77,8 @@ export function partitura({config, tiempos, duracion, pulso}: ContextoSonido): P
     cortes: cortes(l).map((t) => ({t, fuerza: fuerza.get(t) ?? 1, hueco: t === l.revelacion ? 0 : undefined})),
     golpes: [l.revelacion],
     paradas: [[l.pausa, l.revelacion]],
-    subidas: [[l.demostraron + negra, l.pausa]],
+    // Sin redoble ni aire antes de la revelación (el usuario lo oyó brusco): basta el tiempo de silencio
+    subidas: [],
     notas,
     glitches: [],
     // El acorde final, en el penúltimo destello del árbol (el último es el fotograma del loop)
