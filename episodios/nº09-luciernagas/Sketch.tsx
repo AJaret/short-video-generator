@@ -38,6 +38,7 @@ import {
   todasLasCapas,
   trazarCirculoIrregular,
   trazarEstrella,
+  trazarRectIrregular,
   useDibujo,
   type Camara,
   type Capas,
@@ -57,7 +58,7 @@ const brillo = (dt: number) => (dt < 0 ? 0 : Math.exp(-dt / CAIDA));
 const SUELO = -3.6;
 
 const CILINDRO = cilindro(12);
-const ESFERA = esfera(10, 16);
+const ESFERA = esfera(18, 28);
 const BOLA = esfera(6, 10);
 const CUBO = cubo();
 
@@ -117,8 +118,8 @@ function tomaEn(t: number, planos: Plano[]): Toma {
 }
 
 const PORTADA: Toma = {objetivo: [0, -0.5, 0], distancia: 24, azimut: 0, elevacion: 0.13, escala: 96, centro: [540, 520], horizonte: 970};
-const ARBOL: Toma = {objetivo: [0, -0.5, 0], distancia: 22, azimut: 0.14, elevacion: 0.15, escala: 112, centro: [540, 600], horizonte: 1180};
-const BOSQUE: Toma = {objetivo: [0, -1, -4], distancia: 28, azimut: -0.32, elevacion: 0.24, escala: 64, centro: [540, 620], horizonte: 1180};
+const ARBOL: Toma = {objetivo: [0, -0.8, 0], distancia: 22, azimut: 0.14, elevacion: 0.2, escala: 140, centro: [540, 760], horizonte: 1990};
+const BOSQUE: Toma = {objetivo: [0, -1.2, -4], distancia: 28, azimut: -0.32, elevacion: 0.3, escala: 80, centro: [540, 800], horizonte: 1990};
 const ENJAMBRE: Toma = {objetivo: [0, -0.6, 0], distancia: 22, azimut: 0.3, elevacion: 0.16, escala: 78, centro: [540, 470], horizonte: 880};
 
 function planosDe(l: Linea): Plano[] {
@@ -168,21 +169,38 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
 
   // ── El bosque de noche ──────────────────────────────────────────────────────────────────────
 
+  /**
+   * Copa en nube: siete esferas que se solapan (una central y seis alrededor, a distintas alturas).
+   * Se lee como follaje y no como una bola facetada.
+   */
+  function nube(x: number, y: number, z: number, s: number, material: Material): Objeto3D[] {
+    const bolas: [number, number, number, number][] = [
+      [0, 0.15, 0, 1.75],
+      [-1.35, -0.35, 0.4, 1.25],
+      [1.4, -0.3, 0.3, 1.3],
+      [-0.5, 0.95, -0.6, 1.25],
+      [0.75, 1.0, 0.5, 1.15],
+      [0.2, -0.75, 1.1, 1.2],
+      [-0.2, -0.6, -1.2, 1.2],
+    ];
+    return bolas.map(([dx, dy, dz, r]) => ({malla: ESFERA, tr: {escala: r * s, pos: [x + dx * s, y + dy * s, z + dz * s] as Vec3}, material}));
+  }
+
   /** Los árboles en 3D: troncos y copas con volumen tramado en negro. */
   function arboles(): Objeto3D[] {
     const copaMat: Material = {tinta: 'k', tonos: [0.22, 0.78]};
     const troncoMat: Material = {tinta: 'k', tonos: [0.55, 1]};
     const objetos: Objeto3D[] = [
       // Suelo: un disco algo más oscuro que la noche
-      {malla: CILINDRO, tr: {escala: [16, 0.02, 16], pos: [0, SUELO - 0.02, -3]}, material: {tinta: 'k', tonos: [0.18, 0.3]}},
+      {malla: CILINDRO, tr: {escala: [60, 0.02, 60], pos: [0, SUELO - 0.02, 0]}, material: {tinta: 'k', tonos: [0.18, 0.3]}},
       {malla: CILINDRO, tr: {escala: [0.36, 1.1, 0.36], pos: [0, SUELO + 1.1, 0]}, material: troncoMat},
-      {malla: ESFERA, tr: {escala: [2.8, 2.3, 2.8], pos: [0, 0, 0]}, material: copaMat},
+      ...nube(0, 0, 0, 1, copaMat),
     ];
     for (const a of FONDO) {
       const cy = SUELO + a.s * 4.6;
       objetos.push(
         {malla: CILINDRO, tr: {escala: [0.3 * a.s, a.s * 1.2, 0.3 * a.s], pos: [a.x, SUELO + a.s * 1.2, a.z]}, material: troncoMat},
-        {malla: ESFERA, tr: {escala: [2.6 * a.s, 2.1 * a.s, 2.6 * a.s], pos: [a.x, cy, a.z]}, material: copaMat},
+        ...nube(a.x, cy, a.z, a.s * 0.92, copaMat),
       );
     }
     return objetos;
@@ -193,15 +211,15 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
    * `puntos` = [x, y, radio, brillo].
    */
   function luces(c: Capas, puntos: [number, number, number, number][]) {
-    const k = c.solido.k;
-    k.fillStyle = cobertura(1);
-    k.beginPath();
-    for (const [x, y, r, b] of puntos) {
-      if (b >= 0.1) continue;
-      k.moveTo(x + r * 0.45, y);
-      k.arc(x, y, r * 0.45, 0, Math.PI * 2);
-    }
-    k.fill();
+    // Apagadas: un brillo tenue de papel (no un punto negro, que parecía suciedad)
+    recortarPapel(c, (ctx) => {
+      ctx.beginPath();
+      for (const [x, y, r, b] of puntos) {
+        if (b >= 0.1) continue;
+        ctx.moveTo(x + r * 0.4, y);
+        ctx.arc(x, y, r * 0.4, 0, Math.PI * 2);
+      }
+    }, 0.4);
     const niveles: [number, number, number][][] = [[], [], [], []];
     for (const [x, y, r, b] of puntos) if (b >= 0.1) niveles[Math.min(3, Math.floor(b * 4))].push([x, y, r * (0.6 + 0.4 * b)]);
     const circulos = (ctx: CanvasRenderingContext2D, lista: [number, number, number][], factor: number) => {
@@ -281,6 +299,18 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     });
     luces(c, puntos);
     return cam;
+  }
+
+  /** Lectura sobre una tira de papel (para que se lea también sobre la noche). */
+  function lecturaTira(c: Capas, etiqueta: string, valor: string, x: number, y: number, tam: number) {
+    const k = c.solido.k;
+    k.font = fuente(MONO, Math.round(tam * 0.62), 400);
+    const w1 = k.measureText(etiqueta).width;
+    k.font = fuente(MONO, tam, 700);
+    const w2 = k.measureText(valor).width;
+    const ancho = Math.max(w1, w2) + 36;
+    recortarPapel(c, (ctx) => trazarRectIrregular(ctx, {x: x - 18, y: y - tam * 1.75, w: ancho, h: tam * 2.05}, 77, 2));
+    lectura(k, etiqueta, valor, x, y, {tam});
   }
 
   /** Los párpados de 1917: papel que se cierra sobre la noche, con el borde del ojo en negro. */
@@ -666,7 +696,7 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
         fuenteEnPantalla(c, 'Buck y Buck, Science 159, 1319 (1968)', fase(t, l.tailandia, l.tailandia + 0.4));
         rotulo(c, 'esquema · aquí parpadean más lento', 90, 360, fase(t, l.tailandia, l.tailandia + 0.4), {tam: 26, tinta: 'b'});
         rotulo(c, 'Pteroptyx malaccae · Tailandia', 90, 1110, fase(t, l.tailandia + 0.2, l.tailandia + 0.6), {tam: 30, tinta: 'b', semilla: 43});
-        lectura(k, 'en el árbol real, un destello cada', '0,56 s', 70, 1340, {tam: 60});
+        lecturaTira(c, 'en el árbol real, un destello cada', '0,56 s', 70, 1340, 60);
       } else if (t >= l.mapa && t < l.laurent) {
         rotulo(c, 'esquema · un árbol de luciérnagas', 90, 360, fase(t, l.mapa, l.mapa + 0.4), {tam: 26, tinta: 'b'});
       }
