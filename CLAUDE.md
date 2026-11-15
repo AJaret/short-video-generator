@@ -126,7 +126,8 @@ Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodio
 
 ### 3 · Voz
 - Con el guion aprobado, generar la toma con el conector de ElevenLabs (`creative_generate_speech`, modelo `eleven_v4`, la voz del canal; detalles en la memoria `elevenlabs-mcp` y en `docs/voz.md`). Estimar primero con `estimate_only` y no reintentar: cada llamada cobra.
-- Si hay que corregir una frase, se regraba solo ese párrafo y se empalma en una pausa (más barato que otra toma entera; así se quitó una etiqueta del final de `nº09`).
+- Si hay que corregir una frase, **se regraba la toma entera**: en `nº09` se probó regrabar solo el último párrafo y empalmarlo, y el usuario notó el cambio de tono.
+- Con un final en loop atado a la rejilla (como `nº09`), al cambiar la toma hay que recalcular `cola` para que el último fotograma vuelva a caer donde toca.
 - Guardar el MP3 y pasarlo por `python producir.py <ep> --voz-externa toma.mp3`: lo copia a `voz_externa.mp3` (se versiona), lo alinea con Whisper y deja `voz.wav` y `tiempos.json`.
 
 ### 4 · Línea de tiempo, imagen y sonido
