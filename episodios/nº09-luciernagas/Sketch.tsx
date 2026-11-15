@@ -99,8 +99,9 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     c.k.beginPath();
     c.k.moveTo(e.cx - 36 * m, e.cy + 350 * m);
     c.k.lineTo(e.cx + 36 * m, e.cy + 350 * m);
-    c.k.lineTo(e.cx + 58 * m, e.horizonte + 50);
-    c.k.lineTo(e.cx - 60 * m, e.horizonte + 50);
+    // El tronco acaba en el borde del panel de noche (el borde es irregular: 4 px de margen), no sobre el papel
+    c.k.lineTo(e.cx + 58 * m, e.horizonte - 4);
+    c.k.lineTo(e.cx - 60 * m, e.horizonte - 4);
     c.k.closePath();
     c.k.fill();
 
