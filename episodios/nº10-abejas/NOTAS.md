@@ -1,7 +1,5 @@
 # Verificación y decisiones de nº10
 
-Borrador: guion y verificación hechos; falta la aprobación del usuario para grabar la voz y montar el video.
-
 Comprobación del esquema: `docker compose run --rm video node "../episodios/nº10-abejas/verificar.mjs"` (~3 s).
 
 ## Lo que dice la voz y de dónde sale
@@ -19,3 +17,16 @@ Comprobación del esquema: `docker compose run --rm video node "../episodios/nº
   - si todas bailaran igual, solo acertaría el 4 % y el 80 % no llegaría al quórum;
   - si el baile no decayera, se quedaría con el primer sitio encontrado y acertaría solo el 35 %.
 - El modelo acierta más que los enjambres reales (4 de 5): es un esquema, y la voz da la cifra real.
+
+## Voz
+- Toma generada con el conector de ElevenLabs el 2026-11-16 (727 créditos): 50,1 s. Whisper empató el 92 %. Solo etiquetas de emoción; el remate, sin etiqueta.
+
+## Imagen y sonido (con nº08b y nº09 como estándar)
+- **Maqueta 3D**: el enjambre (nube de esferas en negro tramado con la sombra en rosa) colgado de una rama sobre papel. La cámara se acerca a la reina (en rosa, con una mira: «la reina: no decide»). Corte a la isla: el poste con el enjambre y cinco cajas con volumen (la buena en rosa, las regulares en azul) sobre una retícula azul. Las exploradoras vuelan en arco hacia las cajas.
+- El paso de la reina a la isla es un corte: un viaje de cámara atravesaba la caja C y se veía enorme.
+- **El baile**, sobre papel: dos panales hexagonales con su bailarina recorriendo el ocho (rosa la buena, azul la regular). Las barras muestran los circuitos de cada vuelta del modelo (buena 90 → 75 → 60; regular 36 → 21 → 6). Las cifras son del esquema y no salen en la voz.
+- **La votación**: la isla arriba y, abajo, las exploradoras en cada caja (la simulación) con la línea del quórum. La caja C la cruza justo antes de «se acaba la votación».
+- **Revelación**: plancha rosa a sangre con «4 DE 5» en papel y cuatro de cinco cajas marcadas.
+- **Cierre**: vuelta al enjambre y a la portada. Loop exacto: las abejas de adorno dan un número entero de vueltas en todo el video.
+- **Música `edicion` en Sol menor**: clics cuando salen las exploradoras; en el baile, notas rápidas y agudas para la buena y pocas y graves para la regular; en la votación, una nota por cada exploradora que se suma a una caja (campana para la C); golpe en el quórum y en la revelación.
+- Movimiento: el 5 % de los fotogramas tiene cambio fuerte (el más calmado hasta ahora) y ningún tramo quieto pasa de 0,4 s.

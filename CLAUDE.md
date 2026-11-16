@@ -108,7 +108,7 @@ Todo corre en Docker; `producir.py` es el único coordinador en Windows, con Pyt
 
 ## Receta: cómo se hace un episodio de principio a fin
 
-Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodios/nº08-moho/` (mapa 2D) y `episodios/nº08b-moho-edicion/` (maqueta 3D, planchas de tinta y música `edicion`). Estado al 2026-11-14: `nº09-luciernagas` está producido (noche como panel de tinta azul, tres sincronías simuladas y música `edicion`); falta que el usuario lo vea y lo oiga.
+Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodios/nº08-moho/` (mapa 2D) y `episodios/nº08b-moho-edicion/` (maqueta 3D, planchas de tinta y música `edicion`). Estado al 2026-11-16: `nº09-luciernagas` aprobado por el usuario (bosque 3D, luz rosa, gráfico de destellos). `nº10-abejas` producido (enjambre e isla en 3D, el baile, votación simulada, «4 DE 5»); falta que el usuario lo vea.
 
 ### 0 · Elegir el tema
 - El video que más gustó al público fue el del moho (`nº08`). Su fórmula: **un experimento real** + **un ser vivo o sistema sin jefe que iguala a los ingenieros en algo cotidiano** + **cifras de un artículo** + **se puede simular con código**.
@@ -164,7 +164,7 @@ Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodio
 - [Kit](docs/kit.md): herramientas de motion graphics y motor 3D; leer antes de crear un sketch.
 - [Sonido](docs/sonido.md): instrumentos, composición, mezcla, limitador y sincronía.
 - [Render](docs/render.md): CPU, rendimiento e interpretación de los informes.
-- [nº01](episodios/nº01-hormiga-de-langton/NOTAS.md), [nº02](episodios/nº02-juego-del-caos/NOTAS.md), [nº03](episodios/nº03-bandada/NOTAS.md), [nº04](episodios/nº04-lorenz/NOTAS.md), [nº08](episodios/nº08-moho/NOTAS.md), [nº08b](episodios/nº08b-moho-edicion/NOTAS.md) y [nº09](episodios/nº09-luciernagas/NOTAS.md): rigor y decisiones de cada episodio.
+- [nº01](episodios/nº01-hormiga-de-langton/NOTAS.md), [nº02](episodios/nº02-juego-del-caos/NOTAS.md), [nº03](episodios/nº03-bandada/NOTAS.md), [nº04](episodios/nº04-lorenz/NOTAS.md), [nº08](episodios/nº08-moho/NOTAS.md), [nº08b](episodios/nº08b-moho-edicion/NOTAS.md), [nº09](episodios/nº09-luciernagas/NOTAS.md) y [nº10](episodios/nº10-abejas/NOTAS.md): rigor y decisiones de cada episodio.
 
 ## Comandos habituales (PowerShell, raíz del repo)
 
