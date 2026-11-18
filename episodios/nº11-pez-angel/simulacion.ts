@@ -37,6 +37,8 @@ export type Piel = {
   L: number[];
   /** Activador u (normalizado 0…1) en cada instantánea. */
   u: Float32Array[];
+  /** Inhibidor v (normalizado 0…1) en cada instantánea. */
+  v: Float32Array[];
   /** Tiempo de la simulación de cada instantánea. */
   t: number[];
 };
@@ -55,7 +57,7 @@ export function piel1D(semilla: number, fotos = 240, p = PIEL): Piel {
   }
   const r = Math.log(2) / p.duplica;
   const total = p.previo + p.duplica * Math.log2(p.crece);
-  const salida: Piel = {L: [], u: [], t: []};
+  const salida: Piel = {L: [], u: [], v: [], t: []};
   let un = new Float64Array(n);
   let vn = new Float64Array(n);
   const largo = (tt: number) => (tt < p.previo ? p.L0 : p.L0 * Math.exp(r * (tt - p.previo)));
@@ -69,6 +71,13 @@ export function piel1D(semilla: number, fotos = 240, p = PIEL): Piel {
     salida.L.push(largo(tt));
     salida.t.push(tt);
     salida.u.push(Float32Array.from(u, (x) => (x - min) / Math.max(1e-9, max - min)));
+    let vmin = Infinity;
+    let vmax = -Infinity;
+    for (let i = 0; i < n; i++) {
+      if (v[i] < vmin) vmin = v[i];
+      if (v[i] > vmax) vmax = v[i];
+    }
+    salida.v.push(Float32Array.from(v, (x) => (x - vmin) / Math.max(1e-9, vmax - vmin)));
   };
   let tt = 0;
   let siguiente = 0;

@@ -1,7 +1,5 @@
 # Verificación y decisiones de nº11
 
-Borrador: guion y verificación hechos; falta la aprobación del usuario para grabar la voz y montar el video.
-
 Comprobación de los esquemas: `docker compose run --rm video node "../episodios/nº11-pez-angel/verificar.mjs"` (~3 s).
 
 ## Lo que dice la voz y de dónde sale
@@ -19,3 +17,17 @@ Hofer y Maini (*Nature* 380, 678, 1996) discutieron que la reacción-difusión p
 - **Franja que crece** (Schnakenberg, activador e inhibidor, el inhibidor se difunde 22 veces más rápido): de largo 30 a 120. Las rayas pasan de 3 a 5 y a 10, y la separación media se mantiene en 12,0 → 12,0 → 12,1. En el pez real son 3 → 6 → 12; la diferencia está en los bordes del esquema, y el video no enseña el conteo de la simulación junto a esa frase.
 - **Control**: sin el inhibidor más rápido (Dv = Du) no sale ninguna raya.
 - **Parche 2D** (Gray-Scott): con una receta salen 46 manchas sueltas; con otra, una sola pieza conectada (un laberinto).
+
+## Voz
+- Toma generada con el conector de ElevenLabs el 2026-11-17 (719 créditos): 49,4 s. Whisper empató el 88 % (oyó «pes ángel» por «pez ángel»; la alineación con el guion es correcta).
+
+## Imagen y sonido (con nº09 y nº10 como estándar)
+- **El pez en 3D**: cuerpo y aletas con volumen tramado en azul (sombra en negro). Las rayas se dibujan como **bandas lisas** que siguen la curva del cuerpo y continúan por las aletas, en papel con un velo azul. Repartir las caras de la malla entre «raya» y «cuerpo» daba bordes escalonados y, con 12 rayas, un tablero.
+- «Tres, seis, doce»: el pez crece y le salen rayas nuevas entre las viejas, como en las fotos (lectura «2 / 6 / 12 meses · rayas»; fuente Painter y otros, 1999). Son las rayas del pez real, no las de la simulación.
+- **La ficha de 1952** (y 1954): detrás, muy suave, la piel formándose sola con la receta (manchas, y luego laberinto), para que la escena no quede quieta.
+- **La receta**: el activador (rosa) y el inhibidor (azul) a lo largo de la franja, del ruido a las ondas, y la piel que se raya debajo.
+- **Manchas, laberinto y rayas**: tres cuadros que se forman solos, con las simulaciones.
+- **Revelación**: plancha azul a sangre con el pez en papel y las rayas de la simulación (la franja que crece) reacomodándose; contador de 0 a 90 días.
+- **Loop**: la cola y el leve giro dan un número entero de ciclos en todo el video, y el cierre vuelve al pez de la portada.
+- **Música `edicion` en Mi menor**: una nota por cada raya nueva (3 → 6 → 12), agudos para el activador y graves para el inhibidor, un acorde por cuadro, y en la revelación una campana cada vez que la simulación inserta una raya.
+- Movimiento: el 6 % de los fotogramas tiene cambio fuerte y ningún tramo quieto pasa de 0,4 s.

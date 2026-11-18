@@ -108,7 +108,7 @@ Todo corre en Docker; `producir.py` es el único coordinador en Windows, con Pyt
 
 ## Receta: cómo se hace un episodio de principio a fin
 
-Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodios/nº08-moho/` (mapa 2D) y `episodios/nº08b-moho-edicion/` (maqueta 3D, planchas de tinta y música `edicion`). Estado al 2026-11-16: `nº09-luciernagas` aprobado por el usuario (bosque 3D, luz rosa, gráfico de destellos). `nº10-abejas` aprobado por el usuario (enjambre e isla en 3D, el baile, votación simulada, «4 DE 5»).
+Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodios/nº08-moho/` (mapa 2D) y `episodios/nº08b-moho-edicion/` (maqueta 3D, planchas de tinta y música `edicion`). Estado al 2026-11-16: `nº09-luciernagas` aprobado por el usuario (bosque 3D, luz rosa, gráfico de destellos). `nº10-abejas` aprobado por el usuario (enjambre e isla en 3D, el baile, votación simulada, «4 DE 5»). `nº11-pez-angel` producido (pez 3D con rayas en bandas, receta de Turing, manchas y laberinto simulados, revelación en plancha azul); falta que el usuario lo vea.
 
 ### 0 · Elegir el tema
 - El video que más gustó al público fue el del moho (`nº08`). Su fórmula: **un experimento real** + **un ser vivo o sistema sin jefe que iguala a los ingenieros en algo cotidiano** + **cifras de un artículo** + **se puede simular con código**.
@@ -139,6 +139,7 @@ Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodio
   - Siempre: fuente en pantalla, rótulos «esquema», lecturas con `lectura`, zonas seguras y el estado de portada repetido en el último fotograma.
   - `sacudirRegistro` solo en la revelación. Nada salta ni late al ritmo porque sí.
   - Si el tema es el ritmo (el parpadeo de `nº09`), entonces sí va al pulso, pero lento: un destello cada dos tiempos.
+  - Dibujos sobre un volumen 3D (rayas, manchas): no repartir caras de la malla (sale escalonado); dibujar bandas lisas proyectando curvas sobre la superficie (ver `nº11`).
   - Fondos oscuros: un panel de tinta tramada (`fondoTinta` con `trama: true` y `rect`) que deja papel abajo para el título de la portada; la luz se hace recortando papel con `recortarPapel` a distintas fuerzas (anillos de trama).
 - `sonido.ts`: `partitura()` si la música es `edicion`, o `eventos()` con la música `viva` (ver `docs/sonido.md`). Solo suena lo que pasa en pantalla.
 
@@ -164,7 +165,7 @@ Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodio
 - [Kit](docs/kit.md): herramientas de motion graphics y motor 3D; leer antes de crear un sketch.
 - [Sonido](docs/sonido.md): instrumentos, composición, mezcla, limitador y sincronía.
 - [Render](docs/render.md): CPU, rendimiento e interpretación de los informes.
-- [nº01](episodios/nº01-hormiga-de-langton/NOTAS.md), [nº02](episodios/nº02-juego-del-caos/NOTAS.md), [nº03](episodios/nº03-bandada/NOTAS.md), [nº04](episodios/nº04-lorenz/NOTAS.md), [nº08](episodios/nº08-moho/NOTAS.md), [nº08b](episodios/nº08b-moho-edicion/NOTAS.md), [nº09](episodios/nº09-luciernagas/NOTAS.md) y [nº10](episodios/nº10-abejas/NOTAS.md): rigor y decisiones de cada episodio.
+- [nº01](episodios/nº01-hormiga-de-langton/NOTAS.md), [nº02](episodios/nº02-juego-del-caos/NOTAS.md), [nº03](episodios/nº03-bandada/NOTAS.md), [nº04](episodios/nº04-lorenz/NOTAS.md), [nº08](episodios/nº08-moho/NOTAS.md), [nº08b](episodios/nº08b-moho-edicion/NOTAS.md), [nº09](episodios/nº09-luciernagas/NOTAS.md), [nº10](episodios/nº10-abejas/NOTAS.md) y [nº11](episodios/nº11-pez-angel/NOTAS.md): rigor y decisiones de cada episodio.
 
 ## Comandos habituales (PowerShell, raíz del repo)
 
