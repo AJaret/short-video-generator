@@ -35,3 +35,5 @@ Hofer y Maini (*Nature* 380, 678, 1996) discutieron que la reacción-difusión p
 ## Correcciones del usuario (2026-11-17)
 - «Tres, seis, doce» no se veía: las rayas solo engordaban. Ahora cada raya conserva su ancho real mientras el cuerpo crece («no se estiran»), así que se abren huecos, y las nuevas nacen en ellos justo cuando la voz dice «seis» y «doce».
 - Los fondos de las fichas (manchas y laberinto) se cortaban arriba y abajo. Ahora son un mosaico a pantalla completa (Gray-Scott es periódico, así que no hay costuras), y la retícula del pez llega a los bordes.
+- La receta empezaba como un caos de líneas (cada fotograma se normalizaba por separado y el ruido inicial, minúsculo, salía a tamaño completo) y se veía a saltos (pocas instantáneas). Ahora usa una escala fija, la del patrón ya formado: dos líneas casi planas cuyas ondas crecen solas. Además interpola entre instantáneas.
+- Rayas del pez: líneas claras finas, como el juvenil real y como en la escena azul.

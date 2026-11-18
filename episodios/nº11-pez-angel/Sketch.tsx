@@ -243,7 +243,7 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     // Cada raya conserva su ancho real mientras el cuerpo crece («no se estiran»): se abren huecos y
     // las nuevas nacen en ellos
     const lista = rayasReales(tt, l);
-    const ancho = 0.036 / tamanoPez(tt, l); // medio ancho de la raya
+    const ancho = 0.022 / tamanoPez(tt, l); // medio ancho: líneas finas, como el juvenil real
     return lista.map((r) => {
       const centro = 0.14 + 0.72 * r.pos;
       return [centro - ancho * r.grosor, centro + ancho * r.grosor] as [number, number];
@@ -358,9 +358,26 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
 
   /** La receta: activador e inhibidor a lo largo de la piel, que se raya debajo. */
   function escenaReceta(c: Capas) {
-    const k0 = Math.round(sim.previo * entradaSalidaCubica(fase(t, l.dos + 0.3, l.recetas - 0.3)));
-    const u = sim.piel.u[k0];
-    const v = sim.piel.v[k0];
+    // Instantánea con decimales e interpolada: un fotograma distinto en cada paso (nada a saltos)
+    const kf = sim.previo * entradaSalidaCubica(fase(t, l.dos + 0.3, l.recetas - 0.3));
+    const k0 = Math.min(sim.previo - 1, Math.floor(kf));
+    const w = kf - k0;
+    // Escala FIJA (la del patrón ya formado): al principio el ruido es minúsculo y las líneas casi
+    // planas; las ondas crecen solas
+    const ref = sim.previo;
+    const rango = (datos: Float32Array[]) => {
+      let min = Infinity;
+      let max = -Infinity;
+      for (const x of datos[ref]) {
+        if (x < min) min = x;
+        if (x > max) max = x;
+      }
+      return [min, max] as const;
+    };
+    const mezcla = (datos: Float32Array[], [min, max]: readonly [number, number]) =>
+      Float32Array.from(datos[k0], (x, i) => (x * (1 - w) + datos[k0 + 1][i] * w - min) / Math.max(1e-9, max - min));
+    const u = mezcla(sim.piel.ur, rango(sim.piel.ur));
+    const v = mezcla(sim.piel.vr, rango(sim.piel.vr));
     const x0 = 90;
     const x1 = 990;
     const curva = (ctx: CanvasRenderingContext2D, datos: Float32Array, base: number, alto: number) => {
@@ -394,8 +411,8 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     for (let i = 0; i < 180; i++) {
       const s = i / 180;
       const val = en(u, s);
-      if (val < 0.25) continue;
-      c.a.fillStyle = cobertura(Math.min(1, (val - 0.2) * 1.3));
+      if (val < 0.3) continue;
+      c.a.fillStyle = cobertura(Math.min(1, (val - 0.3) * 1.5));
       c.a.fillRect(x0 + s * (x1 - x0), 920, (x1 - x0) / 180 + 1, 200);
     }
     k.strokeRect(x0, 920, x1 - x0, 200);
