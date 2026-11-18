@@ -84,8 +84,9 @@ export function rayasReales(t: number, l: Linea): {pos: number; grosor: number}[
   const lista: {pos: number; grosor: number}[] = [];
   const nivel = (k: number) => {
     const n = 3 * 2 ** k;
-    const desde = k === 0 ? -Infinity : k === 1 ? l.seis - 0.4 : l.doce - 0.4;
-    const g = k === 0 ? 1 : fase(t, desde, desde + 0.7);
+    // Las nuevas nacen justo cuando la voz dice «seis» y «doce»
+    const desde = k === 0 ? -Infinity : k === 1 ? l.seis - 0.15 : l.doce - 0.15;
+    const g = k === 0 ? 1 : fase(t, desde, desde + 0.3);
     return {n, g};
   };
   for (let k = 0; k < 3; k++) {

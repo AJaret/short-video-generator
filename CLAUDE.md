@@ -139,6 +139,7 @@ Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodio
   - Siempre: fuente en pantalla, rótulos «esquema», lecturas con `lectura`, zonas seguras y el estado de portada repetido en el último fotograma.
   - `sacudirRegistro` solo en la revelación. Nada salta ni late al ritmo porque sí.
   - Si el tema es el ritmo (el parpadeo de `nº09`), entonces sí va al pulso, pero lento: un destello cada dos tiempos.
+  - Los fondos (retículas, texturas simuladas) cubren la pantalla entera, nunca un recuadro que se corta (el usuario, 2026-11-17).
   - Dibujos sobre un volumen 3D (rayas, manchas): no repartir caras de la malla (sale escalonado); dibujar bandas lisas proyectando curvas sobre la superficie (ver `nº11`).
   - Fondos oscuros: un panel de tinta tramada (`fondoTinta` con `trama: true` y `rect`) que deja papel abajo para el título de la portada; la luz se hace recortando papel con `recortarPapel` a distintas fuerzas (anillos de trama).
 - `sonido.ts`: `partitura()` si la música es `edicion`, o `eventos()` con la música `viva` (ver `docs/sonido.md`). Solo suena lo que pasa en pantalla.

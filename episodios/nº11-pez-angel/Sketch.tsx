@@ -240,8 +240,11 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
 
   /** Rayas del pez real (3 → 6 → 12): bandas más finas cuanto más crece. */
   const rayasDe = (tt: number): [number, number][] => {
-    const ancho = 0.05 / tamanoPez(tt, l);
-    return rayasReales(tt, l).map((r) => {
+    // Cada raya conserva su ancho real mientras el cuerpo crece («no se estiran»): se abren huecos y
+    // las nuevas nacen en ellos
+    const lista = rayasReales(tt, l);
+    const ancho = 0.036 / tamanoPez(tt, l); // medio ancho de la raya
+    return lista.map((r) => {
       const centro = 0.14 + 0.72 * r.pos;
       return [centro - ancho * r.grosor, centro + ancho * r.grosor] as [number, number];
     });
@@ -270,8 +273,9 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     b.strokeStyle = cobertura(1);
     b.lineWidth = 2.5;
     b.beginPath();
-    for (let i = -8; i <= 8; i++) for (let j = -9; j <= 9; j++) {
+    for (let i = -12; i <= 12; i++) for (let j = -18; j <= 18; j++) {
       const q = proyectar([i * 1.2, j * 1.2, -4], cam);
+      if (q && (q[0] < -20 || q[0] > 1100 || q[1] < -20 || q[1] > 1940)) continue;
       if (!q) continue;
       b.moveTo(q[0] - 7, q[1]);
       b.lineTo(q[0] + 7, q[1]);
@@ -316,7 +320,8 @@ const Sketch: React.FC<PropsSketch> = ({tiempos, config}) => {
     const fondo = conMuerte ? c.b : c.a;
     fondo.save();
     fondo.globalAlpha = 0.34;
-    campo(fondo, fotos[kf], 96, -60, 160, 1200, 1200);
+    // Mosaico a pantalla completa (Gray-Scott es periódico: no hay costuras)
+    for (const fx of [-460, 540]) for (const fy of [-80, 920, 1920]) campo(fondo, fotos[kf], 96, fx, fy, 1000, 1000);
     fondo.restore();
     // La ficha deriva despacio hacia arriba
     const y = 560 + 60 * (1 - e) - 40 * fase(t, desde, hasta);

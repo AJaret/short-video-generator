@@ -31,3 +31,7 @@ Hofer y Maini (*Nature* 380, 678, 1996) discutieron que la reacción-difusión p
 - **Loop**: la cola y el leve giro dan un número entero de ciclos en todo el video, y el cierre vuelve al pez de la portada.
 - **Música `edicion` en Mi menor**: una nota por cada raya nueva (3 → 6 → 12), agudos para el activador y graves para el inhibidor, un acorde por cuadro, y en la revelación una campana cada vez que la simulación inserta una raya.
 - Movimiento: el 6 % de los fotogramas tiene cambio fuerte y ningún tramo quieto pasa de 0,4 s.
+
+## Correcciones del usuario (2026-11-17)
+- «Tres, seis, doce» no se veía: las rayas solo engordaban. Ahora cada raya conserva su ancho real mientras el cuerpo crece («no se estiran»), así que se abren huecos, y las nuevas nacen en ellos justo cuando la voz dice «seis» y «doce».
+- Los fondos de las fichas (manchas y laberinto) se cortaban arriba y abajo. Ahora son un mosaico a pantalla completa (Gray-Scott es periódico, así que no hay costuras), y la retícula del pez llega a los bordes.
