@@ -20,7 +20,7 @@ export const PARAMS = {
 
 /** Celda de la retícula triangular: (i, j) con fila j desplazada media celda si es impar. */
 export type Celda = [number, number];
-const clave = (i: number, j: number) => `${i},${j}`;
+export const clave = (i: number, j: number) => `${i},${j}`;
 
 /** Posición en el plano (x a favor del viento, y de lado), con separación 1. */
 export const aPlano = ([i, j]: Celda): [number, number] => [i + (j & 1 ? 0.5 : 0), j * 0.866];
@@ -39,7 +39,7 @@ export function vecinos([i, j]: Celda): Celda[] {
 }
 
 /** Viento que recibe una celda: vecinos libres del lado de barlovento (de donde viene, −x). */
-function exposicion(c: Celda, ocupado: Set<string>): number {
+export function exposicion(c: Celda, ocupado: Set<string>): number {
   const [x] = aPlano(c);
   let e = 0;
   for (const v of vecinos(c)) {
@@ -66,16 +66,16 @@ export type Historia = {
   frio: number[][];
 };
 
-/** Disposición de partida: un grupo redondo y compacto. */
+/** Disposición de partida: un grupo redondo y compacto (las n celdas más cercanas al centro). */
 export function inicial(n: number): Celda[] {
-  const lista: Celda[] = [];
-  for (let r = 0; lista.length < n && r < 50; r++) {
-    for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
-      const [x, y] = aPlano([i, j]);
-      if (Math.hypot(x, y) <= r && Math.hypot(x, y) > r - 1 && lista.length < n) lista.push([i, j]);
-    }
+  const todas: [number, Celda][] = [];
+  for (let j = -20; j <= 20; j++) for (let i = -20; i <= 20; i++) {
+    const [x, y] = aPlano([i, j]);
+    // Un desempate fijo para que el borde no salga en escalones regulares
+    todas.push([Math.hypot(x, y) + 0.001 * ((i * 7 + j * 13) % 5), [i, j]]);
   }
-  return lista;
+  todas.sort((a, b) => a[0] - b[0]);
+  return todas.slice(0, n).map(([, c]) => c);
 }
 
 /** Simula `rondas` rondas. Con `mover = false`, nadie se mueve (el control). */
