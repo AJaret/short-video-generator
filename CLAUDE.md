@@ -108,7 +108,7 @@ Todo corre en Docker; `producir.py` es el único coordinador en Windows, con Pyt
 
 ## Receta: cómo se hace un episodio de principio a fin
 
-Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodios/nº08-moho/` (mapa 2D) y `episodios/nº08b-moho-edicion/` (maqueta 3D, planchas de tinta y música `edicion`). Estado al 2026-11-16: `nº09-luciernagas` aprobado por el usuario (bosque 3D, luz rosa, gráfico de destellos). `nº10-abejas` aprobado por el usuario (enjambre e isla en 3D, el baile, votación simulada, «4 DE 5»). `nº11-pez-angel` producido (pez 3D con rayas en bandas, receta de Turing, manchas y laberinto simulados, revelación en plancha azul); falta que el usuario lo vea.
+Así se hicieron `nº08`, `nº08b` y `nº09`. Los modelos a copiar son `episodios/nº08-moho/` (mapa 2D) y `episodios/nº08b-moho-edicion/` (maqueta 3D, planchas de tinta y música `edicion`). Estado al 2026-11-16: `nº09-luciernagas` aprobado por el usuario (bosque 3D, luz rosa, gráfico de destellos). `nº10-abejas` aprobado por el usuario (enjambre e isla en 3D, el baile, votación simulada, «4 DE 5»). `nº11-pez-angel` aprobado por el usuario (pez 3D con rayas finas que se multiplican, receta de Turing, manchas y laberinto simulados, revelación en plancha azul).
 
 ### 0 · Elegir el tema
 - El video que más gustó al público fue el del moho (`nº08`). Su fórmula: **un experimento real** + **un ser vivo o sistema sin jefe que iguala a los ingenieros en algo cotidiano** + **cifras de un artículo** + **se puede simular con código**.
